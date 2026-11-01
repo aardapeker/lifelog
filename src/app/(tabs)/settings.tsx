@@ -11,7 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { DEFAULT_CHAT_MODEL, testClaudeKey } from '../../lib/claude';
+import { getChatConfig, getChatModel, PROVIDERS, saveChatConfig } from '../../lib/chat';
 import { getSetting, setSetting } from '../../lib/db';
 import { embed, indexPending, indexStats } from '../../lib/embeddings';
 import { getKey, maskKey, setKey, type Provider } from '../../lib/keys';
@@ -113,7 +113,9 @@ function KeyCard(props: {
 export default function SettingsScreen() {
   const db = useSQLiteContext();
   const [profile, setProfile] = useState('');
-  const [model, setModel] = useState(DEFAULT_CHAT_MODEL);
+  const [provider, setProvider] = useState<Provider>('anthropic');
+  const [model, setModel] = useState('');
+  const [chatStatus, setChatStatus] = useState<Status>({ kind: 'idle' });
   const [stats, setStats] = useState({ done: 0, waiting: 0 });
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
   const [indexStatus, setIndexStatus] = useState<Status>({ kind: 'idle' });
@@ -121,15 +123,40 @@ export default function SettingsScreen() {
   useFocusEffect(
     useCallback(() => {
       getSetting(db, 'profile').then(setProfile);
-      getSetting(db, 'chatModel', DEFAULT_CHAT_MODEL).then(setModel);
+      getChatConfig(db).then((c) => {
+        setProvider(c.provider);
+        setModel(c.model);
+      });
       indexStats(db).then(setStats);
     }, [db]),
   );
 
   const saveProfile = async () => {
     await setSetting(db, 'profile', profile);
-    await setSetting(db, 'chatModel', model.trim() || DEFAULT_CHAT_MODEL);
     setStatus({ kind: 'ok', msg: 'Saved.' });
+  };
+
+  const pickProvider = async (p: Provider) => {
+    setProvider(p);
+    setModel(await getChatModel(db, p));
+    setChatStatus({ kind: 'idle' });
+  };
+
+  const saveChat = async () => {
+    await saveChatConfig(db, provider, model);
+    setChatStatus({ kind: 'ok', msg: `Chatting with ${PROVIDERS[provider].label} now.` });
+  };
+
+  const testChat = async () => {
+    setChatStatus({ kind: 'busy' });
+    try {
+      const key = await getKey(provider);
+      if (!key) throw new Error(`No ${PROVIDERS[provider].label} key saved yet.`);
+      await PROVIDERS[provider].test(key, model.trim() || PROVIDERS[provider].defaultModel);
+      setChatStatus({ kind: 'ok', msg: 'Model answers! ✅ Tap Save to use it.' });
+    } catch (e) {
+      setChatStatus({ kind: 'err', msg: e instanceof Error ? e.message : String(e) });
+    }
   };
 
   const reindex = async () => {
@@ -151,16 +178,39 @@ export default function SettingsScreen() {
           provider="anthropic"
           title="Claude (chat)"
           hint="console.anthropic.com → API Keys. Starts with sk-ant-"
-          test={(key) => testClaudeKey(key, model.trim() || DEFAULT_CHAT_MODEL)}
+          test={async (key) => PROVIDERS.anthropic.test(key, await getChatModel(db, 'anthropic'))}
         />
         <KeyCard
           provider="gemini"
           title="Gemini (memory search)"
-          hint="aistudio.google.com → Get API key. Enable billing so your notes aren't used for training."
+          hint="aistudio.google.com → Get API key. Used for memory search, and for chat if you pick Gemini below. Enable billing so your notes aren't used for training."
           test={async (key) => {
             await embed('test', 'RETRIEVAL_QUERY', key);
           }}
         />
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Chat</Text>
+          <Text style={styles.hint}>Who talks to you. One Gemini key is enough for everything.</Text>
+          <View style={styles.row}>
+            {(Object.keys(PROVIDERS) as Provider[]).map((p) => (
+              <Button key={p} label={PROVIDERS[p].label} onPress={() => pickProvider(p)} ghost={p !== provider} />
+            ))}
+          </View>
+          <Text style={[styles.hint, { marginTop: 12 }]}>Model</Text>
+          <TextInput
+            style={styles.input}
+            value={model}
+            onChangeText={setModel}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <View style={styles.row}>
+            <Button label="Save" onPress={saveChat} />
+            <Button label="Test" onPress={testChat} ghost />
+          </View>
+          <StatusLine status={chatStatus} />
+        </View>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>About me</Text>
@@ -175,14 +225,6 @@ export default function SettingsScreen() {
             placeholderTextColor={colors.muted}
             value={profile}
             onChangeText={setProfile}
-          />
-          <Text style={[styles.hint, { marginTop: 12 }]}>Chat model</Text>
-          <TextInput
-            style={styles.input}
-            value={model}
-            onChangeText={setModel}
-            autoCapitalize="none"
-            autoCorrect={false}
           />
           <View style={styles.row}>
             <Button label="Save" onPress={saveProfile} />

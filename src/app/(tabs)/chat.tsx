@@ -13,10 +13,8 @@ import {
   View,
   type ScrollViewInstance,
 } from 'react-native';
-import { DEFAULT_CHAT_MODEL, streamClaude, type ChatMessage } from '../../lib/claude';
+import { getChatConfig, PROVIDERS, type ChatMessage } from '../../lib/chat';
 import { buildSystemPrompt } from '../../lib/context';
-import { getSetting } from '../../lib/db';
-import { getKey } from '../../lib/keys';
 import { colors, radius } from '../../lib/theme';
 
 type Row = ChatMessage & { id: number | string };
@@ -30,11 +28,15 @@ export default function ChatScreen() {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [hasKey, setHasKey] = useState(true);
+  const [label, setLabel] = useState('');
   const scrollRef = useRef<ScrollViewInstance>(null);
 
   useFocusEffect(
     useCallback(() => {
-      getKey('anthropic').then((k) => setHasKey(!!k));
+      getChatConfig(db).then((c) => {
+        setHasKey(!!c.apiKey);
+        setLabel(`${PROVIDERS[c.provider].label} · ${c.model}`);
+      });
       db.getAllAsync<Row>('SELECT id, role, content FROM messages ORDER BY id').then(setMessages);
     }, [db]),
   );
@@ -66,7 +68,7 @@ export default function ChatScreen() {
   const send = async () => {
     const text = input.trim();
     if (!text || busy) return;
-    const apiKey = await getKey('anthropic');
+    const { provider, model, apiKey } = await getChatConfig(db);
     if (!apiKey) {
       setHasKey(false);
       return;
@@ -86,11 +88,8 @@ export default function ChatScreen() {
     setMessages([...history, { id: pendingId, role: 'assistant', content: '' }]);
 
     try {
-      const [system, model] = await Promise.all([
-        buildSystemPrompt(db, text),
-        getSetting(db, 'chatModel', DEFAULT_CHAT_MODEL),
-      ]);
-      const reply = await streamClaude({
+      const system = await buildSystemPrompt(db, text);
+      const reply = await PROVIDERS[provider].stream({
         apiKey,
         model,
         system,
@@ -118,8 +117,8 @@ export default function ChatScreen() {
   if (!hasKey) {
     return (
       <View style={[styles.screen, styles.center]}>
-        <Text style={styles.emptyTitle}>No Claude API key yet</Text>
-        <Text style={styles.emptyText}>Paste it in Settings and come back.</Text>
+        <Text style={styles.emptyTitle}>No API key yet</Text>
+        <Text style={styles.emptyText}>Paste a Claude or Gemini key in Settings and come back.</Text>
         <Pressable style={styles.button} onPress={() => router.navigate('/settings')}>
           <Text style={styles.buttonText}>Open Settings</Text>
         </Pressable>
@@ -134,6 +133,7 @@ export default function ChatScreen() {
         contentContainerStyle={{ padding: 16, gap: 10 }}
         onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
       >
+        {!!label && <Text style={styles.model}>{label}</Text>}
         {messages.length === 0 && (
           <Text style={styles.emptyText}>Say hi. I've read your journal. 👀</Text>
         )}
@@ -173,6 +173,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   center: { alignItems: 'center', justifyContent: 'center', padding: 24, gap: 10 },
   emptyTitle: { color: colors.text, fontSize: 18, fontWeight: '600' },
+  model: { color: colors.muted, fontSize: 11, textAlign: 'center', fontFamily: 'monospace' },
   emptyText: { color: colors.muted, textAlign: 'center', marginTop: 8 },
   bubble: { maxWidth: '85%', padding: 12, borderRadius: radius },
   mine: { alignSelf: 'flex-end', backgroundColor: colors.accent },
