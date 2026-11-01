@@ -103,3 +103,58 @@ export function formatDate(ms: number): string {
     minute: '2-digit',
   });
 }
+
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+export function formatTime(ms: number): string {
+  const d = new Date(ms);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+export type DaySection = { key: string; day: number; month: string; weekday: string; data: Note[] };
+
+/** Groups notes (already sorted newest first) into one section per calendar day. */
+export function groupByDay(notes: Note[]): DaySection[] {
+  const sections: DaySection[] = [];
+  const today = new Date().toDateString();
+  const yesterday = new Date(Date.now() - 86_400_000).toDateString();
+  for (const note of notes) {
+    const d = new Date(note.created_at);
+    const key = d.toDateString();
+    let section = sections.find((s) => s.key === key);
+    if (!section) {
+      const weekday = key === today ? 'Today' : key === yesterday ? 'Yesterday' : WEEKDAYS[d.getDay()];
+      const sameYear = d.getFullYear() === new Date().getFullYear();
+      section = {
+        key,
+        day: d.getDate(),
+        month: sameYear ? MONTHS[d.getMonth()] : `${MONTHS[d.getMonth()]} ${d.getFullYear()}`,
+        weekday,
+        data: [],
+      };
+      sections.push(section);
+    }
+    section.data.push(note);
+  }
+  return sections;
+}
+
+function partOfDay(hour: number): string {
+  if (hour < 5) return 'Night';
+  if (hour < 12) return 'Morning';
+  if (hour < 18) return 'Afternoon';
+  if (hour < 22) return 'Evening';
+  return 'Night';
+}
+
+/** "Sunday Evening" — the headline of an entry. */
+export function entryTitle(ms: number): string {
+  const d = new Date(ms);
+  return `${WEEKDAYS[d.getDay()]} ${partOfDay(d.getHours())}`;
+}
+
+export function greeting(now = new Date()): string {
+  const p = partOfDay(now.getHours()).toLowerCase();
+  return p === 'night' ? 'Still up?' : `Good ${p},`;
+}

@@ -1,6 +1,7 @@
-import { router, useFocusEffect, useNavigation } from 'expo-router';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,17 +14,20 @@ import {
   View,
   type ScrollViewInstance,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Chip, IconButton, PillButton } from '../../components/ui';
 import { getChatConfig, PROVIDERS, type ChatMessage } from '../../lib/chat';
 import { buildSystemPrompt } from '../../lib/context';
-import { colors, radius } from '../../lib/theme';
+import { colors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 
 type Row = ChatMessage & { id: number | string };
 
 const HISTORY = 20; // how many past messages are sent with each request
+const STARTERS = ['How was my week?', 'What have I been worried about?', 'Remind me what I planned'];
 
 export default function ChatScreen() {
   const db = useSQLiteContext();
-  const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<Row[]>([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -35,14 +39,14 @@ export default function ChatScreen() {
     useCallback(() => {
       getChatConfig(db).then((c) => {
         setHasKey(!!c.apiKey);
-        setLabel(`${PROVIDERS[c.provider].label} · ${c.model}`);
+        setLabel(`${PROVIDERS[c.provider].label}, ${c.model}`);
       });
       db.getAllAsync<Row>('SELECT id, role, content FROM messages ORDER BY id').then(setMessages);
     }, [db]),
   );
 
-  const clear = useCallback(() => {
-    Alert.alert('Clear chat?', 'Your journal stays. Only this conversation is deleted.', [
+  const clear = () => {
+    Alert.alert('Clear this chat?', 'Your journal stays. Only this conversation is deleted.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Clear',
@@ -53,20 +57,10 @@ export default function ChatScreen() {
         },
       },
     ]);
-  }, [db]);
+  };
 
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <Pressable onPress={clear} hitSlop={10} style={{ marginRight: 16 }}>
-          <Text style={{ color: colors.muted }}>Clear</Text>
-        </Pressable>
-      ),
-    });
-  }, [navigation, clear]);
-
-  const send = async () => {
-    const text = input.trim();
+  const send = async (override?: string) => {
+    const text = (override ?? input).trim();
     if (!text || busy) return;
     const { provider, model, apiKey } = await getChatConfig(db);
     if (!apiKey) {
@@ -106,9 +100,7 @@ export default function ChatScreen() {
       setMessages((prev) => prev.map((m) => (m.id === pendingId ? { ...m, id: res.lastInsertRowId } : m)));
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      setMessages((prev) =>
-        prev.map((m) => (m.id === pendingId ? { ...m, content: `⚠️ ${msg}` } : m)),
-      );
+      setMessages((prev) => prev.map((m) => (m.id === pendingId ? { ...m, content: `Couldn't answer: ${msg}` } : m)));
     } finally {
       setBusy(false);
     }
@@ -117,52 +109,82 @@ export default function ChatScreen() {
   if (!hasKey) {
     return (
       <View style={[styles.screen, styles.center]}>
-        <Text style={styles.emptyTitle}>No API key yet</Text>
-        <Text style={styles.emptyText}>Paste a Claude or Gemini key in Settings and come back.</Text>
-        <Pressable style={styles.button} onPress={() => router.navigate('/settings')}>
-          <Text style={styles.buttonText}>Open Settings</Text>
-        </Pressable>
+        <Text style={styles.bigTitle}>{'Add a Key\nto Begin'}</Text>
+        <Text style={styles.muted}>One Gemini key is enough. Paste it in Settings, then come back.</Text>
+        <PillButton label="Open Settings" onPress={() => router.navigate('/settings')} style={{ marginTop: 22, alignSelf: 'flex-start' }} />
       </View>
     );
   }
 
+  const canSend = !busy && !!input.trim();
+
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior="padding" keyboardVerticalOffset={90}>
+    <KeyboardAvoidingView style={[styles.screen, { paddingTop: insets.top + 12 }]} behavior="padding">
+      <View style={styles.top}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.title}>Chat</Text>
+          {!!label && <Text style={styles.model}>{label}</Text>}
+        </View>
+        {messages.length > 0 && <IconButton icon="refresh" label="Clear chat" onPress={clear} />}
+      </View>
+
       <ScrollView
         ref={scrollRef}
-        contentContainerStyle={{ padding: 16, gap: 10 }}
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.thread}
+        keyboardShouldPersistTaps="handled"
         onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
       >
-        {!!label && <Text style={styles.model}>{label}</Text>}
         {messages.length === 0 && (
-          <Text style={styles.emptyText}>Say hi. I've read your journal. 👀</Text>
+          <View style={styles.intro}>
+            <Text style={styles.bigTitle}>{"I've Read\nYour Journal"}</Text>
+            <Text style={styles.muted}>Ask me anything about your days, or just tell me how the shift went.</Text>
+            <View style={styles.starters}>
+              {STARTERS.map((q) => (
+                <Chip key={q} label={q} onPress={() => send(q)} />
+              ))}
+            </View>
+          </View>
         )}
-        {messages.map((m) => (
-          <View key={m.id} style={[styles.bubble, m.role === 'user' ? styles.mine : styles.theirs]}>
-            {m.content ? (
-              <Text
-                selectable
-                style={[styles.bubbleText, m.role === 'user' && { color: colors.accentText }]}
-              >
+        {messages.map((m) =>
+          m.role === 'user' ? (
+            <View key={m.id} style={styles.mine}>
+              <Text selectable style={styles.mineText}>
                 {m.content}
               </Text>
-            ) : (
-              <ActivityIndicator color={colors.muted} />
-            )}
-          </View>
-        ))}
+            </View>
+          ) : (
+            <View key={m.id} style={styles.theirs}>
+              {m.content ? (
+                <Text selectable style={styles.theirsText}>
+                  {m.content}
+                </Text>
+              ) : (
+                <ActivityIndicator color={colors.text} style={{ alignSelf: 'flex-start' }} />
+              )}
+            </View>
+          ),
+        )}
       </ScrollView>
-      <View style={styles.inputRow}>
+
+      <View style={[styles.composer, { marginBottom: TAB_BAR_SPACE - 30 + insets.bottom }]}>
         <TextInput
           style={styles.input}
           multiline
-          placeholder="Message…"
+          placeholder="Write a message"
           placeholderTextColor={colors.muted}
           value={input}
           onChangeText={setInput}
+          selectionColor={colors.text}
+          cursorColor={colors.text}
         />
-        <Pressable style={[styles.send, (busy || !input.trim()) && { opacity: 0.4 }]} onPress={send}>
-          <Text style={styles.buttonText}>↑</Text>
+        <Pressable
+          style={[styles.send, !canSend && { backgroundColor: '#4A4949' }]}
+          onPress={() => send()}
+          disabled={!canSend}
+          accessibilityLabel="Send message"
+        >
+          <Ionicons name="arrow-up" size={20} color={canSend ? colors.accentText : colors.muted} />
         </Pressable>
       </View>
     </KeyboardAvoidingView>
@@ -171,47 +193,58 @@ export default function ChatScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  center: { alignItems: 'center', justifyContent: 'center', padding: 24, gap: 10 },
-  emptyTitle: { color: colors.text, fontSize: 18, fontWeight: '600' },
-  model: { color: colors.muted, fontSize: 11, textAlign: 'center', fontFamily: 'monospace' },
-  emptyText: { color: colors.muted, textAlign: 'center', marginTop: 8 },
-  bubble: { maxWidth: '85%', padding: 12, borderRadius: radius },
-  mine: { alignSelf: 'flex-end', backgroundColor: colors.accent },
-  theirs: { alignSelf: 'flex-start', backgroundColor: colors.surface },
-  bubbleText: { color: colors.text, fontSize: 15, lineHeight: 21 },
-  inputRow: {
+  center: { justifyContent: 'center', paddingHorizontal: 28 },
+  top: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginBottom: 6 },
+  title: { fontFamily: fonts.serif, fontSize: 34, color: colors.text },
+  model: { fontFamily: fonts.sansRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
+
+  thread: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16, gap: 18 },
+  intro: { marginTop: 24 },
+  bigTitle: { fontFamily: fonts.serif, fontSize: 46, lineHeight: 50, color: colors.text, marginBottom: 14 },
+  muted: { fontFamily: fonts.sansRegular, fontSize: 15, lineHeight: 22, color: colors.muted, maxWidth: 320 },
+  starters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 24 },
+
+  // the friend writes like a letter: no bubble, serif
+  theirs: { alignSelf: 'stretch', paddingRight: 20 },
+  theirsText: { fontFamily: fonts.serif, fontSize: 17, lineHeight: 27, color: colors.text },
+  // you: white bubble on the right
+  mine: {
+    alignSelf: 'flex-end',
+    maxWidth: '82%',
+    backgroundColor: colors.accent,
+    borderRadius: radius.md,
+    borderBottomRightRadius: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+  },
+  mineText: { fontFamily: fonts.sansRegular, fontSize: 15, lineHeight: 21, color: colors.accentText },
+
+  composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: 8,
-    padding: 10,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.surface,
+    marginHorizontal: 16,
+    paddingLeft: 20,
+    paddingRight: 5,
+    paddingVertical: 5,
+    borderRadius: 26,
+    backgroundColor: colors.raised,
   },
   input: {
     flex: 1,
-    maxHeight: 140,
+    maxHeight: 130,
+    minHeight: 42,
+    paddingTop: 11,
+    paddingBottom: 11,
     color: colors.text,
-    backgroundColor: colors.surfaceHigh,
-    borderRadius: radius,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    fontFamily: fonts.sansRegular,
     fontSize: 15,
   },
   send: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  button: {
-    marginTop: 12,
-    backgroundColor: colors.accent,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: radius,
-  },
-  buttonText: { color: colors.accentText, fontWeight: '700', fontSize: 16 },
 });

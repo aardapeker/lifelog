@@ -1,14 +1,27 @@
+// Monochrome editorial: charcoal, white, one grey. Libre Caslon for voice, Inter for UI.
 export const colors = {
-  bg: '#14141A',
-  surface: '#1E1E26',
-  surfaceHigh: '#2A2A35',
-  border: '#33333F',
-  text: '#ECECF1',
-  muted: '#8E8E9C',
-  accent: '#F2A65A',
-  accentText: '#1A1208',
-  danger: '#E5636A',
-  ok: '#6CC28A',
+  bg: '#1D1C1C',
+  surface: '#272626', // cards, panels
+  raised: '#333232', // inputs, chips, tab bar
+  line: '#3D3C3C',
+  text: '#FFFFFF',
+  muted: '#999898',
+  accent: '#FFFFFF', // primary buttons are white pills
+  accentText: '#1D1C1C',
+  danger: '#FF8A80',
+  ok: '#9AD8AE',
 };
 
-export const radius = 14;
+export const fonts = {
+  serif: 'LibreCaslonText_400Regular',
+  serifItalic: 'LibreCaslonText_400Regular_Italic',
+  serifBold: 'LibreCaslonText_700Bold',
+  sans: 'Inter_500Medium',
+  sansRegular: 'Inter_400Regular',
+  sansBold: 'Inter_600SemiBold',
+};
+
+export const radius = { sm: 12, md: 20, lg: 28, pill: 999 };
+
+/** Space the floating tab bar needs at the bottom of every tab screen. */
+export const TAB_BAR_SPACE = 110;
