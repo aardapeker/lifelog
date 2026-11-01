@@ -3,6 +3,7 @@ import { deliverDue, planCheckins } from './checkins';
 import { indexPending } from './embeddings';
 import { learnFacts } from './facts';
 import { captionPending } from './photos';
+import { scheduleDayOffReminders } from './planner';
 import { ensureRecap } from './recap';
 
 /**
@@ -17,4 +18,5 @@ export async function runBackgroundJobs(db: SQLiteDatabase): Promise<void> {
   await safe(learnFacts(db));
   await safe(ensureRecap(db));
   await safe(planCheckins(db));
+  await safe(scheduleDayOffReminders(db));
 }

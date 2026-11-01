@@ -9,6 +9,7 @@ import { getSetting } from '../../lib/db';
 import { backupDue, backupNow, getPassphrase } from '../../lib/backup';
 import { runBackgroundJobs } from '../../lib/background';
 import { photoMap, photoUri } from '../../lib/photos';
+import { dayParam, getPlannerSettings, midnight, upcomingDayOff } from '../../lib/planner';
 import { latestRecap, weekLabel, type Recap } from '../../lib/recap';
 import {
   formatDate,
@@ -81,6 +82,7 @@ export default function JournalScreen() {
   const [recap, setRecap] = useState<Recap | null>(null);
   const [memories, setMemories] = useState<{ label: string; note: Note }[]>([]);
   const [needsBackup, setNeedsBackup] = useState(false);
+  const [dayOff, setDayOff] = useState<number | null>(null);
   const isSearch = query.trim().length > 0;
 
   const load = useCallback(async () => {
@@ -104,6 +106,7 @@ export default function JournalScreen() {
       photoMap(db).then(setPhotos);
       onThisDay(db).then(setMemories);
       backupDue(db).then(setNeedsBackup);
+      upcomingDayOff(db).then(setDayOff);
       // captions, embeddings, facts, the weekly letter, check-ins
       runBackgroundJobs(db).then(async () => {
         const r = await latestRecap(db);
@@ -157,6 +160,26 @@ export default function JournalScreen() {
           </View>
           <PillButton label="Back up" onPress={backup} />
         </View>
+      )}
+      {dayOff !== null && (
+        <Pressable
+          style={styles.letter}
+          onPress={async () => {
+            const s = await getPlannerSettings(db);
+            if (!s.city) {
+              Alert.alert('Where are you?', 'Set your city in Settings → Days Off, so I can check the weather and events.', [
+                { text: 'Later', style: 'cancel' },
+                { text: 'Open Settings', onPress: () => router.navigate('/settings') },
+              ]);
+              return;
+            }
+            router.push(`/plan/${dayParam(dayOff)}`);
+          }}
+        >
+          <Text style={styles.letterLabel}>{dayOff === midnight(Date.now()) ? 'Today is a day off' : 'Tomorrow is free'}</Text>
+          <Text style={styles.letterTitle}>Plan my day</Text>
+          <Text style={styles.letterBody}>Weather, real events nearby and a little push to get out there.</Text>
+        </Pressable>
       )}
       {recap && (
         <Pressable style={styles.letter} onPress={() => router.push(`/recap/${recap.id}`)}>

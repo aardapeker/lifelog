@@ -23,6 +23,9 @@ Android only. No server, no account. Everything lives on the phone.
 - **Share into Lifelog** from any app: text, links and images become a new entry
 - **Grammar fixer**: one tap in the editor, or automatically on save
 - **Export** everything as JSON, for moving to a home server later
+- **Day planner for days off**: weather (Open-Meteo, no key), real events found with Gemini's Google Search,
+  your goals, mood and people you haven't seen, turned into a checklist; adjustable "social push";
+  reminder the evening before; ticked items become a journal entry draft
 
 Everything lives on the phone. One Gemini key is enough for all of it.
 

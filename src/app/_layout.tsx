@@ -52,14 +52,15 @@ export default function RootLayout() {
     if (loaded) SplashScreen.hideAsync().catch(() => {});
   }, [loaded]);
 
-  // tapping a check-in opens the chat
+  // tapping a check-in opens the chat, tapping a day-off reminder opens the plan
   useEffect(() => {
     if (!loaded) return;
-    const open = () => setTimeout(() => router.navigate('/chat'), 300);
-    if (Notifications.getLastNotificationResponse()?.notification.request.content.data?.kind === 'checkin') open();
-    const sub = Notifications.addNotificationResponseReceivedListener((r) => {
-      if (r.notification.request.content.data?.kind === 'checkin') open();
-    });
+    const handle = (data: Record<string, unknown> | undefined) => {
+      if (data?.kind === 'checkin') setTimeout(() => router.navigate('/chat'), 300);
+      if (data?.kind === 'planner' && typeof data.day === 'string') setTimeout(() => router.push(`/plan/${data.day}`), 300);
+    };
+    handle(Notifications.getLastNotificationResponse()?.notification.request.content.data);
+    const sub = Notifications.addNotificationResponseReceivedListener((r) => handle(r.notification.request.content.data));
     return () => sub.remove();
   }, [loaded]);
 
@@ -77,6 +78,7 @@ export default function RootLayout() {
         <Stack.Screen name="recap/[id]" />
         <Stack.Screen name="goal/[id]" />
         <Stack.Screen name="person/[name]" />
+        <Stack.Screen name="plan/[day]" />
         <Stack.Screen name="welcome" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
       </Stack>
       </LockGate>

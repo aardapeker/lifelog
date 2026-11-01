@@ -1,4 +1,4 @@
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState, type ReactNode } from 'react';
 import { Alert, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
@@ -17,6 +17,14 @@ import {
 } from '../../lib/checkins';
 import { deleteFact, listFacts, type Fact } from '../../lib/facts';
 import { formatDate } from '../../lib/notes';
+import {
+  dayParam,
+  getPlannerSettings,
+  midnight,
+  PUSH_LEVELS,
+  savePlannerSettings,
+  type PlannerSettings,
+} from '../../lib/planner';
 import { weekStart } from '../../lib/recap';
 import { getChatConfig, getChatModel, PROVIDERS, saveChatConfig } from '../../lib/chat';
 import { getSetting, setSetting } from '../../lib/db';
@@ -307,6 +315,66 @@ function CheckinSection() {
   );
 }
 
+/** Where you are and how hard to push: the day planner's settings. */
+function DaysOffSection() {
+  const db = useSQLiteContext();
+  const [s, setS] = useState<PlannerSettings | null>(null);
+  const [status, run] = useStatus();
+
+  useFocusEffect(
+    useCallback(() => {
+      getPlannerSettings(db).then(setS);
+    }, [db]),
+  );
+  if (!s) return null;
+
+  const save = (next = s) =>
+    run(async () => {
+      const saved = await savePlannerSettings(db, next);
+      setS(saved);
+      return saved.place ? `Saved. Planning around ${saved.place}.` : 'Saved.';
+    });
+
+  const plan = (offset: number) => {
+    if (!s.place) {
+      Alert.alert('Set your city first', 'Type your district or city and tap Save.');
+      return;
+    }
+    router.push(`/plan/${dayParam(midnight(Date.now()) + offset * 86_400_000)}`);
+  };
+
+  return (
+    <Section title="Days Off" hint="Your friend plans free days: weather, real events nearby, your goals, and a push to see people.">
+      <Text style={styles.label}>Your district or city</Text>
+      <TextInput
+        style={styles.input}
+        value={s.city}
+        onChangeText={(city) => setS({ ...s, city })}
+        placeholder="e.g. Maltepe"
+        placeholderTextColor={colors.muted}
+        selectionColor={colors.text}
+      />
+      {!!s.place && <Text style={[styles.hint, { marginTop: 6 }]}>Found: {s.place}</Text>}
+      <Text style={styles.label}>How hard should I push you to be social?</Text>
+      <Segment options={PUSH_LEVELS} value={s.push} onChange={(push) => setS({ ...s, push })} />
+      <View style={{ marginTop: 16 }}>
+        <Toggle
+          label="Remind me the evening before"
+          hint="At 20:00 before Sundays, and before the Saturday after Night week."
+          value={s.reminders}
+          onChange={(reminders) => setS({ ...s, reminders })}
+        />
+      </View>
+      <View style={[styles.row, { flexWrap: 'wrap' }]}>
+        <PillButton label="Save" onPress={() => save()} />
+        <PillButton label="Plan today" onPress={() => plan(0)} ghost />
+        <PillButton label="Plan tomorrow" onPress={() => plan(1)} ghost />
+      </View>
+      <StatusLine status={status} />
+    </Section>
+  );
+}
+
 /** Facts the friend pulled out of the journal. Wrong ones can be removed. */
 function LearnedSection() {
   const db = useSQLiteContext();
@@ -499,6 +567,8 @@ export default function SettingsScreen() {
         </Section>
 
         <CheckinSection />
+
+        <DaysOffSection />
 
         <PrivacySection />
 

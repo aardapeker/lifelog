@@ -120,6 +120,15 @@ const MIGRATIONS: string[] = [
 
   UPDATE notes SET facts_status = 'pending';
   `,
+  // v4: AI day plans for days off
+  `
+  CREATE TABLE plans (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    day        INTEGER NOT NULL UNIQUE,  -- local midnight of the planned day
+    body       TEXT    NOT NULL,         -- JSON: weather, intro, items (with done flags), sources
+    created_at INTEGER NOT NULL
+  );
+  `,
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<void> {
