@@ -1,0 +1,88 @@
+import type { SQLiteDatabase } from 'expo-sqlite';
+
+export const DB_NAME = 'lifelog.db';
+
+// Each entry runs once, in order. Never edit an old migration — append a new one.
+const MIGRATIONS: string[] = [
+  `
+  CREATE TABLE notes (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    body       TEXT    NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+
+  -- Keyword index. remove_diacritics lets "semistan" find "Şemistan".
+  CREATE VIRTUAL TABLE notes_fts USING fts5(
+    body,
+    content='notes',
+    content_rowid='id',
+    tokenize='unicode61 remove_diacritics 2'
+  );
+  CREATE TRIGGER notes_ai AFTER INSERT ON notes BEGIN
+    INSERT INTO notes_fts(rowid, body) VALUES (new.id, new.body);
+  END;
+  CREATE TRIGGER notes_ad AFTER DELETE ON notes BEGIN
+    INSERT INTO notes_fts(notes_fts, rowid, body) VALUES ('delete', old.id, old.body);
+  END;
+  CREATE TRIGGER notes_au AFTER UPDATE ON notes BEGIN
+    INSERT INTO notes_fts(notes_fts, rowid, body) VALUES ('delete', old.id, old.body);
+    INSERT INTO notes_fts(rowid, body) VALUES (new.id, new.body);
+  END;
+
+  -- Meaning index. One row per chunk of a note.
+  CREATE TABLE chunks (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    note_id INTEGER NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+    text    TEXT    NOT NULL,
+    model   TEXT,
+    dims    INTEGER,
+    vector  BLOB,                       -- normalized float32
+    status  TEXT    NOT NULL DEFAULT 'pending'  -- pending | done | failed
+  );
+  CREATE INDEX chunks_note_idx ON chunks(note_id);
+  CREATE INDEX chunks_status_idx ON chunks(status);
+
+  CREATE TABLE messages (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    role       TEXT    NOT NULL,        -- user | assistant
+    content    TEXT    NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE kv (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
+  `,
+];
+
+export async function migrate(db: SQLiteDatabase): Promise<void> {
+  await db.execAsync('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
+  const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
+  let version = row?.user_version ?? 0;
+  while (version < MIGRATIONS.length) {
+    const sql = MIGRATIONS[version];
+    const next = version + 1;
+    await db.withTransactionAsync(async () => {
+      await db.execAsync(sql);
+      await db.execAsync(`PRAGMA user_version = ${next}`);
+    });
+    version = next;
+  }
+}
+
+// --- tiny key/value store for non-secret settings (profile, model names) ---
+
+export async function getSetting(db: SQLiteDatabase, key: string, fallback = ''): Promise<string> {
+  const row = await db.getFirstAsync<{ value: string }>('SELECT value FROM kv WHERE key = ?', key);
+  return row?.value ?? fallback;
+}
+
+export async function setSetting(db: SQLiteDatabase, key: string, value: string): Promise<void> {
+  await db.runAsync(
+    'INSERT INTO kv(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+    key,
+    value,
+  );
+}

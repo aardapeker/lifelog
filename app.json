@@ -1,25 +1,27 @@
 {
   "expo": {
-    "name": "lifelog",
+    "name": "Lifelog",
     "slug": "lifelog",
-    "version": "1.0.0",
+    "scheme": "lifelog",
+    "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "ios": {
-      "supportsTablet": true
-    },
+    "userInterfaceStyle": "dark",
+    "platforms": ["android"],
     "android": {
+      "package": "dev.arda.lifelog",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#14141A",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    }
+    "plugins": [
+      "expo-router",
+      ["expo-sqlite", { "enableFTS": true }],
+      "expo-secure-store"
+    ]
   }
 }
