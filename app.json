@@ -81,10 +81,10 @@
               "name": "Lifelog",
               "label": "Lifelog",
               "description": "Talk or write to your journal in one tap",
-              "minWidth": "250dp",
-              "minHeight": "110dp",
+              "minWidth": "110dp",
+              "minHeight": "40dp",
               "targetCellWidth": 4,
-              "targetCellHeight": 2,
+              "targetCellHeight": 1,
               "previewImage": "./assets/widget-preview.png",
               "resizeMode": "horizontal|vertical",
               "updatePeriodMillis": 0

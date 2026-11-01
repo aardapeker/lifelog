@@ -70,4 +70,23 @@ def widget_preview(path):
         d.text(((box[0] + box[2] - (tb[2] - tb[0])) / 2 - tb[0], (box[1] + box[3] - (tb[3] - tb[1])) / 2 - tb[1]), label, font=sansm, fill=color)
     img.resize((W, H), Image.LANCZOS).save(path)
 
-widget_preview(f'{out}/widget-preview.png')
+# the widget now starts as a slim 4x1 row, so the picker preview shows that
+def widget_preview_slim(path):
+    W, H, ss = 1000, 180, 2
+    img = Image.new('RGBA', (W * ss, H * ss), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle((0, 0, W * ss, H * ss), radius=60 * ss, fill=BG)
+    serif = ImageFont.truetype(REG, 50 * ss)
+    sansm = ImageFont.truetype('node_modules/@expo-google-fonts/inter/500Medium/Inter_500Medium.ttf', 38 * ss)
+    tb = d.textbbox((0, 0), 'Lifelog', font=serif)
+    d.text((44 * ss, (H * ss - (tb[3] - tb[1])) / 2 - tb[1]), 'Lifelog', font=serif, fill=(255, 255, 255, 255))
+    x, bw, gap = 300, (1000 - 300 - 30 - 24) // 2, 24
+    for i, (label, fill, color) in enumerate([('Talk', (255, 255, 255, 255), BG), ('Write', (51, 50, 50, 255), (255, 255, 255, 255))]):
+        x0 = x + i * (bw + gap)
+        box = (x0 * ss, 40 * ss, (x0 + bw) * ss, 140 * ss)
+        d.rounded_rectangle(box, radius=50 * ss, fill=fill)
+        b = d.textbbox((0, 0), label, font=sansm)
+        d.text(((box[0] + box[2] - (b[2] - b[0])) / 2 - b[0], (box[1] + box[3] - (b[3] - b[1])) / 2 - b[1]), label, font=sansm, fill=color)
+    img.resize((W, H), Image.LANCZOS).save(path)
+
+widget_preview_slim(f'{out}/widget-preview.png')
