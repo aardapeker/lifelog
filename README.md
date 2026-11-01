@@ -3,19 +3,21 @@
 A personal journal that remembers everything you write, plus an AI friend that has read all of it.
 Android only. No server, no account. Everything lives on the phone.
 
-## What's in v0.1
+## What it does
 
-- **Journal**: write entries, edit, delete. Stored in SQLite on the phone.
-- **Search**: hybrid search over your whole life.
-  - FTS5 keyword search (works offline; `semistan` finds `Şemistan`)
-  - Gemini embeddings for meaning ("scooter I wanted" finds "PCX price dropped")
-  - merged with reciprocal rank fusion
-- **Chat**: Claude, streaming. Every message gets your "About me" text, the last 14 days of entries,
-  and older entries the hybrid search finds for that message.
-- **Settings**: paste API keys (no code needed), test them, edit "About me", pick the chat model,
-  see the memory index status.
+- **Journal**: write, talk (voice notes → text), add photos (the AI captions them so they're searchable)
+- **Search**: by keyword (FTS5) and by meaning (Gemini embeddings), merged with reciprocal rank fusion
+- **Chat**: a friend who has read your journal. Sees the last 14 days, your profile and what it has learned;
+  calls a `search_notes` tool for anything older. Claude or Gemini, streaming.
+- **What I've learned**: facts pulled out of every entry (people, goals, plans…), editable in Settings
+- **Your week, in a letter**: a recap written every Sunday
+- **On this day**: entries from 1 month, 6 months and 1 year ago
+- **Check-ins**: messages at break time, following the Morning → Night → Evening shift rotation.
+  Written ahead of time and scheduled as local notifications, so no server is needed
+- **Privacy**: fingerprint lock; API keys in the Android keystore; encrypted backups
+  (AES-256-GCM, scrypt passphrase) saved to Drive through the share sheet, with restore
 
-API keys are stored in Android's encrypted keystore (`expo-secure-store`), never in the database.
+Everything lives on the phone. One Gemini key is enough for all of it.
 
 ## Run it
 

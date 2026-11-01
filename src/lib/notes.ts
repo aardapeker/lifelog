@@ -39,10 +39,17 @@ export function chunkText(text: string): string[] {
   return chunks;
 }
 
-async function rechunk(db: SQLiteDatabase, noteId: number, body: string): Promise<void> {
+/** Rebuilds the search chunks of a note: its text plus the captions of its photos. */
+export async function rechunk(db: SQLiteDatabase, noteId: number, body?: string): Promise<void> {
+  const text = body ?? (await getNote(db, noteId))?.body ?? '';
+  const captions = await db.getAllAsync<{ caption: string }>(
+    'SELECT caption FROM photos WHERE note_id = ? AND caption IS NOT NULL ORDER BY id',
+    noteId,
+  );
+  const full = [text, ...captions.map((c) => `[Photo] ${c.caption}`)].filter(Boolean).join('\n\n');
   await db.runAsync('DELETE FROM chunks WHERE note_id = ?', noteId);
-  for (const text of chunkText(body)) {
-    await db.runAsync('INSERT INTO chunks(note_id, text) VALUES (?, ?)', noteId, text);
+  for (const chunk of chunkText(full)) {
+    await db.runAsync('INSERT INTO chunks(note_id, text) VALUES (?, ?)', noteId, chunk);
   }
 }
 
@@ -85,6 +92,9 @@ export async function saveNote(db: SQLiteDatabase, id: number | null, body: stri
       await db.runAsync('UPDATE notes SET body = ?, updated_at = ? WHERE id = ?', body, now, noteId);
     }
     await rechunk(db, noteId, body);
+    // facts are re-learned from the new text
+    await db.runAsync('DELETE FROM facts WHERE note_id = ?', noteId);
+    await db.runAsync("UPDATE notes SET facts_status = 'pending' WHERE id = ?", noteId);
   });
   return noteId!;
 }
@@ -105,7 +115,7 @@ export function formatDate(ms: number): string {
 }
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export function formatTime(ms: number): string {
   const d = new Date(ms);
@@ -157,4 +167,26 @@ export function entryTitle(ms: number): string {
 export function greeting(now = new Date()): string {
   const p = partOfDay(now.getHours()).toLowerCase();
   return p === 'night' ? 'Still up?' : `Good ${p},`;
+}
+
+/** Entries written on this calendar day 1 month, 6 months and 1 year ago. */
+export async function onThisDay(db: SQLiteDatabase, now = new Date()): Promise<{ label: string; note: Note }[]> {
+  const out: { label: string; note: Note }[] = [];
+  for (const [months, label] of [
+    [12, 'One year ago'],
+    [6, 'Six months ago'],
+    [1, 'One month ago'],
+  ] as const) {
+    const day = new Date(now);
+    day.setHours(0, 0, 0, 0);
+    day.setMonth(day.getMonth() - months);
+    if (day.getDate() !== now.getDate()) continue; // e.g. 31 March has no "a month ago"
+    const note = await db.getFirstAsync<Note>(
+      'SELECT * FROM notes WHERE created_at >= ? AND created_at < ? ORDER BY length(body) DESC LIMIT 1',
+      day.getTime(),
+      day.getTime() + 86_400_000,
+    );
+    if (note) out.push({ label, note });
+  }
+  return out;
 }

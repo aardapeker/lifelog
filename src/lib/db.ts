@@ -55,6 +55,42 @@ const MIGRATIONS: string[] = [
     value TEXT NOT NULL
   );
   `,
+  // v2: photos, learned facts, weekly recaps, scheduled check-ins
+  `
+  CREATE TABLE photos (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    note_id    INTEGER NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+    file       TEXT    NOT NULL,        -- file name inside the app's photos folder
+    caption    TEXT,                    -- written by the AI, searchable
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX photos_note_idx ON photos(note_id);
+
+  CREATE TABLE facts (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    note_id    INTEGER REFERENCES notes(id) ON DELETE CASCADE,
+    kind       TEXT    NOT NULL,        -- person | place | goal | plan | habit | preference | event | feeling
+    text       TEXT    NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX facts_note_idx ON facts(note_id);
+  ALTER TABLE notes ADD COLUMN facts_status TEXT NOT NULL DEFAULT 'pending';
+
+  CREATE TABLE recaps (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    week_start INTEGER NOT NULL UNIQUE, -- Monday 00:00, local time
+    body       TEXT    NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE checkins (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    fire_at         INTEGER NOT NULL UNIQUE,
+    body            TEXT    NOT NULL,
+    notification_id TEXT,
+    delivered       INTEGER NOT NULL DEFAULT 0
+  );
+  `,
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<void> {

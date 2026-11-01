@@ -2,17 +2,21 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, FlatList, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chip, IconButton, PillButton, SectionTitle } from '../../components/ui';
 import { getSetting } from '../../lib/db';
-import { indexPending } from '../../lib/embeddings';
+import { backupDue, backupNow, getPassphrase } from '../../lib/backup';
+import { runBackgroundJobs } from '../../lib/background';
+import { photoMap, photoUri } from '../../lib/photos';
+import { latestRecap, weekLabel, type Recap } from '../../lib/recap';
 import {
   formatDate,
   formatTime,
   greeting,
   groupByDay,
   listNotes,
+  onThisDay,
   type DaySection,
   type Note,
 } from '../../lib/notes';
@@ -26,21 +30,30 @@ const RANGES: { key: Range; label: string; days: number }[] = [
   { key: 'month', label: 'This month', days: 30 },
 ];
 
-function EntryCard({ note, label }: { note: Note; label: string }) {
+function EntryCard({ note, label, photos }: { note: Note; label: string; photos?: string[] }) {
   return (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && { opacity: 0.75 }]}
       onPress={() => router.push(`/note/${note.id}`)}
     >
       <Text style={styles.cardTime}>{label}</Text>
-      <Text style={styles.cardBody} numberOfLines={5}>
-        {note.body}
-      </Text>
+      {!!note.body && (
+        <Text style={styles.cardBody} numberOfLines={5}>
+          {note.body}
+        </Text>
+      )}
+      {!!photos?.length && (
+        <View style={styles.thumbs}>
+          {photos.slice(0, 4).map((f) => (
+            <Image key={f} source={{ uri: photoUri(f) }} style={styles.thumb} />
+          ))}
+        </View>
+      )}
     </Pressable>
   );
 }
 
-function Day({ section }: { section: DaySection }) {
+function Day({ section, photos }: { section: DaySection; photos: Map<number, string[]> }) {
   return (
     <View style={styles.day}>
       <View style={styles.dayHeader}>
@@ -50,7 +63,7 @@ function Day({ section }: { section: DaySection }) {
         </Text>
       </View>
       {section.data.map((n) => (
-        <EntryCard key={n.id} note={n} label={formatTime(n.created_at)} />
+        <EntryCard key={n.id} note={n} label={formatTime(n.created_at)} photos={photos.get(n.id)} />
       ))}
     </View>
   );
@@ -64,6 +77,10 @@ export default function JournalScreen() {
   const [query, setQuery] = useState('');
   const [range, setRange] = useState<Range>('all');
   const [searching, setSearching] = useState(false);
+  const [photos, setPhotos] = useState<Map<number, string[]>>(new Map());
+  const [recap, setRecap] = useState<Recap | null>(null);
+  const [memories, setMemories] = useState<{ label: string; note: Note }[]>([]);
+  const [needsBackup, setNeedsBackup] = useState(false);
   const isSearch = query.trim().length > 0;
 
   const load = useCallback(async () => {
@@ -84,7 +101,15 @@ export default function JournalScreen() {
     useCallback(() => {
       load();
       getSetting(db, 'name').then(setName);
-      indexPending(db).catch(() => {});
+      photoMap(db).then(setPhotos);
+      onThisDay(db).then(setMemories);
+      backupDue(db).then(setNeedsBackup);
+      // captions, embeddings, facts, the weekly letter, check-ins
+      runBackgroundJobs(db).then(async () => {
+        const r = await latestRecap(db);
+        setRecap(r && Date.now() - r.created_at < 7 * 86_400_000 ? r : null);
+        photoMap(db).then(setPhotos);
+      });
     }, [load, db]),
   );
 
@@ -105,6 +130,53 @@ export default function JournalScreen() {
     const since = Date.now() - limit * 86_400_000;
     return groupByDay(notes.filter((n) => n.created_at >= since));
   }, [notes, range]);
+
+  const backup = async () => {
+    if (!(await getPassphrase())) {
+      Alert.alert('Set a passphrase first', 'Backups are encrypted with a passphrase only you know.', [
+        { text: 'Later', style: 'cancel' },
+        { text: 'Open Settings', onPress: () => router.navigate('/settings') },
+      ]);
+      return;
+    }
+    try {
+      await backupNow(db);
+      setNeedsBackup(false);
+    } catch (e) {
+      Alert.alert("Couldn't back up", e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const extras = !isSearch && range === 'all' && (
+    <View style={{ gap: 10, marginTop: 22 }}>
+      {needsBackup && (
+        <View style={styles.banner}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.bannerTitle}>Back up today's pages</Text>
+            <Text style={styles.bannerText}>Everything lives on this phone. Save a copy to Drive.</Text>
+          </View>
+          <PillButton label="Back up" onPress={backup} />
+        </View>
+      )}
+      {recap && (
+        <Pressable style={styles.letter} onPress={() => router.push(`/recap/${recap.id}`)}>
+          <Text style={styles.letterLabel}>{weekLabel(recap.week_start)}</Text>
+          <Text style={styles.letterTitle}>Your week, in a letter</Text>
+          <Text style={styles.letterBody} numberOfLines={3}>
+            {recap.body}
+          </Text>
+        </Pressable>
+      )}
+      {memories.map((m) => (
+        <Pressable key={m.note.id} style={styles.memory} onPress={() => router.push(`/note/${m.note.id}`)}>
+          <Text style={styles.memoryLabel}>{m.label}</Text>
+          <Text style={styles.memoryBody} numberOfLines={3}>
+            {m.note.body}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  );
 
   const header = (
     <View>
@@ -143,6 +215,8 @@ export default function JournalScreen() {
           ))}
         </ScrollView>
       )}
+
+      {extras}
 
       <View style={{ marginTop: 26, marginBottom: 6 }}>
         <SectionTitle
@@ -184,7 +258,9 @@ export default function JournalScreen() {
       keyboardShouldPersistTaps="handled"
       ListHeaderComponent={header}
       ListEmptyComponent={empty}
-      renderItem={({ item }) => <EntryCard note={item} label={formatDate(item.created_at)} />}
+      renderItem={({ item }) => (
+        <EntryCard note={item} label={formatDate(item.created_at)} photos={photos.get(item.id)} />
+      )}
     />
   ) : (
     <FlatList
@@ -195,7 +271,7 @@ export default function JournalScreen() {
       keyboardShouldPersistTaps="handled"
       ListHeaderComponent={header}
       ListEmptyComponent={empty}
-      renderItem={({ item }) => <Day section={item} />}
+      renderItem={({ item }) => <Day section={item} photos={photos} />}
     />
   );
 }
@@ -246,6 +322,27 @@ const styles = StyleSheet.create({
   card: { backgroundColor: colors.surface, borderRadius: radius.md, padding: 18 },
   cardTime: { fontFamily: fonts.sansRegular, fontSize: 12, color: colors.muted, marginBottom: 8 },
   cardBody: { fontFamily: fonts.sansRegular, fontSize: 15, lineHeight: 23, color: colors.text },
+
+  thumbs: { flexDirection: 'row', gap: 6, marginTop: 12 },
+  thumb: { width: 64, height: 64, borderRadius: 10, backgroundColor: colors.raised },
+
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: colors.raised,
+    borderRadius: radius.md,
+    padding: 16,
+  },
+  bannerTitle: { fontFamily: fonts.serif, fontSize: 17, color: colors.text },
+  bannerText: { fontFamily: fonts.sansRegular, fontSize: 13, lineHeight: 18, color: colors.muted, marginTop: 3 },
+  letter: { backgroundColor: colors.accent, borderRadius: radius.md, padding: 20 },
+  letterLabel: { fontFamily: fonts.sansRegular, fontSize: 12, color: '#6B6A6A' },
+  letterTitle: { fontFamily: fonts.serif, fontSize: 24, color: colors.accentText, marginTop: 4, marginBottom: 8 },
+  letterBody: { fontFamily: fonts.serif, fontSize: 15, lineHeight: 23, color: colors.accentText },
+  memory: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: 16 },
+  memoryLabel: { fontFamily: fonts.serif, fontSize: 15, color: colors.muted, marginBottom: 6 },
+  memoryBody: { fontFamily: fonts.sansRegular, fontSize: 14, lineHeight: 21, color: colors.text },
 
   empty: { marginTop: 30 },
   emptyTitle: { fontFamily: fonts.serif, fontSize: 30, lineHeight: 36, color: colors.text, marginBottom: 10 },

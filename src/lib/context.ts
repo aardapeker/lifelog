@@ -1,11 +1,14 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
+import type { Tool } from './chat';
 import { getSetting } from './db';
+import { listFacts } from './facts';
 import { formatDate, recentNotes, type Note } from './notes';
 import { hybridSearch } from './search';
 
 const MAX_NOTE_CHARS = 1500;
+const RECENT_DAYS = 14;
 
-function renderNotes(notes: Note[]): string {
+export function renderNotes(notes: Note[]): string {
   return notes
     .map((n) => {
       const body = n.body.length > MAX_NOTE_CHARS ? `${n.body.slice(0, MAX_NOTE_CHARS)}…` : n.body;
@@ -14,36 +17,58 @@ function renderNotes(notes: Note[]): string {
     .join('\n\n---\n\n');
 }
 
-/**
- * The "brain" of the friend: profile + last 2 weeks + whatever the
- * hybrid search finds for the current message.
- */
-export async function buildSystemPrompt(db: SQLiteDatabase, userMessage: string): Promise<string> {
-  const [profile, recent, related] = await Promise.all([
+/** What the friend always knows: their name, the profile, learned facts. */
+export async function aboutUser(db: SQLiteDatabase): Promise<string> {
+  const [name, profile, facts] = await Promise.all([
+    getSetting(db, 'name'),
     getSetting(db, 'profile'),
-    recentNotes(db, 14, 20),
-    hybridSearch(db, userMessage, 8),
+    listFacts(db, 80),
   ]);
+  const parts: string[] = [];
+  if (name.trim()) parts.push(`Their name is ${name.trim()}.`);
+  if (profile.trim()) parts.push(`## About them (written by them)\n${profile.trim()}`);
+  if (facts.length) parts.push(`## Things you've learned from their journal\n${facts.map((f) => `- ${f.text}`).join('\n')}`);
+  return parts.join('\n\n');
+}
 
-  const recentIds = new Set(recent.map((n) => n.id));
-  const olderRelated = related.filter((n) => !recentIds.has(n.id));
+/** Lets the model look further back than the last two weeks, only when it needs to. */
+export function searchTool(db: SQLiteDatabase): Tool {
+  return {
+    name: 'search_notes',
+    description:
+      'Search the whole journal by meaning and keywords. Use it whenever the user asks about something ' +
+      `older than the last ${RECENT_DAYS} days, or something not in the entries you can already see.`,
+    parameters: {
+      type: 'object',
+      properties: { query: { type: 'string', description: 'What to look for, in a few words.' } },
+      required: ['query'],
+    },
+    run: async (args) => {
+      const notes = await hybridSearch(db, String(args.query ?? ''), 8);
+      return notes.length ? renderNotes(notes) : 'No matching entries.';
+    },
+  };
+}
+
+/** The friend's system prompt: who you are + the last two weeks. Older stuff comes via search_notes. */
+export async function buildSystemPrompt(db: SQLiteDatabase): Promise<string> {
+  const [about, recent] = await Promise.all([aboutUser(db), recentNotes(db, RECENT_DAYS, 20)]);
 
   const parts = [
     `You are the user's close friend who lives inside their personal journal app.
 You have read their journal. Talk casually and warmly, like a real friend: short messages,
 humor and light teasing are welcome, no corporate tone, no bullet-point lectures unless asked.
 Reply in the language the user writes in.
-Use what you know from the journal naturally ("didn't you say last week...") but never invent
-memories: if something isn't in the notes below, say you don't know or ask.
+Use what you know naturally ("didn't you say last week...") but never invent memories.
+For anything older than the entries below, call search_notes before answering.
+If it's still not there, say you don't know or ask.
 Current time: ${formatDate(Date.now())}.`,
   ];
-
-  if (profile.trim()) parts.push(`## About the user (written by them)\n${profile.trim()}`);
-  if (recent.length) parts.push(`## Journal — last 14 days (newest first)\n${renderNotes(recent)}`);
-  if (olderRelated.length)
-    parts.push(`## Older journal entries related to the current message\n${renderNotes(olderRelated)}`);
-  if (!recent.length && !olderRelated.length)
-    parts.push('The journal is still empty. Be curious and get to know them.');
-
+  if (about) parts.push(about);
+  parts.push(
+    recent.length
+      ? `## Journal, last ${RECENT_DAYS} days (newest first)\n${renderNotes(recent)}`
+      : 'There are no entries from the last two weeks. Be curious and get to know them.',
+  );
   return parts.join('\n\n');
 }

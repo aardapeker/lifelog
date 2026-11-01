@@ -3,7 +3,7 @@
     "name": "Lifelog",
     "slug": "lifelog",
     "scheme": "lifelog",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -18,7 +18,15 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -36,6 +44,28 @@
           "image": "./assets/splash-icon.png",
           "imageWidth": 180,
           "resizeMode": "contain"
+        }
+      ],
+      "expo-system-ui",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Lifelog uses the microphone to turn your voice notes into journal entries."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Lifelog uses the camera to add photos to your journal.",
+          "photosPermission": "Lifelog lets you add photos from your gallery to your journal."
+        }
+      ],
+      "expo-local-authentication",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#1D1C1C"
         }
       ]
     ]

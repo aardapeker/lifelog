@@ -17,12 +17,25 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chip, IconButton, PillButton } from '../../components/ui';
 import { getChatConfig, PROVIDERS, type ChatMessage } from '../../lib/chat';
-import { buildSystemPrompt } from '../../lib/context';
+import { deliverDue } from '../../lib/checkins';
+import { buildSystemPrompt, searchTool } from '../../lib/context';
 import { colors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 
 type Row = ChatMessage & { id: number | string };
 
 const HISTORY = 20; // how many past messages are sent with each request
+
+/** APIs want user/assistant turns to alternate and start with the user; check-ins can break that. */
+function toApiMessages(rows: Row[]): ChatMessage[] {
+  const out: ChatMessage[] = [];
+  for (const { role, content } of rows) {
+    const last = out[out.length - 1];
+    if (last?.role === role) last.content += `\n\n${content}`;
+    else out.push({ role, content });
+  }
+  while (out[0]?.role === 'assistant') out.shift();
+  return out;
+}
 const STARTERS = ['How was my week?', 'What have I been worried about?', 'Remind me what I planned'];
 
 export default function ChatScreen() {
@@ -41,7 +54,11 @@ export default function ChatScreen() {
         setHasKey(!!c.apiKey);
         setLabel(`${PROVIDERS[c.provider].label}, ${c.model}`);
       });
-      db.getAllAsync<Row>('SELECT id, role, content FROM messages ORDER BY id').then(setMessages);
+      // check-ins whose time has come appear here as messages from the friend
+      deliverDue(db)
+        .catch(() => 0)
+        .then(() => db.getAllAsync<Row>('SELECT id, role, content FROM messages ORDER BY created_at, id'))
+        .then(setMessages);
     }, [db]),
   );
 
@@ -82,12 +99,13 @@ export default function ChatScreen() {
     setMessages([...history, { id: pendingId, role: 'assistant', content: '' }]);
 
     try {
-      const system = await buildSystemPrompt(db, text);
+      const system = await buildSystemPrompt(db);
       const reply = await PROVIDERS[provider].stream({
         apiKey,
         model,
         system,
-        messages: history.slice(-HISTORY).map(({ role, content }) => ({ role, content })),
+        messages: toApiMessages(history.slice(-HISTORY)),
+        tools: [searchTool(db)],
         onText: (full) =>
           setMessages((prev) => prev.map((m) => (m.id === pendingId ? { ...m, content: full } : m))),
       });

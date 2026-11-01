@@ -1,14 +1,31 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { useAudioRecorder } from 'expo-audio';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useEffect, useState } from 'react';
-import { Alert, KeyboardAvoidingView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton, InfoTile, PillButton } from '../../components/ui';
-import { indexPending } from '../../lib/embeddings';
+import { runBackgroundJobs } from '../../lib/background';
 import { deleteNote, entryTitle, formatTime, getNote, saveNote } from '../../lib/notes';
+import { deleteNotePhotos, deletePhotoFile, listPhotos, photoUri, pickPhoto, syncPhotos } from '../../lib/photos';
 import { colors, fonts, radius } from '../../lib/theme';
+import { prepareMicrophone, transcribe, VOICE_RECORDING } from '../../lib/voice';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+type Mic = 'idle' | 'recording' | 'transcribing';
 
 export default function NoteScreen() {
   const db = useSQLiteContext();
@@ -16,7 +33,13 @@ export default function NoteScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const noteId = id === 'new' ? null : Number(id);
   const [body, setBody] = useState('');
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [captions, setCaptions] = useState<Record<string, string | null>>({});
   const [createdAt, setCreatedAt] = useState<number>(Date.now());
+  const [mic, setMic] = useState<Mic>('idle');
+  const [seconds, setSeconds] = useState(0);
+  const savedPhotos = useRef<string[]>([]); // what the database had when we opened
+  const recorder = useAudioRecorder(VOICE_RECORDING);
 
   useEffect(() => {
     if (noteId === null) return;
@@ -26,26 +49,48 @@ export default function NoteScreen() {
         setCreatedAt(n.created_at);
       }
     });
+    listPhotos(db, noteId).then((ps) => {
+      savedPhotos.current = ps.map((p) => p.file);
+      setPhotos(ps.map((p) => p.file));
+      setCaptions(Object.fromEntries(ps.map((p) => [p.file, p.caption])));
+    });
   }, [db, noteId]);
 
+  useEffect(() => {
+    if (mic !== 'recording') return;
+    setSeconds(0);
+    const t = setInterval(() => setSeconds((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [mic]);
+
+  /** Leaving without saving: forget photos taken in this visit. */
+  const discard = () => {
+    photos.filter((f) => !savedPhotos.current.includes(f)).forEach(deletePhotoFile);
+    router.back();
+  };
+
   const save = async () => {
-    if (!body.trim()) {
-      router.back();
+    if (mic === 'recording') await stopRecording();
+    if (!body.trim() && !photos.length) {
+      discard();
       return;
     }
-    await saveNote(db, noteId, body.trim());
-    indexPending(db).catch(() => {}); // embed in the background, never block saving
+    const savedId = await saveNote(db, noteId, body.trim());
+    await syncPhotos(db, savedId, photos);
+    runBackgroundJobs(db).catch(() => {}); // captions, search index, facts: never block saving
     router.back();
   };
 
   const remove = () => {
-    if (noteId === null) return router.back();
+    if (noteId === null) return discard();
     Alert.alert('Delete this entry?', 'It will be gone for good, and your friend will forget it too.', [
       { text: 'Keep it', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
+          await deleteNotePhotos(db, noteId);
+          photos.forEach(deletePhotoFile);
           await deleteNote(db, noteId);
           router.back();
         },
@@ -53,13 +98,61 @@ export default function NoteScreen() {
     ]);
   };
 
+  const startRecording = async () => {
+    try {
+      await prepareMicrophone();
+      await recorder.prepareToRecordAsync();
+      recorder.record();
+      setMic('recording');
+    } catch (e) {
+      Alert.alert("Couldn't start recording", e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const stopRecording = async () => {
+    setMic('transcribing');
+    try {
+      await recorder.stop();
+      if (!recorder.uri) throw new Error('The recording was empty.');
+      const text = await transcribe(recorder.uri);
+      setBody((b) => (b.trim() ? `${b.trimEnd()}\n\n${text}` : text));
+    } catch (e) {
+      Alert.alert("Couldn't turn that into text", e instanceof Error ? e.message : String(e));
+    } finally {
+      setMic('idle');
+    }
+  };
+
+  const addPhoto = () => {
+    const pick = async (source: 'camera' | 'library') => {
+      try {
+        const file = await pickPhoto(source);
+        if (file) setPhotos((p) => [...p, file]);
+      } catch (e) {
+        Alert.alert("Couldn't add the photo", e instanceof Error ? e.message : String(e));
+      }
+    };
+    Alert.alert('Add a photo', undefined, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Gallery', onPress: () => pick('library') },
+      { text: 'Camera', onPress: () => pick('camera') },
+    ]);
+  };
+
+  const removePhoto = (file: string) => {
+    setPhotos((p) => p.filter((f) => f !== file));
+    // files that were never saved can go right away; saved ones are removed on Save
+    if (!savedPhotos.current.includes(file)) deletePhotoFile(file);
+  };
+
   const d = new Date(createdAt);
   const words = body.trim() ? body.trim().split(/\s+/).length : 0;
+  const mm = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 
   return (
     <KeyboardAvoidingView style={[styles.screen, { paddingTop: insets.top + 8 }]} behavior="padding">
       <View style={styles.bar}>
-        <IconButton icon="arrow-back" label="Back without saving" onPress={() => router.back()} />
+        <IconButton icon="arrow-back" label="Back without saving" onPress={discard} />
         <Text style={styles.barTitle}>
           {d.getDate()} {MONTHS[d.getMonth()]}
         </Text>
@@ -75,14 +168,33 @@ export default function NoteScreen() {
         <View style={styles.tiles}>
           <InfoTile label="Written" value={formatTime(createdAt)} />
           <InfoTile label="Length" value={words === 1 ? '1 word' : `${words} words`} />
-          <InfoTile label="Year" value={String(d.getFullYear())} />
+          <InfoTile label="Photos" value={String(photos.length)} />
         </View>
+
+        {photos.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photos}>
+            {photos.map((f) => (
+              <View key={f}>
+                <Image source={{ uri: photoUri(f) }} style={styles.photo} />
+                <Pressable style={styles.photoRemove} onPress={() => removePhoto(f)} accessibilityLabel="Remove photo">
+                  <Ionicons name="close" size={14} color={colors.accentText} />
+                </Pressable>
+                {!!captions[f] && (
+                  <Text style={styles.caption} numberOfLines={2}>
+                    {captions[f]}
+                  </Text>
+                )}
+              </View>
+            ))}
+          </ScrollView>
+        )}
+
         <TextInput
           style={styles.input}
           multiline
           scrollEnabled={false}
           autoFocus={noteId === null}
-          placeholder="What happened today?"
+          placeholder="What happened today? Or tap the mic and just talk."
           placeholderTextColor={colors.muted}
           value={body}
           onChangeText={setBody}
@@ -93,7 +205,24 @@ export default function NoteScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
-        <PillButton label="Save entry" onPress={save} full />
+        {mic === 'recording' ? (
+          <Pressable style={styles.recording} onPress={stopRecording} accessibilityLabel="Stop recording">
+            <View style={styles.recDot} />
+            <Text style={styles.recText}>Listening {mm}</Text>
+            <Text style={styles.recStop}>Tap to stop</Text>
+          </Pressable>
+        ) : mic === 'transcribing' ? (
+          <View style={styles.recording}>
+            <ActivityIndicator color={colors.text} />
+            <Text style={styles.recText}>Turning it into text…</Text>
+          </View>
+        ) : (
+          <View style={styles.footerRow}>
+            <IconButton icon="mic-outline" label="Record a voice note" onPress={startRecording} size={54} />
+            <IconButton icon="image-outline" label="Add a photo" onPress={addPhoto} size={54} />
+            <PillButton label="Save entry" onPress={save} style={{ flex: 1, paddingVertical: 17 }} />
+          </View>
+        )}
       </View>
     </KeyboardAvoidingView>
   );
@@ -118,6 +247,20 @@ const styles = StyleSheet.create({
   sheetContent: { padding: 22, paddingBottom: 40 },
   title: { fontFamily: fonts.serif, fontSize: 32, lineHeight: 38, color: colors.text },
   tiles: { flexDirection: 'row', gap: 8, marginTop: 16, marginBottom: 22 },
+  photos: { gap: 10, paddingBottom: 20 },
+  photo: { width: 132, height: 132, borderRadius: radius.sm, backgroundColor: colors.raised },
+  photoRemove: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  caption: { width: 132, marginTop: 6, fontFamily: fonts.sansRegular, fontSize: 11, lineHeight: 15, color: colors.muted },
   input: {
     minHeight: 240,
     fontFamily: fonts.sansRegular,
@@ -127,4 +270,17 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   footer: { paddingHorizontal: 20, paddingTop: 12, backgroundColor: colors.surface },
+  footerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  recording: {
+    height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 22,
+    borderRadius: radius.pill,
+    backgroundColor: colors.raised,
+  },
+  recDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.danger },
+  recText: { flex: 1, fontFamily: fonts.sans, fontSize: 15, color: colors.text },
+  recStop: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.muted },
 });

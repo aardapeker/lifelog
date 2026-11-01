@@ -1,9 +1,23 @@
 import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState, type ReactNode } from 'react';
-import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { authenticate, canUseBiometrics } from '../../components/LockGate';
 import { PillButton, SectionTitle, StatusLine, type Status } from '../../components/ui';
+import { backupNow, getPassphrase, lastBackupAt, restoreFromFile, setPassphrase } from '../../lib/backup';
+import {
+  getCheckinSettings,
+  ROTATION,
+  saveCheckinSettings,
+  shiftFor,
+  SHIFTS,
+  type CheckinSettings,
+  type Shift,
+} from '../../lib/checkins';
+import { deleteFact, listFacts, type Fact } from '../../lib/facts';
+import { formatDate } from '../../lib/notes';
+import { weekStart } from '../../lib/recap';
 import { getChatConfig, getChatModel, PROVIDERS, saveChatConfig } from '../../lib/chat';
 import { getSetting, setSetting } from '../../lib/db';
 import { embed, indexPending, indexStats } from '../../lib/embeddings';
@@ -97,6 +111,240 @@ function KeyBlock(props: { provider: Provider; title: string; hint: string; test
       </View>
       <StatusLine status={status} />
     </View>
+  );
+}
+
+function Toggle({ label, hint, value, onChange }: { label: string; hint?: string; value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <View style={styles.toggle}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.keyTitle}>{label}</Text>
+        {hint && <Text style={styles.hint}>{hint}</Text>}
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onChange}
+        trackColor={{ false: colors.raised, true: colors.accent }}
+        thumbColor={value ? colors.accentText : colors.muted}
+      />
+    </View>
+  );
+}
+
+function Segment<T extends string>(props: { options: { key: T; label: string }[]; value: T; onChange: (v: T) => void }) {
+  return (
+    <View style={styles.segment}>
+      {props.options.map((o) => (
+        <Pressable
+          key={o.key}
+          style={[styles.segmentItem, o.key === props.value && styles.segmentActive]}
+          onPress={() => props.onChange(o.key)}
+        >
+          <Text style={[styles.segmentText, o.key === props.value && styles.segmentTextActive]}>{o.label}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+/** Fingerprint lock + encrypted backup / restore. */
+function PrivacySection() {
+  const db = useSQLiteContext();
+  const [lock, setLock] = useState(false);
+  const [hasPass, setHasPass] = useState(false);
+  const [pass, setPass] = useState('');
+  const [last, setLast] = useState(0);
+  const [status, run] = useStatus();
+
+  useFocusEffect(
+    useCallback(() => {
+      getSetting(db, 'lockEnabled').then((v) => setLock(v === '1'));
+      getPassphrase().then((p) => setHasPass(!!p));
+      lastBackupAt(db).then(setLast);
+    }, [db]),
+  );
+
+  const toggleLock = (on: boolean) =>
+    run(async () => {
+      if (on && !(await canUseBiometrics())) throw new Error('Set up a fingerprint or screen lock in Android settings first.');
+      if (!(await authenticate(on ? 'Turn on the lock' : 'Turn off the lock'))) throw new Error('Not changed.');
+      await setSetting(db, 'lockEnabled', on ? '1' : '0');
+      setLock(on);
+      return on ? 'Lifelog now asks for your fingerprint.' : 'Lock is off.';
+    });
+
+  const savePass = () =>
+    run(async () => {
+      await setPassphrase(pass);
+      setPass('');
+      setHasPass(true);
+      return "Passphrase saved. Write it down somewhere: without it a backup can't be opened.";
+    });
+
+  const backup = () =>
+    run(async () => {
+      await backupNow(db);
+      setLast(Date.now());
+      return 'Backup created. If you picked Drive, it is safe there.';
+    });
+
+  const restore = () => {
+    if (!pass.trim()) {
+      Alert.alert('Type the passphrase first', 'Enter the passphrase the backup was made with, then tap Restore.');
+      return;
+    }
+    Alert.alert('Replace everything?', 'All entries, chats and settings on this phone are replaced with the backup.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Restore',
+        style: 'destructive',
+        onPress: () =>
+          run(async () => {
+            const ok = await restoreFromFile(db, pass);
+            if (!ok) return 'No file picked.';
+            await setPassphrase(pass);
+            setPass('');
+            setHasPass(true);
+            return 'Restored. Welcome back.';
+          }),
+      },
+    ]);
+  };
+
+  return (
+    <Section title="Privacy" hint="Your journal never leaves this phone, except as an encrypted backup.">
+      <Toggle label="Fingerprint lock" hint="Asked when the app opens." value={lock} onChange={toggleLock} />
+      <View style={styles.divider} />
+      <Text style={styles.keyTitle}>Backup</Text>
+      <Text style={styles.hint}>
+        {last ? `Last backup: ${formatDate(last)}.` : 'No backup yet.'} The file is encrypted with your passphrase.
+        Pick Drive in the share sheet to keep it safe.
+      </Text>
+      <TextInput
+        style={styles.input}
+        placeholder={hasPass ? 'Passphrase saved. Type to change it or to restore' : 'Choose a backup passphrase'}
+        placeholderTextColor={colors.muted}
+        value={pass}
+        onChangeText={setPass}
+        secureTextEntry
+        autoCapitalize="none"
+        selectionColor={colors.text}
+      />
+      <View style={[styles.row, { flexWrap: 'wrap' }]}>
+        {!!pass.trim() && <PillButton label="Save passphrase" onPress={savePass} ghost />}
+        <PillButton label="Back up now" onPress={backup} disabled={!hasPass} />
+        <PillButton label="Restore" onPress={restore} ghost />
+      </View>
+      <StatusLine status={status} />
+    </Section>
+  );
+}
+
+/** Messages from the friend at break time, following the shift rotation. */
+function CheckinSection() {
+  const db = useSQLiteContext();
+  const [s, setS] = useState<CheckinSettings | null>(null);
+  const [status, run] = useStatus();
+
+  useFocusEffect(
+    useCallback(() => {
+      getCheckinSettings(db).then(setS);
+    }, [db]),
+  );
+  if (!s) return null;
+
+  const thisWeek = shiftFor(s, Date.now());
+  const update = (patch: Partial<CheckinSettings>) => setS({ ...s, ...patch });
+  const setThisWeek = (shift: Shift) => update({ anchorWeek: weekStart(Date.now()), anchorShift: shift });
+
+  const save = (next = s) =>
+    run(async () => {
+      await saveCheckinSettings(db, next);
+      return next.enabled ? 'Saved. Your next check-ins are being written.' : 'Check-ins are off.';
+    });
+
+  return (
+    <Section title="Check-ins" hint="Your friend messages you at break time. Never during work, never on Sundays.">
+      <Toggle
+        label="Message me on breaks"
+        value={s.enabled}
+        onChange={(enabled) => {
+          const next = { ...s, enabled };
+          setS(next);
+          save(next);
+        }}
+      />
+      {s.enabled && (
+        <>
+          <Text style={styles.label}>This week I'm on</Text>
+          <Segment options={SHIFTS} value={thisWeek} onChange={setThisWeek} />
+          <Text style={styles.hint}>
+            Rotation: {ROTATION.map((r) => SHIFTS.find((x) => x.key === r)!.label).join(', then ')}.
+          </Text>
+          <Text style={styles.label}>Break time for each shift</Text>
+          <View style={styles.times}>
+            {SHIFTS.map((sh) => (
+              <View key={sh.key} style={{ flex: 1 }}>
+                <Text style={styles.timeLabel}>{sh.label}</Text>
+                <TextInput
+                  style={[styles.input, { textAlign: 'center' }]}
+                  value={s.times[sh.key]}
+                  onChangeText={(t) => update({ times: { ...s.times, [sh.key]: t } })}
+                  keyboardType="numbers-and-punctuation"
+                  maxLength={5}
+                  selectionColor={colors.text}
+                />
+              </View>
+            ))}
+          </View>
+          <View style={styles.row}>
+            <PillButton label="Save" onPress={() => save()} />
+          </View>
+        </>
+      )}
+      <StatusLine status={status} />
+    </Section>
+  );
+}
+
+/** Facts the friend pulled out of the journal. Wrong ones can be removed. */
+function LearnedSection() {
+  const db = useSQLiteContext();
+  const [facts, setFacts] = useState<Fact[]>([]);
+  const [all, setAll] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      listFacts(db).then(setFacts);
+    }, [db]),
+  );
+
+  const remove = async (id: number) => {
+    await deleteFact(db, id);
+    setFacts((f) => f.filter((x) => x.id !== id));
+  };
+
+  const shown = all ? facts : facts.slice(0, 8);
+  return (
+    <Section title="What I've Learned" hint="Picked up from your entries. Remove anything that's wrong.">
+      {facts.length === 0 ? (
+        <Text style={styles.hint}>Nothing yet. Write a few entries and check back.</Text>
+      ) : (
+        shown.map((f) => (
+          <View key={f.id} style={styles.fact}>
+            <Text style={styles.factText}>{f.text}</Text>
+            <Pressable onPress={() => remove(f.id)} hitSlop={10} accessibilityLabel="Forget this">
+              <Text style={styles.factRemove}>Forget</Text>
+            </Pressable>
+          </View>
+        ))
+      )}
+      {facts.length > 8 && (
+        <Pressable onPress={() => setAll(!all)} style={{ marginTop: 12 }}>
+          <Text style={styles.more}>{all ? 'Show less' : `Show all ${facts.length}`}</Text>
+        </Pressable>
+      )}
+    </Section>
   );
 }
 
@@ -199,20 +447,14 @@ export default function SettingsScreen() {
           <StatusLine status={profileStatus} />
         </Section>
 
+        <LearnedSection />
+
         <Section title="Chat" hint="Which AI your friend runs on.">
-          <View style={styles.segment}>
-            {(Object.keys(PROVIDERS) as Provider[]).map((p) => (
-              <Pressable
-                key={p}
-                style={[styles.segmentItem, p === provider && styles.segmentActive]}
-                onPress={() => pickProvider(p)}
-              >
-                <Text style={[styles.segmentText, p === provider && styles.segmentTextActive]}>
-                  {PROVIDERS[p].label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+          <Segment
+            options={(Object.keys(PROVIDERS) as Provider[]).map((p) => ({ key: p, label: PROVIDERS[p].label }))}
+            value={provider}
+            onChange={pickProvider}
+          />
           <Text style={styles.label}>Model</Text>
           <TextInput
             style={styles.input}
@@ -228,6 +470,10 @@ export default function SettingsScreen() {
           </View>
           <StatusLine status={chatStatus} />
         </Section>
+
+        <CheckinSection />
+
+        <PrivacySection />
 
         <Section title="API Keys" hint="Kept in your phone's encrypted keystore. Only sent to the AI you call.">
           <KeyBlock
@@ -302,4 +548,18 @@ const styles = StyleSheet.create({
   segmentTextActive: { fontFamily: fonts.sans, color: colors.accentText },
 
   row: { flexDirection: 'row', gap: 10, marginTop: 16 },
+  toggle: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  times: { flexDirection: 'row', gap: 8 },
+  timeLabel: { fontFamily: fonts.sansRegular, fontSize: 12, color: colors.muted, marginTop: 4, textAlign: 'center' },
+  fact: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  factText: { flex: 1, fontFamily: fonts.serif, fontSize: 15, lineHeight: 22, color: colors.text },
+  factRemove: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.muted, paddingTop: 2 },
+  more: { fontFamily: fonts.sans, fontSize: 14, color: colors.text },
 });

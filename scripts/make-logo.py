@@ -47,3 +47,5 @@ on(transparent, mark_mask(0.9), MOON).save(f'{out}/splash-icon.png')
 # favicon (unused on Android, kept tidy)
 on(BG, mark_mask(0.8), MOON).resize((48, 48), Image.LANCZOS).save(f'{out}/favicon.png')
 print('ok')
+# notification icon: Android wants a white silhouette on transparent
+on(transparent, mark_mask(0.92), (255, 255, 255, 255)).resize((96, 96), Image.LANCZOS).save(f'{out}/notification-icon.png')
