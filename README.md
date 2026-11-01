@@ -26,14 +26,11 @@ npx expo start          # scan the QR code with Expo Go on your phone
 
 Then in the app: **Settings → paste Claude key → Save → Test**, same for Gemini. Done.
 
-## Install it as a real app (APK)
+## 📲 Install (APK)
 
-```bash
-npx eas-cli@latest login
-npx eas-cli@latest build -p android --profile preview
-```
-
-EAS builds it in the cloud and gives you a link to the APK. Open it on the phone and install.
+Every push to `main` builds an APK on GitHub Actions.
+On your phone open **github.com/aardapeker/lifelog/releases/latest**, download the `.apk`,
+and install it (allow "install unknown apps" once). New builds install over the old one, so your data stays.
 
 ## Where things are
 
