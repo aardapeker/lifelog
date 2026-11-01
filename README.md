@@ -17,6 +17,13 @@ Android only. No server, no account. Everything lives on the phone.
 - **Privacy**: fingerprint lock; API keys in the Android keystore; encrypted backups
   (AES-256-GCM, scrypt passphrase) saved to Drive through the share sheet, with restore
 
+- **Insights tab**: a mood map (and mood per shift week), goals that link entries on their own,
+  people & pet pages, and a video idea inbox filled from your entries
+- **Home screen widget** with Talk and Write buttons (plus an in-app "Add widget" button for Xiaomi)
+- **Share into Lifelog** from any app: text, links and images become a new entry
+- **Grammar fixer**: one tap in the editor, or automatically on save
+- **Export** everything as JSON, for moving to a home server later
+
 Everything lives on the phone. One Gemini key is enough for all of it.
 
 ## Run it

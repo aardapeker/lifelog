@@ -107,7 +107,16 @@ export async function planCheckins(db: SQLiteDatabase): Promise<number> {
     if (!slots.length) return 0;
     if (!(await ensureNotificationPermission())) return 0;
 
-    const [about, recent] = await Promise.all([aboutUser(db), recentNotes(db, 7, 10)]);
+    const [about, recent, quiet] = await Promise.all([
+      aboutUser(db),
+      recentNotes(db, 7, 10),
+      // open goals nobody has written about for 10+ days: worth a gentle nudge
+      db.getAllAsync<{ title: string }>(
+        `SELECT g.title FROM goals g LEFT JOIN note_goals ng ON ng.goal_id = g.id LEFT JOIN notes n ON n.id = ng.note_id
+         WHERE g.done = 0 GROUP BY g.id HAVING coalesce(max(n.created_at), g.created_at) < ?`,
+        Date.now() - 10 * DAY,
+      ),
+    ]);
     const reply = await ai.adapter.complete({
       apiKey: ai.apiKey,
       model: ai.model,
@@ -118,7 +127,10 @@ export async function planCheckins(db: SQLiteDatabase): Promise<number> {
         '(their phone is locked away while working). Write one short message per slot: one or two sentences, ' +
         'casual, specific to what they wrote recently, sometimes a question, sometimes just encouragement or a joke. ' +
         'Never generic. Same language as their journal. Return {"messages":["…", …]} with exactly one per slot, in order.\n\n' +
-        about,
+        about +
+        (quiet.length
+          ? `\n\nGoals they haven't mentioned in a while (nudge about one of these at most once): ${quiet.map((g) => g.title).join('; ')}`
+          : ''),
       prompt:
         `Recent entries:\n${renderNotes(recent) || '(none yet)'}\n\nSlots:\n` +
         slots.map((sl, i) => `${i + 1}. ${formatDate(sl.at)}, break during the ${sl.shift} shift`).join('\n'),

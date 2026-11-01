@@ -3,7 +3,7 @@
     "name": "Lifelog",
     "slug": "lifelog",
     "scheme": "lifelog",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -66,6 +66,40 @@
         {
           "icon": "./assets/notification-icon.png",
           "color": "#1D1C1C"
+        }
+      ],
+      [
+        "react-native-android-widget",
+        {
+          "fonts": [
+            "./node_modules/@expo-google-fonts/libre-caslon-text/400Regular/LibreCaslonText_400Regular.ttf",
+            "./node_modules/@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf",
+            "./node_modules/@expo-google-fonts/inter/500Medium/Inter_500Medium.ttf"
+          ],
+          "widgets": [
+            {
+              "name": "Lifelog",
+              "label": "Lifelog",
+              "description": "Talk or write to your journal in one tap",
+              "minWidth": "250dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "previewImage": "./assets/widget-preview.png",
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 0
+            }
+          ]
+        }
+      ],
+      [
+        "expo-share-intent",
+        {
+          "androidIntentFilters": [
+            "text/*",
+            "image/*"
+          ],
+          "disableIOS": true
         }
       ]
     ]

@@ -49,3 +49,25 @@ on(BG, mark_mask(0.8), MOON).resize((48, 48), Image.LANCZOS).save(f'{out}/favico
 print('ok')
 # notification icon: Android wants a white silhouette on transparent
 on(transparent, mark_mask(0.92), (255, 255, 255, 255)).resize((96, 96), Image.LANCZOS).save(f'{out}/notification-icon.png')
+
+# widget preview (what Android shows in the widget picker)
+def widget_preview(path):
+    W, H, ss = 1000, 440, 2
+    img = Image.new('RGBA', (W * ss, H * ss), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle((0, 0, W * ss, H * ss), radius=70 * ss, fill=BG)
+    serif = ImageFont.truetype(REG, 64 * ss)
+    sans = ImageFont.truetype('node_modules/@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf', 36 * ss)
+    sansm = ImageFont.truetype('node_modules/@expo-google-fonts/inter/500Medium/Inter_500Medium.ttf', 40 * ss)
+    d.text((48 * ss, 40 * ss), 'Lifelog', font=serif, fill=(255, 255, 255, 255))
+    d.text((50 * ss, 128 * ss), 'How was the shift?', font=sans, fill=(153, 152, 152, 255))
+    bw = (W - 48 * 2 - 28) // 2
+    for i, (label, fill, color) in enumerate([('Talk', (255, 255, 255, 255), BG), ('Write', (51, 50, 50, 255), (255, 255, 255, 255))]):
+        x0 = 48 + i * (bw + 28)
+        box = (x0 * ss, 290 * ss, (x0 + bw) * ss, 400 * ss)
+        d.rounded_rectangle(box, radius=55 * ss, fill=fill)
+        tb = d.textbbox((0, 0), label, font=sansm)
+        d.text(((box[0] + box[2] - (tb[2] - tb[0])) / 2 - tb[0], (box[1] + box[3] - (tb[3] - tb[1])) / 2 - tb[1]), label, font=sansm, fill=color)
+    img.resize((W, H), Image.LANCZOS).save(path)
+
+widget_preview(f'{out}/widget-preview.png')

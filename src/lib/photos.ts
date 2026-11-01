@@ -30,6 +30,13 @@ export async function pickPhoto(source: 'camera' | 'library'): Promise<string | 
   return name;
 }
 
+/** Copies an image from elsewhere (e.g. shared from another app) into the app's photos folder. */
+export async function importPhoto(uri: string): Promise<string> {
+  const name = `${Date.now()}-${Math.round(Math.random() * 1e6)}.jpg`;
+  await new File(uri).copy(new File(photosDir(), name));
+  return name;
+}
+
 export function listPhotos(db: SQLiteDatabase, noteId: number): Promise<Photo[]> {
   return db.getAllAsync<Photo>('SELECT * FROM photos WHERE note_id = ? ORDER BY id', noteId);
 }

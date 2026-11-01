@@ -348,6 +348,31 @@ function LearnedSection() {
   );
 }
 
+/** Silent proofreading of entries, no lessons. */
+function WritingSection() {
+  const db = useSQLiteContext();
+  const [auto, setAuto] = useState(false);
+  useFocusEffect(
+    useCallback(() => {
+      getSetting(db, 'autoGrammar').then((v) => setAuto(v === '1'));
+    }, [db]),
+  );
+  const toggle = async (on: boolean) => {
+    setAuto(on);
+    await setSetting(db, 'autoGrammar', on ? '1' : '0');
+  };
+  return (
+    <Section title="Writing" hint="The sparkles button in an entry fixes grammar any time, with Undo.">
+      <Toggle
+        label="Fix grammar when I save"
+        hint="Spelling, grammar and punctuation only. Your words, tone and Turkish stay as they are."
+        value={auto}
+        onChange={toggle}
+      />
+    </Section>
+  );
+}
+
 export default function SettingsScreen() {
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();
@@ -446,6 +471,8 @@ export default function SettingsScreen() {
           </View>
           <StatusLine status={profileStatus} />
         </Section>
+
+        <WritingSection />
 
         <LearnedSection />
 

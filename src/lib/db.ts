@@ -91,6 +91,35 @@ const MIGRATIONS: string[] = [
     delivered       INTEGER NOT NULL DEFAULT 0
   );
   `,
+  // v3: mood, who a fact is about, goals, video ideas. Every entry gets re-read once.
+  `
+  ALTER TABLE notes ADD COLUMN mood INTEGER;          -- 1 (awful) … 5 (great)
+  ALTER TABLE notes ADD COLUMN mood_label TEXT;       -- one word, e.g. "tired"
+  ALTER TABLE facts ADD COLUMN subject TEXT;          -- person / pet / place the fact is about
+  CREATE INDEX facts_subject_idx ON facts(subject);
+
+  CREATE TABLE goals (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    title      TEXT    NOT NULL,
+    created_at INTEGER NOT NULL,
+    done       INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE TABLE note_goals (
+    note_id INTEGER NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+    goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE CASCADE,
+    PRIMARY KEY (note_id, goal_id)
+  );
+
+  CREATE TABLE ideas (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    note_id    INTEGER REFERENCES notes(id) ON DELETE SET NULL,
+    text       TEXT    NOT NULL,
+    done       INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+  );
+
+  UPDATE notes SET facts_status = 'pending';
+  `,
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<void> {

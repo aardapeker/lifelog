@@ -18,19 +18,23 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton, InfoTile, PillButton } from '../../components/ui';
 import { runBackgroundJobs } from '../../lib/background';
+import { getSetting } from '../../lib/db';
+import { fixGrammar } from '../../lib/grammar';
 import { deleteNote, entryTitle, formatTime, getNote, saveNote } from '../../lib/notes';
-import { deleteNotePhotos, deletePhotoFile, listPhotos, photoUri, pickPhoto, syncPhotos } from '../../lib/photos';
+import { deleteNotePhotos, deletePhotoFile, importPhoto, listPhotos, photoUri, pickPhoto, syncPhotos } from '../../lib/photos';
+import { takePendingShare } from '../../lib/share';
 import { colors, fonts, radius } from '../../lib/theme';
 import { prepareMicrophone, transcribe, VOICE_RECORDING } from '../../lib/voice';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 type Mic = 'idle' | 'recording' | 'transcribing';
+type Fixing = 'idle' | 'fixing' | 'saving';
 
 export default function NoteScreen() {
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, voice, shared } = useLocalSearchParams<{ id: string; voice?: string; shared?: string }>();
   const noteId = id === 'new' ? null : Number(id);
   const [body, setBody] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
@@ -38,6 +42,8 @@ export default function NoteScreen() {
   const [createdAt, setCreatedAt] = useState<number>(Date.now());
   const [mic, setMic] = useState<Mic>('idle');
   const [seconds, setSeconds] = useState(0);
+  const [fixing, setFixing] = useState<Fixing>('idle');
+  const [beforeFix, setBeforeFix] = useState<string | null>(null); // for Undo
   const savedPhotos = useRef<string[]>([]); // what the database had when we opened
   const recorder = useAudioRecorder(VOICE_RECORDING);
 
@@ -55,6 +61,29 @@ export default function NoteScreen() {
       setCaptions(Object.fromEntries(ps.map((p) => [p.file, p.caption])));
     });
   }, [db, noteId]);
+
+  // opened from the widget's Talk button: start listening right away
+  useEffect(() => {
+    if (noteId === null && voice === '1') {
+      const t = setTimeout(() => startRecording(), 400);
+      return () => clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // opened from Android's share menu: drop the shared text / image into the new entry
+  useEffect(() => {
+    if (noteId !== null || shared !== '1') return;
+    const share = takePendingShare();
+    if (!share) return;
+    if (share.text) setBody(share.text);
+    if (share.imageUri) {
+      importPhoto(share.imageUri)
+        .then((file) => setPhotos((p) => [...p, file]))
+        .catch(() => Alert.alert("Couldn't add the shared image"));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (mic !== 'recording') return;
@@ -75,7 +104,14 @@ export default function NoteScreen() {
       discard();
       return;
     }
-    const savedId = await saveNote(db, noteId, body.trim());
+    let text = body.trim();
+    // optional: fix grammar automatically on save (if it fails, save as written)
+    if (text && (await getSetting(db, 'autoGrammar')) === '1') {
+      setFixing('saving');
+      text = (await fixGrammar(db, text).catch(() => text)).trim();
+      setFixing('idle');
+    }
+    const savedId = await saveNote(db, noteId, text);
     await syncPhotos(db, savedId, photos);
     runBackgroundJobs(db).catch(() => {}); // captions, search index, facts: never block saving
     router.back();
@@ -121,6 +157,27 @@ export default function NoteScreen() {
     } finally {
       setMic('idle');
     }
+  };
+
+  const fix = async () => {
+    if (!body.trim()) return;
+    setFixing('fixing');
+    try {
+      const fixed = await fixGrammar(db, body);
+      if (fixed !== body) {
+        setBeforeFix(body);
+        setBody(fixed);
+      }
+    } catch (e) {
+      Alert.alert("Couldn't fix it", e instanceof Error ? e.message : String(e));
+    } finally {
+      setFixing('idle');
+    }
+  };
+
+  const undoFix = () => {
+    if (beforeFix !== null) setBody(beforeFix);
+    setBeforeFix(null);
   };
 
   const addPhoto = () => {
@@ -197,7 +254,10 @@ export default function NoteScreen() {
           placeholder="What happened today? Or tap the mic and just talk."
           placeholderTextColor={colors.muted}
           value={body}
-          onChangeText={setBody}
+          onChangeText={(t) => {
+            setBody(t);
+            setBeforeFix(null); // typing after a fix makes Undo meaningless
+          }}
           textAlignVertical="top"
           selectionColor={colors.text}
           cursorColor={colors.text}
@@ -216,10 +276,20 @@ export default function NoteScreen() {
             <ActivityIndicator color={colors.text} />
             <Text style={styles.recText}>Turning it into text…</Text>
           </View>
+        ) : fixing !== 'idle' ? (
+          <View style={styles.recording}>
+            <ActivityIndicator color={colors.text} />
+            <Text style={styles.recText}>{fixing === 'saving' ? 'Fixing and saving…' : 'Fixing grammar…'}</Text>
+          </View>
         ) : (
           <View style={styles.footerRow}>
             <IconButton icon="mic-outline" label="Record a voice note" onPress={startRecording} size={54} />
             <IconButton icon="image-outline" label="Add a photo" onPress={addPhoto} size={54} />
+            {beforeFix !== null ? (
+              <IconButton icon="arrow-undo-outline" label="Undo grammar fix" onPress={undoFix} size={54} />
+            ) : (
+              <IconButton icon="sparkles-outline" label="Fix grammar" onPress={fix} size={54} />
+            )}
             <PillButton label="Save entry" onPress={save} style={{ flex: 1, paddingVertical: 17 }} />
           </View>
         )}

@@ -1,62 +1,78 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
 import type { ComponentProps } from 'react';
-import { useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../lib/theme';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
+type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
 
-// Active tab = white circle with a dark icon, like the reference's floating bar
-const icon = (name: IconName, label: string) =>
-  function TabIcon({ focused }: { focused: boolean }) {
-    return (
-      <View
-        accessibilityLabel={label}
-        style={{
-          width: 46,
-          height: 46,
-          borderRadius: 23,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: focused ? colors.accent : 'transparent',
-        }}
-      >
-        <Ionicons name={name} size={21} color={focused ? colors.accentText : colors.text} />
+const ICONS: Record<string, { icon: IconName; label: string }> = {
+  index: { icon: 'book-outline', label: 'Journal' },
+  chat: { icon: 'chatbubble-outline', label: 'Chat' },
+  insights: { icon: 'sparkles-outline', label: 'Insights' },
+  settings: { icon: 'person-outline', label: 'Settings' },
+};
+
+/**
+ * Our own floating pill, centered with flexbox. The library's tab bar ignored
+ * left/width on Android and stuck to the left edge, so we draw it ourselves.
+ * Active tab = white circle with a dark icon, like the reference.
+ */
+function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
+  const insets = useSafeAreaInsets();
+  return (
+    <View pointerEvents="box-none" style={[styles.wrap, { bottom: insets.bottom + 14 }]}>
+      <View style={styles.pill}>
+        {state.routes.map((route, index) => {
+          const focused = state.index === index;
+          const meta = ICONS[route.name] ?? { icon: 'ellipse-outline', label: route.name };
+          const onPress = () => {
+            if (!focused) navigateToTab(route.key);
+          };
+          return (
+            <Pressable
+              key={route.key}
+              onPress={onPress}
+              accessibilityRole="tab"
+              accessibilityLabel={meta.label}
+              accessibilityState={{ selected: focused }}
+              style={[styles.item, focused && styles.itemActive]}
+            >
+              <Ionicons name={meta.icon} size={21} color={focused ? colors.accentText : colors.text} />
+            </Pressable>
+          );
+        })}
       </View>
-    );
-  };
+    </View>
+  );
+}
 
 export default function TabsLayout() {
-  const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
-  const barWidth = Math.min(240, width - 40);
   return (
     <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarShowLabel: false,
-        sceneStyle: { backgroundColor: colors.bg },
-        tabBarStyle: {
-          position: 'absolute',
-          left: (width - barWidth) / 2,
-          width: barWidth,
-          bottom: insets.bottom + 14,
-          height: 62,
-          paddingBottom: 0,
-          paddingTop: 0,
-          borderRadius: 31,
-          borderTopWidth: 0,
-          backgroundColor: colors.raised,
-          elevation: 8,
-        },
-        tabBarItemStyle: { height: 62, alignItems: 'center', justifyContent: 'center' },
-        tabBarIconStyle: { width: 46, height: 46 },
-      }}
+      tabBar={(props) => <FloatingTabBar {...props} />}
+      screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg } }}
     >
-      <Tabs.Screen name="index" options={{ title: 'Journal', tabBarIcon: icon('book-outline', 'Journal') }} />
-      <Tabs.Screen name="chat" options={{ title: 'Chat', tabBarIcon: icon('chatbubble-outline', 'Chat') }} />
-      <Tabs.Screen name="settings" options={{ title: 'Settings', tabBarIcon: icon('person-outline', 'Settings') }} />
+      <Tabs.Screen name="index" options={{ title: 'Journal' }} />
+      <Tabs.Screen name="chat" options={{ title: 'Chat' }} />
+      <Tabs.Screen name="insights" options={{ title: 'Insights' }} />
+      <Tabs.Screen name="settings" options={{ title: 'Settings' }} />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  wrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
+  pill: {
+    flexDirection: 'row',
+    gap: 16,
+    padding: 8,
+    borderRadius: 31,
+    backgroundColor: colors.raised,
+    elevation: 8,
+  },
+  item: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
+  itemActive: { backgroundColor: colors.accent },
+});

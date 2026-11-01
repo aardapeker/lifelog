@@ -5,6 +5,8 @@ export type Note = {
   body: string;
   created_at: number;
   updated_at: number;
+  mood?: number | null;
+  mood_label?: string | null;
 };
 
 const CHUNK_WORDS = 400;
