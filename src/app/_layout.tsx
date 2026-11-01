@@ -6,11 +6,15 @@ import {
 } from '@expo-google-fonts/libre-caslon-text';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
-import { View } from 'react-native';
+import { useEffect } from 'react';
 import { DB_NAME, migrate } from '../lib/db';
 import { colors } from '../lib/theme';
+
+// keep the logo on screen until fonts are ready, so there's no blank flash
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const [loaded] = useFonts({
@@ -22,7 +26,11 @@ export default function RootLayout() {
     Inter_600SemiBold,
   });
 
-  if (!loaded) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
+  useEffect(() => {
+    if (loaded) SplashScreen.hideAsync().catch(() => {});
+  }, [loaded]);
+
+  if (!loaded) return null;
 
   return (
     <SQLiteProvider databaseName={DB_NAME} onInit={migrate}>
