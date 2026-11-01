@@ -4,6 +4,7 @@ import type { ComponentProps } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../lib/theme';
+import { useKeyboardVisible } from '../../lib/useKeyboardVisible';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
@@ -22,6 +23,9 @@ const ICONS: Record<string, { icon: IconName; label: string }> = {
  */
 function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
   const insets = useSafeAreaInsets();
+  const keyboardOpen = useKeyboardVisible();
+  // the bar would float over the keyboard and the message box while typing
+  if (keyboardOpen) return null;
   return (
     <View pointerEvents="box-none" style={[styles.wrap, { bottom: insets.bottom + 14 }]}>
       <View style={styles.pill}>

@@ -20,6 +20,7 @@ import { getChatConfig, PROVIDERS, type ChatMessage } from '../../lib/chat';
 import { deliverDue } from '../../lib/checkins';
 import { buildSystemPrompt, searchTool } from '../../lib/context';
 import { colors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
+import { useKeyboardVisible } from '../../lib/useKeyboardVisible';
 
 type Row = ChatMessage & { id: number | string };
 
@@ -47,6 +48,7 @@ export default function ChatScreen() {
   const [hasKey, setHasKey] = useState(true);
   const [label, setLabel] = useState('');
   const scrollRef = useRef<ScrollViewInstance>(null);
+  const keyboardOpen = useKeyboardVisible();
 
   useFocusEffect(
     useCallback(() => {
@@ -185,7 +187,7 @@ export default function ChatScreen() {
         )}
       </ScrollView>
 
-      <View style={[styles.composer, { marginBottom: TAB_BAR_SPACE - 30 + insets.bottom }]}>
+      <View style={[styles.composer, { marginBottom: keyboardOpen ? 8 : TAB_BAR_SPACE - 30 + insets.bottom }]}>
         <TextInput
           style={styles.input}
           multiline
