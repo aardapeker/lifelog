@@ -8,6 +8,7 @@ export type AutonomySettings = {
   digestTime: string; // "HH:MM": when the daily message arrives
   researchPerDay: number; // web searches about your entries, per day
   activities: boolean; // look for things to do nearby once a day
+  reads: boolean; // after a chat goes quiet, research its topic and write a Read
   never: string[]; // topics never to look up
 };
 
@@ -16,6 +17,7 @@ const DEFAULTS: AutonomySettings = {
   digestTime: '19:00',
   researchPerDay: 3,
   activities: true,
+  reads: true,
   never: [],
 };
 

@@ -7,6 +7,8 @@ import { requestPinWidget } from 'react-native-android-widget';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chip, PillButton, SectionTitle } from '../../components/ui';
 import { deleteResearch, listResearch, researchSources, type Research } from '../../lib/autonomy';
+import { formatDate } from '../../lib/notes';
+import { articleOf, listReads, type Read } from '../../lib/reads';
 import {
   addGoal,
   addIdea,
@@ -86,6 +88,7 @@ export default function InsightsScreen() {
   const [newGoal, setNewGoal] = useState('');
   const [newIdea, setNewIdea] = useState('');
   const [research, setResearch] = useState<Research[]>([]);
+  const [reads, setReads] = useState<Read[]>([]);
 
   const load = useCallback(async () => {
     const [m, w, s, g, sg, p, i] = await Promise.all([
@@ -105,6 +108,7 @@ export default function InsightsScreen() {
     setPeople(p);
     setIdeas(i);
     setResearch(await listResearch(db));
+    setReads(await listReads(db));
   }, [db]);
 
   useFocusEffect(
@@ -192,6 +196,39 @@ export default function InsightsScreen() {
           )}
         </View>
       </View>
+
+      {/* ── reads ── */}
+      {reads.length > 0 && (
+        <View style={styles.section}>
+          <SectionTitle title="Reads" />
+          <Text style={styles.hint}>Short articles your friend researched and wrote after your chats.</Text>
+          <View style={{ gap: 10 }}>
+            {reads.map((r) => {
+              const a = articleOf(r);
+              return (
+                <Pressable
+                  key={r.id}
+                  style={({ pressed }) => [styles.readCard, pressed && { opacity: 0.8 }]}
+                  onPress={() => router.push(`/read/${r.id}`)}
+                >
+                  <View style={styles.readTop}>
+                    <Text style={styles.readMeta}>
+                      {a ? `${a.minutes} min read, ${formatDate(r.done_at ?? r.created_at).split(',').slice(0, 2).join(',')}` : 'Researching…'}
+                    </Text>
+                    {!!a && !r.opened && <View style={styles.newDot} />}
+                  </View>
+                  <Text style={styles.readTitle}>{a?.title ?? r.topic}</Text>
+                  {!!a?.hook && (
+                    <Text style={styles.readHook} numberOfLines={2}>
+                      {a.hook}
+                    </Text>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      )}
 
       {/* ── research ── */}
       {research.length > 0 && (
@@ -435,6 +472,12 @@ const styles = StyleSheet.create({
   suggestions: { gap: 8, marginTop: 14, alignItems: 'flex-start' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 
+  readCard: { backgroundColor: colors.surface, borderRadius: radius.md, padding: 18 },
+  readTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  readMeta: { fontFamily: fonts.sansRegular, fontSize: 12, color: colors.muted },
+  newDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent },
+  readTitle: { fontFamily: fonts.serif, fontSize: 22, lineHeight: 28, color: colors.text, marginTop: 6 },
+  readHook: { fontFamily: fonts.serifItalic, fontSize: 15, lineHeight: 22, color: colors.muted, marginTop: 6 },
   research: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.line, gap: 4 },
   researchText: { fontFamily: fonts.sansRegular, fontSize: 14, lineHeight: 21, color: colors.text, marginTop: 2 },
   researchLink: { fontFamily: fonts.sansRegular, fontSize: 12, color: colors.muted, textDecorationLine: 'underline' },

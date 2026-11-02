@@ -10,6 +10,7 @@ import { backupDue, backupNow, getPassphrase } from '../../lib/backup';
 import { runBackgroundJobs } from '../../lib/background';
 import { photoMap, photoUri } from '../../lib/photos';
 import { dayParam, getPlannerSettings, midnight, upcomingDayOff } from '../../lib/planner';
+import { articleOf, unopenedRead, type Read } from '../../lib/reads';
 import { latestRecap, weekLabel, type Recap } from '../../lib/recap';
 import {
   formatDate,
@@ -83,6 +84,7 @@ export default function JournalScreen() {
   const [memories, setMemories] = useState<{ label: string; note: Note }[]>([]);
   const [needsBackup, setNeedsBackup] = useState(false);
   const [dayOff, setDayOff] = useState<number | null>(null);
+  const [newRead, setNewRead] = useState<Read | null>(null);
   const isSearch = query.trim().length > 0;
 
   const load = useCallback(async () => {
@@ -107,6 +109,7 @@ export default function JournalScreen() {
       onThisDay(db).then(setMemories);
       backupDue(db).then(setNeedsBackup);
       upcomingDayOff(db).then(setDayOff);
+      unopenedRead(db).then(setNewRead);
       // captions, embeddings, facts, the weekly letter, check-ins
       runBackgroundJobs(db).then(async () => {
         const r = await latestRecap(db);
@@ -160,6 +163,19 @@ export default function JournalScreen() {
           </View>
           <PillButton label="Back up" onPress={backup} />
         </View>
+      )}
+      {newRead && (
+        <Pressable style={styles.memory} onPress={() => router.push(`/read/${newRead.id}`)}>
+          <Text style={styles.memoryLabel}>A new read for you</Text>
+          <Text style={[styles.letterTitle, { color: colors.text, marginTop: 0 }]}>
+            {articleOf(newRead)?.title ?? newRead.topic}
+          </Text>
+          {!!articleOf(newRead)?.hook && (
+            <Text style={styles.memoryBody} numberOfLines={2}>
+              {articleOf(newRead)!.hook}
+            </Text>
+          )}
+        </Pressable>
       )}
       {dayOff !== null && (
         <Pressable

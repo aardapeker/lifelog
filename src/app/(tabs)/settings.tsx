@@ -23,6 +23,8 @@ import {
   runResearch,
   syncBackgroundTask,
 } from '../../lib/autonomy';
+import { learnFromChats } from '../../lib/chatMemory';
+import { writePendingReads } from '../../lib/reads';
 import {
   getAutonomySettings,
   parseNeverList,
@@ -361,8 +363,11 @@ function AutonomySection() {
   const runNow = () =>
     run(async () => {
       await save();
+      await learnFromChats(db);
       const researched = await runResearch(db);
+      const wrote = await writePendingReads(db, true);
       const digest = await maybeSendDigest(db, true);
+      if (digest === 'sent' && wrote) return 'Done. A new Read is ready, and your message is in the chat.';
       if (digest === 'sent') return `Done. Looked up ${researched} thing(s), your message is in the chat.`;
       return researched
         ? `Looked up ${researched} thing(s), but there was nothing worth a message yet.`
@@ -416,6 +421,15 @@ function AutonomySection() {
               hint="Once a day, using your city from Days Off."
               value={s.activities}
               onChange={(activities) => setS({ ...s, activities })}
+            />
+          </View>
+
+          <View style={{ marginTop: 16 }}>
+            <Toggle
+              label="Write me a Read after chats"
+              hint="When a chat goes quiet, your friend may research its topic and write you a short article. At most one a day."
+              value={s.reads}
+              onChange={(reads) => setS({ ...s, reads })}
             />
           </View>
 

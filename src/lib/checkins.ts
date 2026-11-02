@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getBackgroundConfig, parseJsonReply } from './chat';
+import { addMessage, chatForIncoming } from './chats';
 import { aboutUser, renderNotes } from './context';
 import { getSetting, setSetting } from './db';
 import { formatDate, recentNotes } from './notes';
@@ -164,18 +165,15 @@ export async function planCheckins(db: SQLiteDatabase): Promise<number> {
 
 /** Check-ins whose time has passed show up in the chat as messages from your friend. */
 export async function deliverDue(db: SQLiteDatabase): Promise<number> {
-  const due = await db.getAllAsync<{ id: number; fire_at: number; body: string }>(
-    'SELECT id, fire_at, body FROM checkins WHERE delivered = 0 AND fire_at <= ? ORDER BY fire_at',
+  const due = await db.getAllAsync<{ id: number; fire_at: number; body: string; kind: string }>(
+    'SELECT id, fire_at, body, kind FROM checkins WHERE delivered = 0 AND fire_at <= ? ORDER BY fire_at',
     Date.now(),
   );
   for (const c of due) {
     await db.withTransactionAsync(async () => {
-      await db.runAsync(
-        'INSERT INTO messages(role, content, created_at) VALUES (?, ?, ?)',
-        'assistant',
-        c.body,
-        c.fire_at,
-      );
+      // joins the conversation if you were just talking, otherwise opens a new one you can reply to
+      const chatId = await chatForIncoming(db, c.fire_at, c.kind === 'digest' ? 'From your friend' : 'Check-in');
+      await addMessage(db, chatId, 'assistant', c.body, c.fire_at);
       await db.runAsync('UPDATE checkins SET delivered = 1 WHERE id = ?', c.id);
     });
   }

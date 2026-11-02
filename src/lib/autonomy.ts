@@ -9,6 +9,7 @@ import { aboutUser } from './context';
 import { getSetting, setSetting } from './db';
 import { groundedSearch } from './gemini';
 import { getKey } from './keys';
+import { articleOf, type Read } from './reads';
 import { dayParam, dayTitle, getPlace, midnight, parseEventLines, type FoundEvent } from './planner';
 
 /*
@@ -173,10 +174,24 @@ export async function maybeSendDigest(db: SQLiteDatabase, force = false): Promis
       activities = await findActivities(db, geminiKey).catch(() => []);
       await setSetting(db, 'autonomy.lastActivities', today);
     }
-    if (!research.length && !activities.length) return 'nothing';
+    const reads = await db.getAllAsync<Read>(
+      "SELECT * FROM reads WHERE status = 'done' AND digested = 0 ORDER BY done_at",
+    );
+    if (!research.length && !activities.length && !reads.length) return 'nothing';
     if (!(await ensureNotificationPermission())) return 'later';
 
     const parts: string[] = [];
+    if (reads.length) {
+      parts.push(
+        'Articles you researched and wrote for them after a chat (give each its link exactly as is, on its own line):\n' +
+          reads
+            .map((r) => {
+              const a = articleOf(r);
+              return `- "${a?.title ?? r.topic}": ${a?.hook ?? ''}\n  lifelog://read/${r.id}`;
+            })
+            .join('\n'),
+      );
+    }
     if (research.length) {
       parts.push(
         'Things you looked up for them:\n' +
@@ -213,9 +228,14 @@ export async function maybeSendDigest(db: SQLiteDatabase, force = false): Promis
     const at = force ? Date.now() : Math.max(Date.now(), digestTimeToday(s));
     const notificationId = await Notifications.scheduleNotificationAsync({
       content: {
-        title: research.length ? 'I looked a few things up for you' : 'Something to do nearby',
+        title: reads.length
+          ? `I dug into ${articleOf(reads[0])?.title ?? reads[0].topic} for you`
+          : research.length
+            ? 'I looked a few things up for you'
+            : 'Something to do nearby',
         body: body.length > 140 ? `${body.slice(0, 137)}…` : body,
-        data: { kind: 'checkin' }, // opens the chat
+        // a Read opens the article itself; anything else opens the chat
+        data: reads.length ? { kind: 'read', id: reads[0].id } : { kind: 'checkin' },
       },
       trigger:
         at > Date.now() + 5000
@@ -229,6 +249,7 @@ export async function maybeSendDigest(db: SQLiteDatabase, force = false): Promis
       notificationId,
     );
     for (const r of research) await db.runAsync('UPDATE research SET digested = 1 WHERE id = ?', r.id);
+    for (const r of reads) await db.runAsync('UPDATE reads SET digested = 1 WHERE id = ?', r.id);
     await setSetting(db, 'autonomy.lastDigest', today);
     return 'sent';
   } catch (e) {

@@ -147,6 +147,38 @@ const MIGRATIONS: string[] = [
   CREATE INDEX research_status_idx ON research(status);
   ALTER TABLE checkins ADD COLUMN kind TEXT NOT NULL DEFAULT 'checkin';
   `,
+  // v6: chat sessions (old messages move into one chat), memory from chats, and Reads
+  `
+  CREATE TABLE chats (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    title      TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    learned_at INTEGER                 -- when facts/topics were last pulled out of it
+  );
+  ALTER TABLE messages ADD COLUMN chat_id INTEGER REFERENCES chats(id) ON DELETE CASCADE;
+  INSERT INTO chats(title, created_at, updated_at)
+    SELECT 'Earlier chat', mn, mx FROM (SELECT min(created_at) AS mn, max(created_at) AS mx, count(*) AS n FROM messages) WHERE n > 0;
+  UPDATE messages SET chat_id = (SELECT max(id) FROM chats) WHERE chat_id IS NULL;
+  CREATE INDEX messages_chat_idx ON messages(chat_id);
+
+  -- facts can come from a chat too; deleting the chat forgets them
+  ALTER TABLE facts ADD COLUMN chat_id INTEGER REFERENCES chats(id) ON DELETE CASCADE;
+
+  CREATE TABLE reads (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id    INTEGER REFERENCES chats(id) ON DELETE SET NULL,
+    topic      TEXT    NOT NULL,
+    angles     TEXT    NOT NULL,         -- JSON: 3 things to search for
+    why        TEXT,
+    status     TEXT    NOT NULL DEFAULT 'pending',  -- pending | done | failed | skipped
+    body       TEXT,                     -- JSON article once written
+    opened     INTEGER NOT NULL DEFAULT 0,
+    digested   INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    done_at    INTEGER
+  );
+  `,
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<void> {

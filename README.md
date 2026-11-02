@@ -29,6 +29,9 @@ Android only. No server, no account. Everything lives on the phone.
 - **On its own**: Android wakes the app every few hours (no server). The friend looks up things you
   wrote about (daily cap, "never look up" list), searches for things to do nearby, and sends at most one
   message a day (notification + chat, with links). Results also listed under Insights → Looked Into
+- **Chat sessions**: New chat, History (auto titles, hold to delete); quiet chats become memory too
+- **Reads**: after a chat goes quiet, the friend researches its topic from three angles with Google Search
+  and writes a short magazine-style article just for you, with sources (at most one a day)
 
 Everything lives on the phone. One Gemini key is enough for all of it.
 

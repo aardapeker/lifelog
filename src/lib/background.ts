@@ -2,8 +2,10 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { maybeSendDigest, runResearch } from './autonomy';
 import { deliverDue, planCheckins } from './checkins';
 import { indexPending } from './embeddings';
+import { learnFromChats } from './chatMemory';
 import { learnFacts } from './facts';
 import { captionPending } from './photos';
+import { writePendingReads } from './reads';
 import { scheduleDayOffReminders } from './planner';
 import { ensureRecap } from './recap';
 
@@ -17,10 +19,12 @@ export async function runBackgroundJobs(db: SQLiteDatabase): Promise<void> {
   await safe(captionPending(db)); // captions first, so they get embedded right after
   await safe(indexPending(db));
   await safe(learnFacts(db));
+  await safe(learnFromChats(db)); // chats that went quiet become memory (and maybe a Read)
   await safe(ensureRecap(db));
   await safe(planCheckins(db));
   await safe(scheduleDayOffReminders(db));
   // the friend acting on its own: research what you wrote about, then maybe one message for the day
   await safe(runResearch(db));
+  await safe(writePendingReads(db)); // at most one Read a day
   await safe(maybeSendDigest(db));
 }
