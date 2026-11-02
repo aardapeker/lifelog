@@ -126,6 +126,40 @@ export function describeImageGemini(
   });
 }
 
+export type GroundedResult = { text: string; sources: { title: string; uri: string }[]; queries: string[] };
+
+/**
+ * Asks Gemini with Google Search turned on. Returns the answer plus the pages it used
+ * and the searches it ran (Google asks apps to show those).
+ */
+export async function groundedSearch(apiKey: string, model: string, prompt: string): Promise<GroundedResult> {
+  const res = await fetch(`${BASE}/${model}:generateContent`, {
+    method: 'POST',
+    headers: jsonHeaders(apiKey),
+    body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], tools: [{ google_search: {} }] }),
+  });
+  if (!res.ok) throw new Error(await readError(res));
+  const json = (await res.json()) as {
+    candidates?: {
+      content?: { parts?: Part[] };
+      groundingMetadata?: { webSearchQueries?: string[]; groundingChunks?: { web?: { uri: string; title: string } }[] };
+    }[];
+  };
+  const c = json.candidates?.[0];
+  return {
+    text: (c?.content?.parts ?? [])
+      .filter((p) => !p.thought)
+      .map((p) => p.text ?? '')
+      .join('')
+      .trim(),
+    sources: (c?.groundingMetadata?.groundingChunks ?? [])
+      .map((g) => g.web)
+      .filter((w): w is { uri: string; title: string } => !!w?.uri)
+      .slice(0, 8),
+    queries: c?.groundingMetadata?.webSearchQueries ?? [],
+  };
+}
+
 /** Speech to text. Gemini only: Claude doesn't take audio. */
 export function transcribeGemini(apiKey: string, model: string, base64: string, mimeType: string): Promise<string> {
   return generate(apiKey, model, {

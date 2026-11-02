@@ -5,6 +5,7 @@ import { getChatConfig, parseJsonReply, PROVIDERS } from './chat';
 import { ensureNotificationPermission, getCheckinSettings, shiftFor } from './checkins';
 import { aboutUser, renderNotes } from './context';
 import { getSetting, setSetting } from './db';
+import { groundedSearch } from './gemini';
 import { getKey } from './keys';
 import { recentNotes } from './notes';
 import { weekStart } from './recap';
@@ -82,6 +83,12 @@ export function dayTitle(ms: number): string {
 }
 
 // ───────────── settings ─────────────
+
+/** Where the user is, for weather and events. Null until they set a city. */
+export async function getPlace(db: SQLiteDatabase): Promise<string | null> {
+  const s = await getPlannerSettings(db);
+  return s.place ?? (s.city || null);
+}
 
 export async function getPlannerSettings(db: SQLiteDatabase): Promise<PlannerSettings> {
   const defaults: PlannerSettings = { city: '', place: null, lat: null, lon: null, push: 'medium', reminders: true };
@@ -211,51 +218,16 @@ async function searchEvents(
   place: string,
   day: number,
 ): Promise<{ events: FoundEvent[]; sources: Source[]; queries: string[] }> {
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${PROVIDERS.gemini.defaultModel}:generateContent`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              {
-                text:
-                  `Search the web for things happening in or near ${place} on ${dayTitle(day)} ${new Date(day).getFullYear()}: ` +
-                  'concerts, meetups, workshops, exhibitions, markets, sports or hobby groups, language exchanges, free activities. ' +
-                  'Include both social ones (meeting people) and solo ones. Only list events you actually found for that date. ' +
-                  'Output one per line, exactly: TITLE | TIME | PLACE | social or solo | URL. Up to 6 lines. ' +
-                  'If you find nothing for that date, output NONE.',
-              },
-            ],
-          },
-        ],
-        tools: [{ google_search: {} }],
-      }),
-    },
+  const found = await groundedSearch(
+    apiKey,
+    PROVIDERS.gemini.defaultModel,
+    `Search the web for things happening in or near ${place} on ${dayTitle(day)} ${new Date(day).getFullYear()}: ` +
+      'concerts, meetups, workshops, exhibitions, markets, sports or hobby groups, language exchanges, free activities. ' +
+      'Include both social ones (meeting people) and solo ones. Only list events you actually found for that date. ' +
+      'Output one per line, exactly: TITLE | TIME | PLACE | social or solo | URL. Up to 6 lines. ' +
+      'If you find nothing for that date, output NONE.',
   );
-  if (!res.ok) throw new Error(`Event search failed (${res.status}).`);
-  const json = (await res.json()) as {
-    candidates?: {
-      content?: { parts?: { text?: string; thought?: boolean }[] };
-      groundingMetadata?: { webSearchQueries?: string[]; groundingChunks?: { web?: { uri: string; title: string } }[] };
-    }[];
-  };
-  const c = json.candidates?.[0];
-  const text = (c?.content?.parts ?? [])
-    .filter((p) => !p.thought)
-    .map((p) => p.text ?? '')
-    .join('');
-  return {
-    events: parseEventLines(text),
-    sources: (c?.groundingMetadata?.groundingChunks ?? [])
-      .map((g) => g.web)
-      .filter((w): w is Source => !!w?.uri)
-      .slice(0, 8),
-    queries: c?.groundingMetadata?.webSearchQueries ?? [],
-  };
+  return { events: parseEventLines(found.text), sources: found.sources, queries: found.queries };
 }
 
 // ───────────── the plan ─────────────

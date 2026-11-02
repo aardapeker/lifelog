@@ -185,10 +185,10 @@ export async function deliverDue(db: SQLiteDatabase): Promise<number> {
 /** Cancels everything not yet delivered (used when settings change or check-ins are turned off). */
 export async function cancelFuture(db: SQLiteDatabase): Promise<void> {
   const rows = await db.getAllAsync<{ id: number; notification_id: string | null }>(
-    'SELECT id, notification_id FROM checkins WHERE delivered = 0',
+    "SELECT id, notification_id FROM checkins WHERE delivered = 0 AND kind = 'checkin'",
   );
   for (const r of rows) {
     if (r.notification_id) await Notifications.cancelScheduledNotificationAsync(r.notification_id).catch(() => {});
   }
-  await db.runAsync('DELETE FROM checkins WHERE delivered = 0');
+  await db.runAsync("DELETE FROM checkins WHERE delivered = 0 AND kind = 'checkin'");
 }

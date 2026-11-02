@@ -1,7 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState, type ReactNode } from 'react';
-import { Alert, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { authenticate, canUseBiometrics } from '../../components/LockGate';
 import { PillButton, SectionTitle, StatusLine, type Status } from '../../components/ui';
@@ -16,6 +16,19 @@ import {
   type Shift,
 } from '../../lib/checkins';
 import { deleteFact, listFacts, type Fact } from '../../lib/facts';
+import {
+  backgroundAvailable,
+  lastBackgroundRun,
+  maybeSendDigest,
+  runResearch,
+  syncBackgroundTask,
+} from '../../lib/autonomy';
+import {
+  getAutonomySettings,
+  parseNeverList,
+  saveAutonomySettings,
+  type AutonomySettings,
+} from '../../lib/autonomySettings';
 import { formatDate } from '../../lib/notes';
 import {
   dayParam,
@@ -315,6 +328,139 @@ function CheckinSection() {
   );
 }
 
+/** The friend acting without being asked: research, activities, one daily message. */
+function AutonomySection() {
+  const db = useSQLiteContext();
+  const [s, setS] = useState<AutonomySettings | null>(null);
+  const [never, setNever] = useState('');
+  const [lastRun, setLastRun] = useState(0);
+  const [available, setAvailable] = useState(true);
+  const [status, run] = useStatus();
+
+  useFocusEffect(
+    useCallback(() => {
+      getAutonomySettings(db).then((a) => {
+        setS(a);
+        setNever(a.never.join(', '));
+      });
+      lastBackgroundRun(db).then(setLastRun);
+      backgroundAvailable().then(setAvailable).catch(() => {});
+    }, [db]),
+  );
+  if (!s) return null;
+
+  const save = (next = s) =>
+    run(async () => {
+      const full = { ...next, never: parseNeverList(never) };
+      await saveAutonomySettings(db, full);
+      await syncBackgroundTask(db);
+      setS(full);
+      return full.enabled ? 'Saved. Your friend checks in every few hours.' : 'Off. Your friend only acts when you open the app.';
+    });
+
+  const runNow = () =>
+    run(async () => {
+      await save();
+      const researched = await runResearch(db);
+      const digest = await maybeSendDigest(db, true);
+      if (digest === 'sent') return `Done. Looked up ${researched} thing(s), your message is in the chat.`;
+      return researched
+        ? `Looked up ${researched} thing(s), but there was nothing worth a message yet.`
+        : 'Nothing to look up or suggest right now. Write a few entries and try again.';
+    });
+
+  const ago = lastRun ? Math.round((Date.now() - lastRun) / 3600e3) : null;
+
+  return (
+    <Section
+      title="On Its Own"
+      hint="Your friend looks things up from what you write, finds things to do nearby, and sends one message a day. No asking."
+    >
+      <Toggle
+        label="Let my friend act on its own"
+        hint="Runs every few hours in the background, and whenever you open the app."
+        value={s.enabled}
+        onChange={(enabled) => {
+          const next = { ...s, enabled };
+          setS(next);
+          save(next);
+        }}
+      />
+      {s.enabled && (
+        <>
+          <Text style={styles.label}>Daily message time</Text>
+          <TextInput
+            style={[styles.input, { width: 100, textAlign: 'center' }]}
+            value={s.digestTime}
+            onChangeText={(digestTime) => setS({ ...s, digestTime })}
+            keyboardType="numbers-and-punctuation"
+            maxLength={5}
+            selectionColor={colors.text}
+          />
+          <Text style={[styles.hint, { marginTop: 6 }]}>Only sent when there's something worth it. Never more than once a day.</Text>
+
+          <Text style={styles.label}>Web searches about your entries, per day</Text>
+          <Segment
+            options={[
+              { key: '1', label: '1' },
+              { key: '3', label: '3' },
+              { key: '5', label: '5' },
+            ]}
+            value={String(s.researchPerDay) as '1' | '3' | '5'}
+            onChange={(v) => setS({ ...s, researchPerDay: Number(v) })}
+          />
+
+          <View style={{ marginTop: 16 }}>
+            <Toggle
+              label="Find things to do nearby"
+              hint="Once a day, using your city from Days Off."
+              value={s.activities}
+              onChange={(activities) => setS({ ...s, activities })}
+            />
+          </View>
+
+          <Text style={styles.label}>Never look up</Text>
+          <TextInput
+            style={[styles.input, { minHeight: 70 }]}
+            multiline
+            textAlignVertical="top"
+            value={never}
+            onChangeText={setNever}
+            placeholder="Topics to keep to yourself, separated by commas"
+            placeholderTextColor={colors.muted}
+            selectionColor={colors.text}
+          />
+          <Text style={[styles.hint, { marginTop: 6 }]}>
+            Entries stay on your phone, but searches go to Google. Anything listed here is never searched.
+          </Text>
+
+          <View style={styles.bgBox}>
+            <Text style={styles.keyTitle}>Background</Text>
+            <Text style={styles.hint}>
+              {!available
+                ? 'Android is blocking background work for Lifelog.'
+                : ago === null
+                  ? "Hasn't run in the background yet. Give it a few hours."
+                  : `Last ran in the background ${ago === 0 ? 'less than an hour' : `${ago} hour${ago === 1 ? '' : 's'}`} ago.`}
+            </Text>
+            <Text style={[styles.hint, { marginTop: 6 }]}>
+              On Xiaomi, turn on Autostart and set Battery saver to "No restrictions" for Lifelog, or HyperOS will stop it.
+            </Text>
+            <View style={styles.row}>
+              <PillButton label="Open app settings" onPress={() => Linking.openSettings()} ghost />
+            </View>
+          </View>
+        </>
+      )}
+      <View style={[styles.row, { flexWrap: 'wrap' }]}>
+        <PillButton label="Save" onPress={() => save()} />
+        {s.enabled && <PillButton label="Run now" onPress={runNow} ghost />}
+      </View>
+      <StatusLine status={status} />
+    </Section>
+  );
+}
+
 /** Where you are and how hard to push: the day planner's settings. */
 function DaysOffSection() {
   const db = useSQLiteContext();
@@ -570,6 +716,8 @@ export default function SettingsScreen() {
 
         <DaysOffSection />
 
+        <AutonomySection />
+
         <PrivacySection />
 
         <Section title="API Keys" hint="Kept in your phone's encrypted keystore. Only sent to the AI you call.">
@@ -646,6 +794,7 @@ const styles = StyleSheet.create({
 
   row: { flexDirection: 'row', gap: 10, marginTop: 16 },
   toggle: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  bgBox: { marginTop: 18, padding: 14, borderRadius: radius.sm, backgroundColor: colors.raised },
   times: { flexDirection: 'row', gap: 8 },
   timeLabel: { fontFamily: fonts.sansRegular, fontSize: 12, color: colors.muted, marginTop: 4, textAlign: 'center' },
   fact: {

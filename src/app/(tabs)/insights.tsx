@@ -2,10 +2,11 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { requestPinWidget } from 'react-native-android-widget';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chip, PillButton, SectionTitle } from '../../components/ui';
+import { deleteResearch, listResearch, researchSources, type Research } from '../../lib/autonomy';
 import {
   addGoal,
   addIdea,
@@ -84,6 +85,7 @@ export default function InsightsScreen() {
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [newGoal, setNewGoal] = useState('');
   const [newIdea, setNewIdea] = useState('');
+  const [research, setResearch] = useState<Research[]>([]);
 
   const load = useCallback(async () => {
     const [m, w, s, g, sg, p, i] = await Promise.all([
@@ -102,6 +104,7 @@ export default function InsightsScreen() {
     setSuggestions(sg);
     setPeople(p);
     setIdeas(i);
+    setResearch(await listResearch(db));
   }, [db]);
 
   useFocusEffect(
@@ -189,6 +192,53 @@ export default function InsightsScreen() {
           )}
         </View>
       </View>
+
+      {/* ── research ── */}
+      {research.length > 0 && (
+        <View style={styles.section}>
+          <SectionTitle title="Looked Into" />
+          <Text style={styles.hint}>Things your friend searched for after reading your entries. Hold one to remove it.</Text>
+          <View style={styles.panel}>
+            {research.map((r) => (
+              <Pressable
+                key={r.id}
+                style={styles.research}
+                onLongPress={() =>
+                  Alert.alert('Remove this?', r.topic, [
+                    { text: 'Keep', style: 'cancel' },
+                    {
+                      text: 'Remove',
+                      style: 'destructive',
+                      onPress: async () => {
+                        await deleteResearch(db, r.id);
+                        load();
+                      },
+                    },
+                  ])
+                }
+              >
+                <Text style={styles.rowTitle}>{r.topic}</Text>
+                {r.status === 'pending' ? (
+                  <Text style={styles.rowMeta}>On the list, looking it up soon.</Text>
+                ) : (
+                  <>
+                    <Text style={styles.researchText}>{r.result}</Text>
+                    {researchSources(r)
+                      .slice(0, 3)
+                      .map((src) => (
+                        <Pressable key={src.uri} onPress={() => Linking.openURL(src.uri).catch(() => {})} hitSlop={4}>
+                          <Text style={styles.researchLink} numberOfLines={1}>
+                            {src.title}
+                          </Text>
+                        </Pressable>
+                      ))}
+                  </>
+                )}
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )}
 
       {/* ── goals ── */}
       <View style={styles.section}>
@@ -384,6 +434,10 @@ const styles = StyleSheet.create({
   },
   suggestions: { gap: 8, marginTop: 14, alignItems: 'flex-start' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+
+  research: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.line, gap: 4 },
+  researchText: { fontFamily: fonts.sansRegular, fontSize: 14, lineHeight: 21, color: colors.text, marginTop: 2 },
+  researchLink: { fontFamily: fonts.sansRegular, fontSize: 12, color: colors.muted, textDecorationLine: 'underline' },
 
   idea: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 9 },
   ideaText: { flex: 1, fontFamily: fonts.sansRegular, fontSize: 15, lineHeight: 22, color: colors.text },

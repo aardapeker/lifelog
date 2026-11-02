@@ -21,7 +21,7 @@ import { photosDir } from './photos';
 const MAGIC = new Uint8Array([76, 76, 66, 75, 49]); // LLBK1
 const PASS_KEY = 'backup.passphrase';
 // Order matters: parents before children when inserting, reverse when deleting.
-const TABLES = ['notes', 'chunks', 'photos', 'facts', 'goals', 'note_goals', 'ideas', 'messages', 'recaps', 'plans', 'kv'];
+const TABLES = ['notes', 'chunks', 'photos', 'facts', 'goals', 'note_goals', 'ideas', 'messages', 'recaps', 'plans', 'research', 'kv'];
 
 export const getPassphrase = () => SecureStore.getItemAsync(PASS_KEY);
 export async function setPassphrase(p: string) {

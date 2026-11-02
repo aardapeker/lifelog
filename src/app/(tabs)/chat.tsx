@@ -15,6 +15,7 @@ import {
   type ScrollViewInstance,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinkedText } from '../../components/LinkedText';
 import { Chip, IconButton, PillButton } from '../../components/ui';
 import { getChatConfig, PROVIDERS, type ChatMessage } from '../../lib/chat';
 import { deliverDue } from '../../lib/checkins';
@@ -176,9 +177,7 @@ export default function ChatScreen() {
           ) : (
             <View key={m.id} style={styles.theirs}>
               {m.content ? (
-                <Text selectable style={styles.theirsText}>
-                  {m.content}
-                </Text>
+                <LinkedText text={m.content} style={styles.theirsText} />
               ) : (
                 <ActivityIndicator color={colors.text} style={{ alignSelf: 'flex-start' }} />
               )}

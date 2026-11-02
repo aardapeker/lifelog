@@ -26,6 +26,9 @@ Android only. No server, no account. Everything lives on the phone.
 - **Day planner for days off**: weather (Open-Meteo, no key), real events found with Gemini's Google Search,
   your goals, mood and people you haven't seen, turned into a checklist; adjustable "social push";
   reminder the evening before; ticked items become a journal entry draft
+- **On its own**: Android wakes the app every few hours (no server). The friend looks up things you
+  wrote about (daily cap, "never look up" list), searches for things to do nearby, and sends at most one
+  message a day (notification + chat, with links). Results also listed under Insights → Looked Into
 
 Everything lives on the phone. One Gemini key is enough for all of it.
 

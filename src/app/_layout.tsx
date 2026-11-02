@@ -13,6 +13,8 @@ import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { setPendingShare } from '../lib/share';
+import { useSQLiteContext } from 'expo-sqlite';
+import { syncBackgroundTask } from '../lib/autonomy';
 import { LockGate } from '../components/LockGate';
 import { DB_NAME, migrate } from '../lib/db';
 import { colors } from '../lib/theme';
@@ -35,6 +37,15 @@ function ShareHandler() {
     resetShareIntent();
     setTimeout(() => router.push('/note/new?shared=1'), 300);
   }, [hasShareIntent, shareIntent, resetShareIntent]);
+  return null;
+}
+
+/** Registers (or removes) the Android background task to match Settings → On Its Own. */
+function BackgroundSync() {
+  const db = useSQLiteContext();
+  useEffect(() => {
+    syncBackgroundTask(db).catch((e) => console.warn('background task registration failed', e));
+  }, [db]);
   return null;
 }
 
@@ -72,6 +83,7 @@ export default function RootLayout() {
       <StatusBar style="light" />
       <LockGate>
       <ShareHandler />
+      <BackgroundSync />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="note/[id]" />

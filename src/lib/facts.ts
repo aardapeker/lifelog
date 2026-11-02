@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getBackgroundConfig, parseJsonReply } from './chat';
+import { getAutonomySettings, isNeverResearch } from './autonomySettings';
 import { formatDate } from './notes';
 
 export type Fact = {
@@ -26,10 +27,11 @@ type Analysis = {
   facts?: { kind?: string; subject?: string | null; text?: string }[];
   goals?: number[];
   ideas?: string[];
+  research?: { topic?: string; query?: string; why?: string }[];
 };
 
-const SYSTEM = (goals: string) =>
-  `You read one entry from someone's personal journal and return JSON with four things:
+const SYSTEM = (goals: string, never: string) =>
+  `You read one entry from someone's personal journal and return JSON with five things:
 1. "mood": {"score": 1-5, "label": one lowercase word}. 1 = awful, 3 = neutral, 5 = great.
 2. "facts": durable facts about the writer worth remembering in a month: people in their life, pets, places,
    goals, plans, habits, preferences, notable events, recurring feelings. Each: {"kind", "subject", "text"}.
@@ -38,6 +40,11 @@ const SYSTEM = (goals: string) =>
    text is one short third-person sentence ("Has a cat called Şemistan"). Skip trivia.
 3. "goals": ids of the writer's goals this entry is clearly about (from the list below), or [].
 4. "ideas": ideas for videos, tutorials or other content the writer mentions wanting to make, each a short phrase, or [].
+5. "research": things a good friend would quietly look up for them on the web, at most 2: something they want to buy,
+   a plan or trip, a question they wondered about, a problem they're stuck on, an event or place they mentioned.
+   Each: {"topic": "short title", "query": "a web search query", "why": "what they wrote that made it worth it"}.
+   Only when the web would really help; usually []. Never research private details about other people.
+   Never research these topics: ${never || '(nothing excluded)'}.
 Write facts and ideas in the language of the entry.
 The writer's goals: ${goals || '(none yet)'}`;
 
@@ -55,6 +62,7 @@ export async function learnFacts(db: SQLiteDatabase): Promise<number> {
   let analyzed = 0;
   try {
     const goals = await db.getAllAsync<{ id: number; title: string }>('SELECT id, title FROM goals WHERE done = 0');
+    const never = (await getAutonomySettings(db)).never;
     const goalList = goals.map((g) => `${g.id}: ${g.title}`).join('; ');
     const notes = await db.getAllAsync<{ id: number; body: string; created_at: number }>(
       "SELECT id, body, created_at FROM notes WHERE facts_status != 'done' ORDER BY created_at DESC LIMIT 8",
@@ -65,10 +73,10 @@ export async function learnFacts(db: SQLiteDatabase): Promise<number> {
           apiKey: ai.apiKey,
           model: ai.model,
           json: true,
-          system: SYSTEM(goalList),
+          system: SYSTEM(goalList, never.join(', ')),
           prompt: `Entry written ${formatDate(note.created_at)}:\n\n${note.body || '(only photos)'}`,
         });
-        await saveAnalysis(db, note, parseJsonReply<Analysis>(reply), new Set(goals.map((g) => g.id)));
+        await saveAnalysis(db, note, parseJsonReply<Analysis>(reply), new Set(goals.map((g) => g.id)), never);
         analyzed++;
       } catch (e) {
         console.warn('entry analysis failed', e);
@@ -86,6 +94,7 @@ async function saveAnalysis(
   note: { id: number; created_at: number },
   a: Analysis,
   goalIds: Set<number>,
+  never: string[],
 ): Promise<void> {
   const score = Math.round(Number(a.mood?.score));
   await db.withTransactionAsync(async () => {
@@ -123,6 +132,29 @@ async function saveAnalysis(
         r.text.toLowerCase(),
       ),
     );
+    // only fresh entries get researched: editing an old one shouldn't send the friend searching
+    if (Date.now() - note.created_at < 3 * 86_400_000) {
+      for (const r of (a.research ?? []).slice(0, 2)) {
+        const topic = r.topic?.trim();
+        const query = r.query?.trim();
+        if (!topic || !query || isNeverResearch(`${topic} ${query}`, never)) continue;
+        const seen = await db.getFirstAsync(
+          'SELECT id FROM research WHERE lower(query) = lower(?) AND created_at > ?',
+          query,
+          Date.now() - 30 * 86_400_000,
+        );
+        if (seen) continue;
+        await db.runAsync(
+          'INSERT INTO research(note_id, topic, query, why, created_at) VALUES (?, ?, ?, ?, ?)',
+          note.id,
+          topic,
+          query,
+          r.why?.trim() || null,
+          Date.now(),
+        );
+      }
+    }
+
     for (const idea of a.ideas ?? []) {
       const text = idea?.trim();
       if (text && !done.has(text.toLowerCase())) {

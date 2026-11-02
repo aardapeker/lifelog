@@ -1,4 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
+import { maybeSendDigest, runResearch } from './autonomy';
 import { deliverDue, planCheckins } from './checkins';
 import { indexPending } from './embeddings';
 import { learnFacts } from './facts';
@@ -19,4 +20,7 @@ export async function runBackgroundJobs(db: SQLiteDatabase): Promise<void> {
   await safe(ensureRecap(db));
   await safe(planCheckins(db));
   await safe(scheduleDayOffReminders(db));
+  // the friend acting on its own: research what you wrote about, then maybe one message for the day
+  await safe(runResearch(db));
+  await safe(maybeSendDigest(db));
 }

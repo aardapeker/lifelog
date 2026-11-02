@@ -129,10 +129,29 @@ const MIGRATIONS: string[] = [
     created_at INTEGER NOT NULL
   );
   `,
+  // v5: things the friend decided to look up for you, and an outbox kind (check-in vs daily digest)
+  `
+  CREATE TABLE research (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    note_id    INTEGER REFERENCES notes(id) ON DELETE SET NULL,
+    topic      TEXT    NOT NULL,         -- shown to you, e.g. "2027 Honda PCX release"
+    query      TEXT    NOT NULL,         -- what gets searched
+    why        TEXT,                     -- what in the entry made it worth looking up
+    status     TEXT    NOT NULL DEFAULT 'pending',  -- pending | done | failed | skipped
+    result     TEXT,                     -- short summary in the friend's voice
+    sources    TEXT,                     -- JSON [{title, uri}]
+    digested   INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    done_at    INTEGER
+  );
+  CREATE INDEX research_status_idx ON research(status);
+  ALTER TABLE checkins ADD COLUMN kind TEXT NOT NULL DEFAULT 'checkin';
+  `,
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<void> {
-  await db.execAsync('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
+  // busy_timeout: the background task and the open app may both use the database at once
+  await db.execAsync('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
   const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
   let version = row?.user_version ?? 0;
   while (version < MIGRATIONS.length) {
