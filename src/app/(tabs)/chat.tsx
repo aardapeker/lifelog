@@ -21,7 +21,7 @@ import { titleChat } from '../../lib/chatMemory';
 import { addMessage, chatMessages, chatTitle, createChat, getChat, latestChat } from '../../lib/chats';
 import { deliverDue } from '../../lib/checkins';
 import { buildSystemPrompt, searchTool } from '../../lib/context';
-import { colors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
+import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 import { useKeyboardVisible } from '../../lib/useKeyboardVisible';
 
 type Row = ChatMessage & { id: number | string };
@@ -244,8 +244,7 @@ export default function ChatScreen() {
           placeholderTextColor={colors.muted}
           value={input}
           onChangeText={setInput}
-          selectionColor={colors.text}
-          cursorColor={colors.text}
+          {...inputColors}
         />
         <Pressable
           style={[styles.send, !canSend && { backgroundColor: '#4A4949' }]}

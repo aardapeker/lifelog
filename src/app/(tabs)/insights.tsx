@@ -27,7 +27,7 @@ import {
   type Idea,
   type Person,
 } from '../../lib/insights';
-import { colors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
+import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 
 const WEEKS = 12;
 const DAY = 86_400_000;
@@ -311,7 +311,7 @@ export default function InsightsScreen() {
               onChangeText={setNewGoal}
               onSubmitEditing={() => createGoal(newGoal)}
               returnKeyType="done"
-              selectionColor={colors.text}
+              {...inputColors}
             />
             <PillButton label="Add" onPress={() => createGoal(newGoal)} />
           </View>
@@ -391,7 +391,7 @@ export default function InsightsScreen() {
               onChangeText={setNewIdea}
               onSubmitEditing={createIdea}
               returnKeyType="done"
-              selectionColor={colors.text}
+              {...inputColors}
             />
             <PillButton label="Add" onPress={createIdea} />
           </View>

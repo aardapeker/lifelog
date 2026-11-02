@@ -21,6 +21,13 @@ export const fonts = {
   sansBold: 'Inter_600SemiBold',
 };
 
+/** Text fields: a soft highlight so selected text stays readable, white handles and cursor. */
+export const inputColors = {
+  selectionColor: 'rgba(255, 255, 255, 0.3)',
+  selectionHandleColor: '#FFFFFF',
+  cursorColor: '#FFFFFF',
+} as const;
+
 export const radius = { sm: 12, md: 20, lg: 28, pill: 999 };
 
 /** Space the floating tab bar needs at the bottom of every tab screen. */

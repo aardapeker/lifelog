@@ -126,11 +126,19 @@ export function describeImageGemini(
   });
 }
 
-export type GroundedResult = { text: string; sources: { title: string; uri: string }[]; queries: string[] };
+export type Source = { title: string; uri: string };
+
+export type GroundedResult = {
+  text: string;
+  sources: Source[];
+  queries: string[];
+  /** which sources back which part of the answer: segment text → source */
+  supports: { text: string; source: Source }[];
+};
 
 /**
- * Asks Gemini with Google Search turned on. Returns the answer plus the pages it used
- * and the searches it ran (Google asks apps to show those).
+ * Asks Gemini with Google Search turned on. Returns the answer plus the pages it used,
+ * the searches it ran (Google asks apps to show those), and which page backs which sentence.
  */
 export async function groundedSearch(apiKey: string, model: string, prompt: string): Promise<GroundedResult> {
   const res = await fetch(`${BASE}/${model}:generateContent`, {
@@ -142,22 +150,55 @@ export async function groundedSearch(apiKey: string, model: string, prompt: stri
   const json = (await res.json()) as {
     candidates?: {
       content?: { parts?: Part[] };
-      groundingMetadata?: { webSearchQueries?: string[]; groundingChunks?: { web?: { uri: string; title: string } }[] };
+      groundingMetadata?: {
+        webSearchQueries?: string[];
+        groundingChunks?: { web?: Source }[];
+        groundingSupports?: { segment?: { text?: string }; groundingChunkIndices?: number[] }[];
+      };
     }[];
   };
   const c = json.candidates?.[0];
+  const chunks = (c?.groundingMetadata?.groundingChunks ?? []).map((g) => (g.web?.uri ? g.web : null));
+  const supports = (c?.groundingMetadata?.groundingSupports ?? []).flatMap((s) => {
+    const source = (s.groundingChunkIndices ?? []).map((i) => chunks[i]).find((x): x is Source => !!x);
+    return s.segment?.text && source ? [{ text: s.segment.text, source }] : [];
+  });
   return {
     text: (c?.content?.parts ?? [])
       .filter((p) => !p.thought)
       .map((p) => p.text ?? '')
       .join('')
       .trim(),
-    sources: (c?.groundingMetadata?.groundingChunks ?? [])
-      .map((g) => g.web)
-      .filter((w): w is { uri: string; title: string } => !!w?.uri)
-      .slice(0, 8),
+    sources: chunks.filter((x): x is Source => !!x).slice(0, 8),
     queries: c?.groundingMetadata?.webSearchQueries ?? [],
+    supports,
   };
+}
+
+const hostOf = (url: string) => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+};
+
+/**
+ * The AI types links from memory and they are often dead (a guessed path on a real site).
+ * So never trust them: link the page Google actually returned for that line, or a source on
+ * the same site, or, if neither exists, a Google search for it, which always works.
+ */
+export function trustworthyLink(found: GroundedResult, line: string, guessed: string, searchFor: string): string {
+  const key = line.toLocaleLowerCase('tr');
+  const backed = found.supports.find((s) => {
+    const seg = s.text.toLocaleLowerCase('tr').trim();
+    return seg.length > 8 && (key.includes(seg.slice(0, 60)) || seg.includes(key.slice(0, 60)));
+  });
+  if (backed) return backed.source.uri;
+  const host = hostOf(guessed);
+  const sameSite = host && found.sources.find((s) => s.title.toLowerCase().includes(host) || host.includes(s.title.toLowerCase()));
+  if (sameSite) return sameSite.uri;
+  return `https://www.google.com/search?q=${encodeURIComponent(searchFor)}`;
 }
 
 /** Speech to text. Gemini only: Claude doesn't take audio. */

@@ -23,7 +23,7 @@ import { fixGrammar } from '../../lib/grammar';
 import { deleteNote, entryTitle, formatTime, getNote, saveNote } from '../../lib/notes';
 import { deleteNotePhotos, deletePhotoFile, importPhoto, listPhotos, photoUri, pickPhoto, syncPhotos } from '../../lib/photos';
 import { takePendingShare } from '../../lib/share';
-import { colors, fonts, radius } from '../../lib/theme';
+import { colors, inputColors, fonts, radius } from '../../lib/theme';
 import { prepareMicrophone, transcribe, VOICE_RECORDING } from '../../lib/voice';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -259,8 +259,7 @@ export default function NoteScreen() {
             setBeforeFix(null); // typing after a fix makes Undo meaningless
           }}
           textAlignVertical="top"
-          selectionColor={colors.text}
-          cursorColor={colors.text}
+          {...inputColors}
         />
       </ScrollView>
 

@@ -10,7 +10,7 @@ import { getSetting, setSetting } from './db';
 import { groundedSearch } from './gemini';
 import { getKey } from './keys';
 import { articleOf, type Read } from './reads';
-import { dayParam, dayTitle, getPlace, midnight, parseEventLines, type FoundEvent } from './planner';
+import { dayParam, dayTitle, getPlace, linkEvents, midnight, parseEventLines, type FoundEvent } from './planner';
 
 /*
  * "On its own": without a server, Android wakes the app every few hours
@@ -135,7 +135,7 @@ async function findActivities(db: SQLiteDatabase, apiKey: string): Promise<Found
       'that clearly fit them. Output one per line, exactly: TITLE | WHEN | PLACE | social or solo | URL. ' +
       'At most 3 lines. If nothing is really worth it, output NONE.',
   );
-  return parseEventLines(found.text).slice(0, 3);
+  return linkEvents(found, parseEventLines(found.text).slice(0, 3), place);
 }
 
 // ───────────── 3. the daily message ─────────────

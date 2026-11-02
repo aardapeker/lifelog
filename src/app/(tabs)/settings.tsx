@@ -45,7 +45,7 @@ import { getChatConfig, getChatModel, PROVIDERS, saveChatConfig } from '../../li
 import { getSetting, setSetting } from '../../lib/db';
 import { embed, indexPending, indexStats } from '../../lib/embeddings';
 import { getKey, maskKey, setKey, type Provider } from '../../lib/keys';
-import { colors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
+import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   return (
@@ -125,7 +125,7 @@ function KeyBlock(props: { provider: Provider; title: string; hint: string; test
         secureTextEntry
         autoCapitalize="none"
         autoCorrect={false}
-        selectionColor={colors.text}
+        {...inputColors}
       />
       <View style={styles.row}>
         <PillButton label="Save" onPress={save} />
@@ -251,7 +251,7 @@ function PrivacySection() {
         onChangeText={setPass}
         secureTextEntry
         autoCapitalize="none"
-        selectionColor={colors.text}
+        {...inputColors}
       />
       <View style={[styles.row, { flexWrap: 'wrap' }]}>
         {!!pass.trim() && <PillButton label="Save passphrase" onPress={savePass} ghost />}
@@ -315,7 +315,7 @@ function CheckinSection() {
                   onChangeText={(t) => update({ times: { ...s.times, [sh.key]: t } })}
                   keyboardType="numbers-and-punctuation"
                   maxLength={5}
-                  selectionColor={colors.text}
+                  {...inputColors}
                 />
               </View>
             ))}
@@ -400,7 +400,7 @@ function AutonomySection() {
             onChangeText={(digestTime) => setS({ ...s, digestTime })}
             keyboardType="numbers-and-punctuation"
             maxLength={5}
-            selectionColor={colors.text}
+            {...inputColors}
           />
           <Text style={[styles.hint, { marginTop: 6 }]}>Only sent when there's something worth it. Never more than once a day.</Text>
 
@@ -442,7 +442,7 @@ function AutonomySection() {
             onChangeText={setNever}
             placeholder="Topics to keep to yourself, separated by commas"
             placeholderTextColor={colors.muted}
-            selectionColor={colors.text}
+            {...inputColors}
           />
           <Text style={[styles.hint, { marginTop: 6 }]}>
             Entries stay on your phone, but searches go to Google. Anything listed here is never searched.
@@ -512,7 +512,7 @@ function DaysOffSection() {
         onChangeText={(city) => setS({ ...s, city })}
         placeholder="e.g. Maltepe"
         placeholderTextColor={colors.muted}
-        selectionColor={colors.text}
+        {...inputColors}
       />
       {!!s.place && <Text style={[styles.hint, { marginTop: 6 }]}>Found: {s.place}</Text>}
       <Text style={styles.label}>How hard should I push you to be social?</Text>
@@ -681,7 +681,7 @@ export default function SettingsScreen() {
             onChangeText={setName}
             placeholder="Arda"
             placeholderTextColor={colors.muted}
-            selectionColor={colors.text}
+            {...inputColors}
           />
           <Text style={styles.label}>Who you are</Text>
           <TextInput
@@ -692,7 +692,7 @@ export default function SettingsScreen() {
             placeholderTextColor={colors.muted}
             value={profile}
             onChangeText={setProfile}
-            selectionColor={colors.text}
+            {...inputColors}
           />
           <View style={styles.row}>
             <PillButton label="Save" onPress={saveProfile} />
@@ -717,7 +717,7 @@ export default function SettingsScreen() {
             onChangeText={setModel}
             autoCapitalize="none"
             autoCorrect={false}
-            selectionColor={colors.text}
+            {...inputColors}
           />
           <View style={styles.row}>
             <PillButton label="Save" onPress={saveChat} />

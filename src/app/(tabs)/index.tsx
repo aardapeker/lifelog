@@ -23,7 +23,7 @@ import {
   type Note,
 } from '../../lib/notes';
 import { hybridSearch } from '../../lib/search';
-import { colors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
+import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 
 type Range = 'all' | 'week' | 'month';
 const RANGES: { key: Range; label: string; days: number }[] = [
@@ -240,7 +240,7 @@ export default function JournalScreen() {
           value={query}
           onChangeText={setQuery}
           returnKeyType="search"
-          selectionColor={colors.text}
+          {...inputColors}
         />
         <Pressable style={styles.searchButton} onPress={() => setQuery('')} accessibilityLabel="Clear search">
           <Ionicons name={isSearch ? 'close' : 'search'} size={18} color={colors.text} />

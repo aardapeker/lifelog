@@ -5,7 +5,7 @@ import { getChatConfig, parseJsonReply, PROVIDERS } from './chat';
 import { ensureNotificationPermission, getCheckinSettings, shiftFor } from './checkins';
 import { aboutUser, renderNotes } from './context';
 import { getSetting, setSetting } from './db';
-import { groundedSearch } from './gemini';
+import { groundedSearch, trustworthyLink, type GroundedResult } from './gemini';
 import { getKey } from './keys';
 import { recentNotes } from './notes';
 import { weekStart } from './recap';
@@ -196,6 +196,11 @@ export async function fetchWeather(lat: number, lon: number, day: number): Promi
 
 export type FoundEvent = { title: string; when: string; where: string; kind: 'social' | 'solo'; url: string };
 
+/** Swaps each event's typed-from-memory link for one Google actually returned (see trustworthyLink). */
+export function linkEvents(found: GroundedResult, events: FoundEvent[], place: string): FoundEvent[] {
+  return events.map((e) => ({ ...e, url: trustworthyLink(found, e.title, e.url, `${e.title} ${e.when} ${place}`) }));
+}
+
 /** Parses "TITLE | WHEN | WHERE | social/solo | URL" lines. Anything else is ignored. */
 export function parseEventLines(text: string): FoundEvent[] {
   return text
@@ -227,7 +232,7 @@ async function searchEvents(
       'Output one per line, exactly: TITLE | TIME | PLACE | social or solo | URL. Up to 6 lines. ' +
       'If you find nothing for that date, output NONE.',
   );
-  return { events: parseEventLines(found.text), sources: found.sources, queries: found.queries };
+  return { events: linkEvents(found, parseEventLines(found.text), place), sources: found.sources, queries: found.queries };
 }
 
 // ───────────── the plan ─────────────
