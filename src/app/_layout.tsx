@@ -12,7 +12,8 @@ import * as SplashScreen from 'expo-splash-screen';
 import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { setPendingShare } from '../lib/share';
+import { isBackupFileName } from '../lib/backup';
+import { setPendingBackup, setPendingShare } from '../lib/share';
 import { useSQLiteContext } from 'expo-sqlite';
 import { syncBackgroundTask } from '../lib/autonomy';
 import { LockGate } from '../components/LockGate';
@@ -32,6 +33,14 @@ function ShareHandler() {
   const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntentContext();
   useEffect(() => {
     if (!hasShareIntent) return;
+    // a backup file shared from the Drive app: restore it instead of making an entry
+    const backup = shareIntent.files?.find((f) => isBackupFileName(f.fileName));
+    if (backup) {
+      setPendingBackup({ uri: backup.path, name: backup.fileName });
+      resetShareIntent();
+      setTimeout(() => router.push('/restore'), 300);
+      return;
+    }
     const image = shareIntent.files?.find((f) => f.mimeType?.startsWith('image/'));
     setPendingShare({ text: (shareIntent.text ?? shareIntent.webUrl ?? '').trim(), imageUri: image?.path ?? null });
     resetShareIntent();
@@ -94,6 +103,7 @@ export default function RootLayout() {
         <Stack.Screen name="plan/[day]" />
         <Stack.Screen name="chats" />
         <Stack.Screen name="read/[id]" />
+        <Stack.Screen name="restore" />
         <Stack.Screen name="welcome" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
       </Stack>
       </LockGate>

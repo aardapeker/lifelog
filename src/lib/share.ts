@@ -4,6 +4,16 @@
  */
 export type PendingShare = { text: string; imageUri: string | null };
 
+/** A backup file shared into Lifelog (Drive → Send a copy), waiting for its passphrase. */
+let pendingBackup: { uri: string; name: string } | null = null;
+export const setPendingBackup = (b: { uri: string; name: string }) => {
+  pendingBackup = b;
+};
+export const peekPendingBackup = () => pendingBackup;
+export const clearPendingBackup = () => {
+  pendingBackup = null;
+};
+
 let pending: PendingShare | null = null;
 
 export function setPendingShare(share: PendingShare) {

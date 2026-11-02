@@ -206,9 +206,9 @@ function PrivacySection() {
 
   const backup = () =>
     run(async () => {
-      await backupNow(db);
+      const name = await backupNow(db);
       setLast(Date.now());
-      return 'Backup created. If you picked Drive, it is safe there.';
+      return `Made ${name}. If you picked Drive, tap Save in Drive's own dialog, or it won't upload.`;
     });
 
   const restore = () => {
@@ -242,6 +242,10 @@ function PrivacySection() {
       <Text style={styles.hint}>
         {last ? `Last backup: ${formatDate(last)}.` : 'No backup yet.'} The file is encrypted with your passphrase.
         Pick Drive in the share sheet to keep it safe.
+      </Text>
+      <Text style={[styles.hint, { marginTop: 6 }]}>
+        To restore from Drive: open the Drive app, tap ⋮ on the .lifelog file, then Send a copy → Lifelog. Works even when
+        the Restore picker doesn't show Drive (common on Xiaomi).
       </Text>
       <TextInput
         style={styles.input}

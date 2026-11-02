@@ -87,7 +87,7 @@ export async function backupDue(db: SQLiteDatabase): Promise<boolean> {
 }
 
 /** Builds the encrypted file and opens the share sheet (pick "Drive" to keep it safe). */
-export async function backupNow(db: SQLiteDatabase): Promise<void> {
+export async function backupNow(db: SQLiteDatabase): Promise<string> {
   const pass = await getPassphrase();
   if (!pass) throw new Error('Set a backup passphrase first.');
 
@@ -121,13 +121,26 @@ export async function backupNow(db: SQLiteDatabase): Promise<void> {
     dialogTitle: 'Save your Lifelog backup (pick Drive)',
   });
   await setSetting(db, 'lastBackup', String(Date.now()));
+  return file.name;
 }
+
+/** A backup file, judging by its name (Drive keeps the name we gave it). */
+export const isBackupFileName = (name?: string | null) => !!name && name.toLowerCase().endsWith('.lifelog');
 
 /** Picks a .lifelog file, decrypts it and replaces everything in the app with its contents. */
 export async function restoreFromFile(db: SQLiteDatabase, pass: string): Promise<boolean> {
   const picked = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true });
   if (picked.canceled || !picked.assets[0]) return false;
-  const buf = await new File(picked.assets[0].uri).bytes();
+  await restoreFromUri(db, picked.assets[0].uri, pass);
+  return true;
+}
+
+/**
+ * Restores from a backup file at `uri`: picked in the file picker, or shared into Lifelog
+ * from the Drive app ("Send a copy"), which works even where the picker doesn't list Drive.
+ */
+export async function restoreFromUri(db: SQLiteDatabase, uri: string, pass: string): Promise<void> {
+  const buf = await new File(uri).bytes();
 
   if (buf.length < 34 || MAGIC.some((b, i) => buf[i] !== b)) throw new Error('This is not a Lifelog backup file.');
   const key = await deriveKey(pass.trim(), buf.subarray(5, 21));
@@ -173,5 +186,4 @@ export async function restoreFromFile(db: SQLiteDatabase, pass: string): Promise
     tmp.delete();
   }
   await setSetting(db, 'lastBackup', String(Date.now()));
-  return true;
 }
