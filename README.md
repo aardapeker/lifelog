@@ -30,6 +30,9 @@ Android only. No server, no account. Everything lives on the phone.
   wrote about (daily cap, "never look up" list), searches for things to do nearby, and sends at most one
   message a day (notification + chat, with links). Results also listed under Insights → Looked Into
 - **Chat sessions**: New chat, History (auto titles, hold to delete); quiet chats become memory too
+- **Never ghosts you**: one message every day (what it found, or just checking in), plus check-ins at break time,
+  all written a week ahead as local notifications, so they arrive even when HyperOS keeps the app asleep.
+  Notices when you've gone quiet. Settings → On Its Own has Autostart / Battery saver shortcuts for Xiaomi
 - **Reads**: after a chat goes quiet, the friend researches its topic from three angles with Google Search
   and writes a short magazine-style article just for you, with sources (at most one a day)
 

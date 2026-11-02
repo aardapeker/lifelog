@@ -9,8 +9,9 @@ import { weekStart } from './recap';
 
 /*
  * Check-ins: the friend messages you at your break time.
- * There is no server, so messages are written ahead of time (when the app opens)
- * and scheduled as local notifications for the next two days.
+ * There is no server, so messages are written ahead of time (whenever the app runs)
+ * and scheduled as local notifications for the next week, so they still arrive if Android
+ * keeps the app asleep for days. Ones further than a day out get rewritten as you write.
  */
 
 export type Shift = 'morning' | 'evening' | 'night';
@@ -23,7 +24,7 @@ export const SHIFTS: { key: Shift; label: string; defaultTime: string }[] = [
 export const ROTATION: Shift[] = ['morning', 'night', 'evening'];
 
 const DAY = 86_400_000;
-const HORIZON = 2 * DAY;
+const HORIZON = 7 * DAY;
 const CHANNEL = 'checkins';
 
 export type CheckinSettings = {
@@ -36,8 +37,9 @@ export type CheckinSettings = {
 export async function getCheckinSettings(db: SQLiteDatabase): Promise<CheckinSettings> {
   const raw = await getSetting(db, 'checkins');
   const defaults: CheckinSettings = {
-    enabled: false,
-    anchorWeek: weekStart(Date.now()),
+    enabled: true,
+    // Arda's rotation: the week of 26 Oct 2026 was a Morning week
+    anchorWeek: weekStart(new Date(2026, 9, 26).getTime()),
     anchorShift: 'morning',
     times: { morning: '12:00', evening: '19:30', night: '03:30' },
   };
@@ -65,10 +67,10 @@ export function shiftFor(s: CheckinSettings, ms: number): Shift {
   return ROTATION[(((start + weeks) % 3) + 3) % 3];
 }
 
-/** Break-time moments in the next two days. Sundays are off. */
+/** Break-time moments in the next week. Sundays are off. */
 function upcomingSlots(s: CheckinSettings, now = Date.now()): { at: number; shift: Shift }[] {
   const slots: { at: number; shift: Shift }[] = [];
-  for (let i = 0; i <= 2; i++) {
+  for (let i = 0; i <= 7; i++) {
     const day = new Date(now + i * DAY);
     if (day.getDay() === 0) continue;
     const shift = shiftFor(s, day.getTime());
@@ -122,12 +124,12 @@ export async function planCheckins(db: SQLiteDatabase): Promise<number> {
       apiKey: ai.apiKey,
       model: ai.model,
       json: true,
-      maxTokens: 800,
+      maxTokens: 1500,
       system:
         "You are the user's close friend who has read their journal. You will ping them during short work breaks " +
         '(their phone is locked away while working). Write one short message per slot: one or two sentences, ' +
         'casual, specific to what they wrote recently, sometimes a question, sometimes just encouragement or a joke. ' +
-        'Never generic. Same language as their journal. Return {"messages":["…", …]} with exactly one per slot, in order.\n\n' +
+        'Never generic, and never the same message twice. Same language as their journal. Return {"messages":["…", …]} with exactly one per slot, in order.\n\n' +
         about +
         (quiet.length
           ? `\n\nGoals they haven't mentioned in a while (nudge about one of these at most once): ${quiet.map((g) => g.title).join('; ')}`
@@ -172,7 +174,7 @@ export async function deliverDue(db: SQLiteDatabase): Promise<number> {
   for (const c of due) {
     await db.withTransactionAsync(async () => {
       // joins the conversation if you were just talking, otherwise opens a new one you can reply to
-      const chatId = await chatForIncoming(db, c.fire_at, c.kind === 'digest' ? 'From your friend' : 'Check-in');
+      const chatId = await chatForIncoming(db, c.fire_at, c.kind === 'checkin' ? 'Check-in' : 'From your friend');
       await addMessage(db, chatId, 'assistant', c.body, c.fire_at);
       await db.runAsync('UPDATE checkins SET delivered = 1 WHERE id = ?', c.id);
     });
@@ -180,13 +182,22 @@ export async function deliverDue(db: SQLiteDatabase): Promise<number> {
   return due.length;
 }
 
-/** Cancels everything not yet delivered (used when settings change or check-ins are turned off). */
-export async function cancelFuture(db: SQLiteDatabase): Promise<void> {
+/**
+ * Cancels scheduled messages of one kind that haven't been delivered yet,
+ * optionally only those due in [from, to).
+ */
+export async function cancelPending(db: SQLiteDatabase, kind: string, from = 0, to = Number.MAX_SAFE_INTEGER): Promise<void> {
   const rows = await db.getAllAsync<{ id: number; notification_id: string | null }>(
-    "SELECT id, notification_id FROM checkins WHERE delivered = 0 AND kind = 'checkin'",
+    'SELECT id, notification_id FROM checkins WHERE delivered = 0 AND kind = ? AND fire_at >= ? AND fire_at < ?',
+    kind,
+    from,
+    to,
   );
   for (const r of rows) {
     if (r.notification_id) await Notifications.cancelScheduledNotificationAsync(r.notification_id).catch(() => {});
+    await db.runAsync('DELETE FROM checkins WHERE id = ?', r.id);
   }
-  await db.runAsync("DELETE FROM checkins WHERE delivered = 0 AND kind = 'checkin'");
 }
+
+/** Cancels every check-in not yet delivered (used when settings change or check-ins are turned off). */
+export const cancelFuture = (db: SQLiteDatabase) => cancelPending(db, 'checkin');

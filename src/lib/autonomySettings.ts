@@ -34,6 +34,14 @@ export async function saveAutonomySettings(db: SQLiteDatabase, s: AutonomySettin
   await setSetting(db, 'autonomy', JSON.stringify(s));
 }
 
+/** The daily message time on the day containing `dayMs` (+1 s, so it never collides with a check-in). */
+export function digestTimeOn(s: { digestTime: string }, dayMs = Date.now()): number {
+  const [h, m] = s.digestTime.split(':').map(Number);
+  const d = new Date(dayMs);
+  d.setHours(h, m, 1, 0);
+  return d.getTime();
+}
+
 /** Splits "health, ex, money" (or one per line) into clean topics. */
 export const parseNeverList = (text: string) =>
   text

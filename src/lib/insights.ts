@@ -32,9 +32,8 @@ export async function moodByDay(db: SQLiteDatabase, days = 84): Promise<Map<numb
   return new Map([...sums].map(([k, s]) => [k, s.sum / s.n]));
 }
 
-/** Average mood per shift, using the rotation from Check-ins (only if it was ever set up). */
+/** Average mood per shift, using the rotation from Check-ins. */
 export async function moodByShift(db: SQLiteDatabase): Promise<{ shift: Shift; label: string; mood: number; n: number }[]> {
-  if (!(await getSetting(db, 'checkins'))) return [];
   const s = await getCheckinSettings(db);
   const rows = await db.getAllAsync<{ created_at: number; mood: number }>(
     'SELECT created_at, mood FROM notes WHERE mood IS NOT NULL AND created_at >= ?',

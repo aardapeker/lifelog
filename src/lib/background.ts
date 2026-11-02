@@ -1,4 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
+import { planAhead } from './ahead';
 import { maybeSendDigest, runResearch } from './autonomy';
 import { deliverDue, planCheckins } from './checkins';
 import { indexPending } from './embeddings';
@@ -21,7 +22,8 @@ export async function runBackgroundJobs(db: SQLiteDatabase): Promise<void> {
   await safe(learnFacts(db));
   await safe(learnFromChats(db)); // chats that went quiet become memory (and maybe a Read)
   await safe(ensureRecap(db));
-  await safe(planCheckins(db));
+  await safe(planAhead(db)); // a message for each of the next 7 days, in case Android keeps us asleep
+  await safe(planCheckins(db)); // fills the next week of break-time check-ins
   await safe(scheduleDayOffReminders(db));
   // the friend acting on its own: research what you wrote about, then maybe one message for the day
   await safe(runResearch(db));

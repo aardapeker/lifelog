@@ -144,7 +144,7 @@ async function geocode(city: string): Promise<Pick<PlannerSettings, 'place' | 'l
 export async function isDayOff(db: SQLiteDatabase, ms: number): Promise<boolean> {
   const d = new Date(ms);
   if (d.getDay() === 0) return true;
-  if (d.getDay() === 6 && (await getSetting(db, 'checkins'))) {
+  if (d.getDay() === 6) {
     return shiftFor(await getCheckinSettings(db), ms) === 'night';
   }
   return false;
@@ -258,7 +258,7 @@ async function planningContext(db: SQLiteDatabase, day: number): Promise<string>
   ]);
 
   let lastWeek = '';
-  if (await getSetting(db, 'checkins')) {
+  {
     const shift = shiftFor(await getCheckinSettings(db), weekStart(day) - DAY); // the week before this day off
     lastWeek = `They just finished a ${shift} shift week.${shift === 'night' ? ' They are probably tired: start the day late (not before 12:00) and keep it light.' : ''}`;
   }

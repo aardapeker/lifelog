@@ -2,9 +2,9 @@ import * as BackgroundTask from 'expo-background-task';
 import * as Notifications from 'expo-notifications';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import * as TaskManager from 'expo-task-manager';
-import { getAutonomySettings, isNeverResearch } from './autonomySettings';
+import { digestTimeOn, getAutonomySettings, isNeverResearch } from './autonomySettings';
 import { getChatConfig, PROVIDERS } from './chat';
-import { ensureNotificationPermission } from './checkins';
+import { cancelPending, ensureNotificationPermission } from './checkins';
 import { aboutUser } from './context';
 import { getSetting, setSetting } from './db';
 import { groundedSearch } from './gemini';
@@ -18,6 +18,7 @@ import { dayParam, dayTitle, getPlace, linkEvents, midnight, parseEventLines, ty
  *   1. look up things you wrote about (up to N searches a day, no asking),
  *   2. search once a day for things to do nearby that fit you,
  *   3. bundle what it found into ONE daily message: a notification + a chat message.
+ *      On days with nothing found, the message written ahead of time (ahead.ts) arrives instead.
  * The same jobs also run whenever you open the app, so nothing depends on Android's timing alone.
  */
 
@@ -140,13 +141,6 @@ async function findActivities(db: SQLiteDatabase, apiKey: string): Promise<Found
 
 // ───────────── 3. the daily message ─────────────
 
-function digestTimeToday(s: { digestTime: string }): number {
-  const [h, m] = s.digestTime.split(':').map(Number);
-  const d = new Date();
-  d.setHours(h, m, 0, 0);
-  return d.getTime() + 1000; // +1 s: never collide with a check-in at the same minute
-}
-
 let digesting = false;
 
 /**
@@ -225,7 +219,9 @@ export async function maybeSendDigest(db: SQLiteDatabase, force = false): Promis
     ).trim();
     if (!body) return 'nothing';
 
-    const at = force ? Date.now() : Math.max(Date.now(), digestTimeToday(s));
+    const at = force ? Date.now() : Math.max(Date.now(), digestTimeOn(s));
+    // today's pre-written message (see ahead.ts) steps aside for the real one
+    await cancelPending(db, 'ahead', midnight(at), midnight(at) + DAY);
     const notificationId = await Notifications.scheduleNotificationAsync({
       content: {
         title: reads.length

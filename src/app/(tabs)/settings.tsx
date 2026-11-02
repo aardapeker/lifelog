@@ -4,6 +4,7 @@ import { useCallback, useState, type ReactNode } from 'react';
 import { Alert, KeyboardAvoidingView, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { authenticate, canUseBiometrics } from '../../components/LockGate';
+import * as IntentLauncher from 'expo-intent-launcher';
 import { PillButton, SectionTitle, StatusLine, type Status } from '../../components/ui';
 import { backupNow, getPassphrase, lastBackupAt, restoreFromFile, setPassphrase } from '../../lib/backup';
 import {
@@ -23,6 +24,7 @@ import {
   runResearch,
   syncBackgroundTask,
 } from '../../lib/autonomy';
+import { planAhead } from '../../lib/ahead';
 import { learnFromChats } from '../../lib/chatMemory';
 import { writePendingReads } from '../../lib/reads';
 import {
@@ -334,6 +336,17 @@ function CheckinSection() {
   );
 }
 
+// Xiaomi's own settings pages; any other phone (or a renamed page) falls back to the app's settings
+const openAutostart = () =>
+  IntentLauncher.startActivityAsync('android.intent.action.MAIN', {
+    packageName: 'com.miui.securitycenter',
+    className: 'com.miui.permcenter.autostart.AutoStartManagementActivity',
+  }).catch(() => Linking.openSettings());
+const openBatterySaver = () =>
+  IntentLauncher.startActivityAsync('miui.intent.action.HIDDEN_APPS_CONFIG_ACTIVITY', {
+    extra: { package_name: 'dev.arda.lifelog', package_label: 'Lifelog' },
+  }).catch(() => Linking.openSettings());
+
 /** The friend acting without being asked: research, activities, one daily message. */
 function AutonomySection() {
   const db = useSQLiteContext();
@@ -371,14 +384,17 @@ function AutonomySection() {
       const researched = await runResearch(db);
       const wrote = await writePendingReads(db, true);
       const digest = await maybeSendDigest(db, true);
+      const ahead = await planAhead(db, true);
       if (digest === 'sent' && wrote) return 'Done. A new Read is ready, and your message is in the chat.';
       if (digest === 'sent') return `Done. Looked up ${researched} thing(s), your message is in the chat.`;
+      const week = ahead ? ` Your friend's next ${ahead} daily message(s) are scheduled.` : '';
       return researched
-        ? `Looked up ${researched} thing(s), but there was nothing worth a message yet.`
-        : 'Nothing to look up or suggest right now. Write a few entries and try again.';
+        ? `Looked up ${researched} thing(s), nothing worth a link yet.${week}`
+        : `Nothing new to look up.${week}`;
     });
 
   const ago = lastRun ? Math.round((Date.now() - lastRun) / 3600e3) : null;
+  const asleep = !available || ago === null || ago > 6; // the task should run every ~2 hours
 
   return (
     <Section
@@ -406,7 +422,10 @@ function AutonomySection() {
             maxLength={5}
             {...inputColors}
           />
-          <Text style={[styles.hint, { marginTop: 6 }]}>Only sent when there's something worth it. Never more than once a day.</Text>
+          <Text style={[styles.hint, { marginTop: 6 }]}>
+            One message every day: what it found for you, or just checking in. Written a week ahead, so it arrives even if
+            Android keeps the app asleep.
+          </Text>
 
           <Text style={styles.label}>Web searches about your entries, per day</Text>
           <Segment
@@ -452,20 +471,22 @@ function AutonomySection() {
             Entries stay on your phone, but searches go to Google. Anything listed here is never searched.
           </Text>
 
-          <View style={styles.bgBox}>
-            <Text style={styles.keyTitle}>Background</Text>
+          <View style={[styles.bgBox, asleep && styles.bgBoxWarn]}>
+            <Text style={styles.keyTitle}>{asleep ? 'Xiaomi is putting me to sleep' : 'Background'}</Text>
             <Text style={styles.hint}>
               {!available
                 ? 'Android is blocking background work for Lifelog.'
                 : ago === null
                   ? "Hasn't run in the background yet. Give it a few hours."
-                  : `Last ran in the background ${ago === 0 ? 'less than an hour' : `${ago} hour${ago === 1 ? '' : 's'}`} ago.`}
+                  : `Last woke up on its own ${ago === 0 ? 'less than an hour' : `${ago} hour${ago === 1 ? '' : 's'}`} ago.`}
             </Text>
             <Text style={[styles.hint, { marginTop: 6 }]}>
-              On Xiaomi, turn on Autostart and set Battery saver to "No restrictions" for Lifelog, or HyperOS will stop it.
+              HyperOS stops apps it doesn't trust. Turn on Autostart for Lifelog, then set Battery saver to "No
+              restrictions". Messages written ahead still arrive either way.
             </Text>
-            <View style={styles.row}>
-              <PillButton label="Open app settings" onPress={() => Linking.openSettings()} ghost />
+            <View style={[styles.row, { flexWrap: 'wrap' }]}>
+              <PillButton label="Autostart" onPress={openAutostart} ghost />
+              <PillButton label="Battery saver" onPress={openBatterySaver} ghost />
             </View>
           </View>
         </>
@@ -813,6 +834,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 10, marginTop: 16 },
   toggle: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   bgBox: { marginTop: 18, padding: 14, borderRadius: radius.sm, backgroundColor: colors.raised },
+  bgBoxWarn: { borderWidth: 1, borderColor: colors.text },
   times: { flexDirection: 'row', gap: 8 },
   timeLabel: { fontFamily: fonts.sansRegular, fontSize: 12, color: colors.muted, marginTop: 4, textAlign: 'center' },
   fact: {
