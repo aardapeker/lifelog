@@ -99,10 +99,12 @@ export async function streamClaude(opts: StreamOptions): Promise<string> {
   return full;
 }
 
-async function post(apiKey: string, body: object): Promise<string> {
+async function post(apiKey: string, body: object, whole = false): Promise<string> {
   const res = await fetch(API_URL, { method: 'POST', headers: headers(apiKey), body: JSON.stringify(body) });
   if (!res.ok) throw new Error(await readError(res));
-  const json = (await res.json()) as { content: { type: string; text?: string }[] };
+  const json = (await res.json()) as { content: { type: string; text?: string }[]; stop_reason?: string };
+  // a reply cut off mid-sentence is worse than none: fail, and the job tries again next time
+  if (whole && json.stop_reason === 'max_tokens') throw new Error('Claude ran out of room mid-reply.');
   return json.content
     .filter((c) => c.type === 'text')
     .map((c) => c.text ?? '')
@@ -115,7 +117,7 @@ export function completeClaude(opts: CompleteOptions): Promise<string> {
     max_tokens: opts.maxTokens ?? 1500,
     system: opts.json ? `${opts.system}\n\nReply with a single JSON object and nothing else.` : opts.system,
     messages: [{ role: 'user', content: opts.prompt }],
-  });
+  }, true);
 }
 
 export function describeImageClaude(

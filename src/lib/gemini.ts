@@ -4,6 +4,10 @@ import { readSSE } from './sse';
 
 const BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const MAX_TOOL_ROUNDS = 3;
+// Gemini 3 models think before answering, and the thinking counts against maxOutputTokens.
+// Our limits are meant for the answer itself, so thinking gets its own room on top.
+const THINKING_ROOM = 8192;
+const outputLimit = (answerTokens: number) => answerTokens + THINKING_ROOM;
 
 async function readError(res: { status: number; text(): Promise<string> }) {
   const text = await res.text();
@@ -48,7 +52,7 @@ export async function streamGemini(opts: StreamOptions): Promise<string> {
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: opts.system }] },
         contents,
-        generationConfig: { maxOutputTokens: 2048 },
+        generationConfig: { maxOutputTokens: outputLimit(2048) },
         ...(tools && round < MAX_TOOL_ROUNDS ? { tools } : {}),
       }),
       signal: opts.signal,
@@ -94,7 +98,9 @@ async function generate(apiKey: string, model: string, body: object): Promise<st
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(await readError(res));
-  const json = (await res.json()) as { candidates?: { content?: { parts?: Part[] } }[] };
+  const json = (await res.json()) as { candidates?: { content?: { parts?: Part[] }; finishReason?: string }[] };
+  // a reply cut off mid-sentence is worse than none: fail, and the job tries again next time
+  if (json.candidates?.[0]?.finishReason === 'MAX_TOKENS') throw new Error('Gemini ran out of room mid-reply.');
   const text = (json.candidates?.[0]?.content?.parts ?? [])
     .filter((p) => !p.thought)
     .map((p) => p.text ?? '')
@@ -108,7 +114,7 @@ export function completeGemini(opts: CompleteOptions): Promise<string> {
     systemInstruction: { parts: [{ text: opts.system }] },
     contents: [{ role: 'user', parts: [{ text: opts.prompt }] }],
     generationConfig: {
-      maxOutputTokens: opts.maxTokens ?? 1500,
+      maxOutputTokens: outputLimit(opts.maxTokens ?? 1500),
       ...(opts.json ? { responseMimeType: 'application/json' } : {}),
     },
   });
