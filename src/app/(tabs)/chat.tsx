@@ -29,7 +29,11 @@ type Row = ChatMessage & { id: number | string };
 const HISTORY = 20; // how many past messages are sent with each request
 const STARTERS = ['How was my week?', 'What have I been worried about?', 'Remind me what I planned'];
 
-/** APIs want user/assistant turns to alternate and start with the user; check-ins can break that. */
+/**
+ * APIs want user/assistant turns to alternate and start with the user. Check-ins and daily messages
+ * start a chat with the friend talking, so a stand-in user turn goes first: dropping them would make
+ * the friend forget what it just said.
+ */
 function toApiMessages(rows: Row[]): ChatMessage[] {
   const out: ChatMessage[] = [];
   for (const { role, content } of rows) {
@@ -37,7 +41,7 @@ function toApiMessages(rows: Row[]): ChatMessage[] {
     if (last?.role === role) last.content += `\n\n${content}`;
     else out.push({ role, content });
   }
-  while (out[0]?.role === 'assistant') out.shift();
+  if (out[0]?.role === 'assistant') out.unshift({ role: 'user', content: '(You texted me first. Your message is next.)' });
   return out;
 }
 
