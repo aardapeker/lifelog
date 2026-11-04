@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  BackHandler,
   Image,
   KeyboardAvoidingView,
   Pressable,
@@ -18,7 +19,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton, InfoTile, PillButton } from '../../components/ui';
 import { runBackgroundJobs } from '../../lib/background';
-import { getSetting } from '../../lib/db';
+import { getSetting, setSetting } from '../../lib/db';
 import { fixGrammar } from '../../lib/grammar';
 import { deleteNote, entryTitle, formatTime, getNote, saveNote } from '../../lib/notes';
 import { deleteNotePhotos, deletePhotoFile, importPhoto, listPhotos, photoUri, pickPhoto, syncPhotos } from '../../lib/photos';
@@ -45,22 +46,68 @@ export default function NoteScreen() {
   const [fixing, setFixing] = useState<Fixing>('idle');
   const [beforeFix, setBeforeFix] = useState<string | null>(null); // for Undo
   const savedPhotos = useRef<string[]>([]); // what the database had when we opened
+  const savedBody = useRef(''); // the text the database had when we opened
+  const [restored, setRestored] = useState(false);
+  const draftKey = `draft.${noteId ?? 'new'}`;
   const recorder = useAudioRecorder(VOICE_RECORDING);
 
   useEffect(() => {
-    if (noteId === null) return;
-    getNote(db, noteId).then((n) => {
-      if (n) {
-        setBody(n.body);
-        setCreatedAt(n.created_at);
+    (async () => {
+      if (noteId !== null) {
+        const n = await getNote(db, noteId);
+        if (n) {
+          savedBody.current = n.body;
+          setBody(n.body);
+          setCreatedAt(n.created_at);
+        }
+        const ps = await listPhotos(db, noteId);
+        savedPhotos.current = ps.map((p) => p.file);
+        setPhotos(ps.map((p) => p.file));
+        setCaptions(Object.fromEntries(ps.map((p) => [p.file, p.caption])));
       }
-    });
-    listPhotos(db, noteId).then((ps) => {
-      savedPhotos.current = ps.map((p) => p.file);
-      setPhotos(ps.map((p) => p.file));
-      setCaptions(Object.fromEntries(ps.map((p) => [p.file, p.caption])));
-    });
+      // writing that never got saved (app closed, phone died): bring it back
+      if (shared === '1') return;
+      const draft = await loadDraft();
+      if (draft && (draft.body !== savedBody.current || draft.photos.join() !== savedPhotos.current.join())) {
+        setBody(draft.body);
+        setPhotos(draft.photos);
+        setRestored(true);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [db, noteId]);
+
+  // every change is kept as a draft right away, so nothing typed is ever lost
+  const loaded = useRef(false);
+  useEffect(() => {
+    if (!loaded.current) {
+      loaded.current = true;
+      return;
+    }
+    const t = setTimeout(() => {
+      setSetting(db, draftKey, JSON.stringify({ body, photos })).catch(() => {});
+    }, 600);
+    return () => clearTimeout(t);
+  }, [db, draftKey, body, photos]);
+
+  const loadDraft = async (): Promise<{ body: string; photos: string[] } | null> => {
+    try {
+      const d = JSON.parse(await getSetting(db, draftKey, 'null'));
+      return d && (d.body?.trim() || d.photos?.length) ? { body: d.body ?? '', photos: d.photos ?? [] } : null;
+    } catch {
+      return null;
+    }
+  };
+  const clearDraft = () => db.runAsync('DELETE FROM kv WHERE key = ?', draftKey).catch(() => {});
+
+  // Android's back button / gesture saves, like the arrow
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      save();
+      return true;
+    });
+    return () => sub.remove();
+  });
 
   // opened from the widget's Talk button: start listening right away
   useEffect(() => {
@@ -92,17 +139,37 @@ export default function NoteScreen() {
     return () => clearInterval(t);
   }, [mic]);
 
-  /** Leaving without saving: forget photos taken in this visit. */
-  const discard = () => {
+  /** Throwing away this visit's changes: forget photos taken in it. */
+  const discard = async () => {
     photos.filter((f) => !savedPhotos.current.includes(f)).forEach(deletePhotoFile);
+    await clearDraft();
     router.back();
   };
 
+  /** Asks first if there's something to lose. */
+  const confirmDiscard = () => {
+    if (!changed()) return discard();
+    Alert.alert(noteId === null ? 'Throw this away?' : 'Undo your changes?', 'What you wrote this time will be gone.', [
+      { text: 'Keep writing', style: 'cancel' },
+      { text: 'Discard', style: 'destructive', onPress: discard },
+    ]);
+  };
+
+  const changed = () => body !== savedBody.current || photos.join() !== savedPhotos.current.join();
+
+  let saving = false;
   const save = async () => {
+    if (saving) return;
+    saving = true;
     if (mic === 'recording') await stopRecording();
-    if (!body.trim() && !photos.length) {
-      discard();
+    if (!changed()) {
+      await clearDraft();
+      router.back();
       return;
+    }
+    if (!body.trim() && !photos.length) {
+      if (noteId === null) return discard();
+      return remove(); // emptied an existing entry: ask before deleting it
     }
     let text = body.trim();
     // optional: fix grammar automatically on save (if it fails, save as written)
@@ -113,12 +180,13 @@ export default function NoteScreen() {
     }
     const savedId = await saveNote(db, noteId, text);
     await syncPhotos(db, savedId, photos);
+    await clearDraft();
     runBackgroundJobs(db).catch(() => {}); // captions, search index, facts: never block saving
     router.back();
   };
 
   const remove = () => {
-    if (noteId === null) return discard();
+    if (noteId === null) return confirmDiscard();
     Alert.alert('Delete this entry?', 'It will be gone for good, and your friend will forget it too.', [
       { text: 'Keep it', style: 'cancel' },
       {
@@ -128,6 +196,7 @@ export default function NoteScreen() {
           await deleteNotePhotos(db, noteId);
           photos.forEach(deletePhotoFile);
           await deleteNote(db, noteId);
+          await clearDraft();
           router.back();
         },
       },
@@ -209,19 +278,24 @@ export default function NoteScreen() {
   return (
     <KeyboardAvoidingView style={[styles.screen, { paddingTop: insets.top + 8 }]} behavior="padding">
       <View style={styles.bar}>
-        <IconButton icon="arrow-back" label="Back without saving" onPress={discard} />
+        <IconButton icon="arrow-back" label="Save and go back" onPress={save} />
         <Text style={styles.barTitle}>
           {d.getDate()} {MONTHS[d.getMonth()]}
         </Text>
         {noteId !== null ? (
           <IconButton icon="trash-outline" label="Delete entry" onPress={remove} />
         ) : (
-          <View style={{ width: 44 }} />
+          <IconButton icon="close" label="Discard" onPress={confirmDiscard} />
         )}
       </View>
 
       <ScrollView style={styles.sheet} contentContainerStyle={styles.sheetContent} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>{entryTitle(createdAt)}</Text>
+        {restored && (
+          <Pressable onPress={() => setRestored(false)}>
+            <Text style={styles.restored}>Brought back what you didn't get to save. Tap to hide.</Text>
+          </Pressable>
+        )}
         <View style={styles.tiles}>
           <InfoTile label="Written" value={formatTime(createdAt)} />
           <InfoTile label="Length" value={words === 1 ? '1 word' : `${words} words`} />
@@ -298,6 +372,7 @@ export default function NoteScreen() {
 }
 
 const styles = StyleSheet.create({
+  restored: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.muted, marginTop: -8, marginBottom: 14 },
   screen: { flex: 1, backgroundColor: colors.bg },
   bar: {
     flexDirection: 'row',
