@@ -192,15 +192,18 @@ export default function RadioScreen() {
     const s = live.current.show;
     if (!s) return;
     const uri = s.slots[i].track.uri;
+    // the rest of the show goes to Spotify as one queue: if Lifelog is in the background and
+    // can't step in between songs, Spotify still plays OUR next song, not the album or autoplay
+    const rest = s.slots.slice(i).map((x) => x.track.uri);
     const playing = async () => {
       await new Promise((r) => setTimeout(r, 3500));
       const p = await playbackState().catch(() => null);
       return !!p?.isPlaying && p.track?.uri === uri;
     };
     try {
-      await playTracks([uri]);
+      await playTracks(rest);
       if (live.current.index !== i || (await playing())) return setStatus({ kind: 'idle' });
-      await playTracks([uri]);
+      await playTracks(rest);
       if (live.current.index !== i || (await playing())) return setStatus({ kind: 'idle' });
       throw new Error("Spotify didn't start the song. Open the Spotify app, play anything for a second, come back and tap ▶.");
     } catch (e) {
@@ -218,14 +221,27 @@ export default function RadioScreen() {
     if (!l.show || l.speaking || l.paused || Date.now() - l.startedAt < 4000) return;
     const p = await playbackState().catch(() => null);
     const slot = l.show.slots[l.index];
-    if (!p?.track || p.track.uri !== slot.track.uri) return;
+    if (!p?.track) return;
+    if (p.track.uri !== slot.track.uri) {
+      // Spotify moved on through the queue while we weren't looking (app in the background):
+      // catch up quietly to the song it's playing, and keep the talk for the next one
+      const j = l.show.slots.findIndex((x, k) => k > l.index && x.track.uri === p.track!.uri);
+      if (j > 0) {
+        l.index = j;
+        l.talked = j;
+        l.startedAt = Date.now();
+        setIndex(j);
+        prepare(j + 1);
+      }
+      return;
+    }
     setProgress(p.progressMs / Math.max(1, p.track.durationMs));
     if (p.track.durationMs - p.progressMs < END_MARGIN_MS) {
       const next = l.index + 1;
       if (next < l.show.slots.length) await pausePlayback().catch(() => {});
       playSlot(next);
     }
-  }, [playSlot]);
+  }, [playSlot, prepare]);
 
   const start = async () => {
     setPhase('building');
