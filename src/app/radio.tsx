@@ -15,7 +15,7 @@ import { LANGS, STATIONS, stationByKey, VOICES, withVoices, type Lang, type Pers
 import { getSetting, setSetting } from '../lib/db';
 import { pausePlayback, playbackState, playTracks, resumePlayback, sameTrack, savePlaylist, wakeSpotify } from '../lib/spotify';
 import { colors, fonts, inputColors, radius } from '../lib/theme';
-import { goOffAir, goOnAir, onBeat, updateOnAir, waitMs } from '../lib/onAir';
+import { goOffAir, goOnAir, onBeat, onRemote, setOnAirPlaying, updateOnAir, waitMs } from '../lib/onAir';
 import { clearClips, playClip, speakRobot, synthesize, type Talking } from '../lib/tts';
 
 const END_MARGIN_MS = 2500; // stop this close to the end, so Spotify doesn't drift into its own autoplay
@@ -292,6 +292,7 @@ export default function RadioScreen() {
     if (!l.paused) {
       l.paused = true;
       setPaused(true);
+      setOnAirPlaying(false);
       if (l.speaking) {
         shush();
         l.speaking = false;
@@ -301,6 +302,7 @@ export default function RadioScreen() {
     }
     l.paused = false;
     setPaused(false);
+    setOnAirPlaying(true);
     // paused during the talk: start the song; paused during the song: carry on
     const now = (await playbackState().catch(() => null))?.track;
     if (l.startedAt === 0 || !l.show || !sameTrack(now, l.show.slots[l.index].track)) {
@@ -313,8 +315,22 @@ export default function RadioScreen() {
     live.current.speaking = false;
     live.current.paused = false;
     setPaused(false);
+    setOnAirPlaying(true);
     playSlot(live.current.index + 1);
   };
+
+  // the lock screen / notification buttons drive the show too
+  const controls = useRef({ togglePause, skip });
+  controls.current = { togglePause, skip };
+  useEffect(
+    () =>
+      onRemote({
+        pause: () => !live.current.paused && controls.current.togglePause(),
+        play: () => live.current.paused && controls.current.togglePause(),
+        next: () => live.current.show && controls.current.skip(),
+      }),
+    [],
+  );
 
   const toggleVoice = () => {
     live.current.voice = !voice;
