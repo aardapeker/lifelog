@@ -18,7 +18,7 @@ async function readError(res: { status: number; text(): Promise<string> }) {
   }
 }
 
-const jsonHeaders = (apiKey: string) => ({ 'Content-Type': 'application/json', 'x-goog-api-key': apiKey });
+export const jsonHeaders = (apiKey: string) => ({ 'Content-Type': 'application/json', 'x-goog-api-key': apiKey });
 
 // Gemini calls the assistant "model" and wraps text in parts
 const toContents = (messages: ChatMessage[]) =>

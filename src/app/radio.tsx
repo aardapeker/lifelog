@@ -1,7 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useKeepAwake } from 'expo-keep-awake';
 import { router } from 'expo-router';
-import * as Speech from 'expo-speech';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -11,6 +10,7 @@ import { Chip, IconButton, PillButton, StatusLine, type Status } from '../compon
 import { buildShow, VIBES, type Show, type Vibe } from '../lib/radio';
 import { pausePlayback, playbackState, playTracks, resumePlayback, savePlaylist } from '../lib/spotify';
 import { colors, fonts, inputColors, radius } from '../lib/theme';
+import { clearClips, playClip, speakRobot, synthesize, type Talking } from '../lib/tts';
 
 const POLL_MS = 1500;
 const END_MARGIN_MS = 2500; // stop this close to the end, so Spotify doesn't drift into its own autoplay
@@ -39,11 +39,27 @@ export default function RadioScreen() {
   // the engine runs on refs: timers and speech callbacks must see the latest values
   const live = useRef({ show: null as Show | null, index: 0, speaking: false, paused: false, startedAt: 0, voice: true });
   const poll = useRef<ReturnType<typeof setInterval> | null>(null);
+  const talking = useRef<Talking | null>(null);
+  // intros are voiced ahead of time (while the previous song plays), so the host never makes you wait
+  const clips = useRef(new Map<number, Promise<string | null>>());
+
+  const prepare = useCallback((i: number) => {
+    const s = live.current.show;
+    if (!s || i >= s.slots.length || clips.current.has(i) || !s.slots[i].intro) return;
+    clips.current.set(i, synthesize(s.slots[i].intro).catch(() => null));
+  }, []);
+
+  const shush = () => {
+    talking.current?.stop();
+    talking.current = null;
+  };
 
   const stopEngine = useCallback(() => {
     if (poll.current) clearInterval(poll.current);
     poll.current = null;
-    Speech.stop();
+    talking.current?.stop();
+    talking.current = null;
+    clearClips();
   }, []);
   useEffect(() => stopEngine, [stopEngine]);
 
@@ -66,14 +82,21 @@ export default function RadioScreen() {
       if (live.current.paused || live.current.index !== i) return;
       live.current.startedAt = Date.now();
       playTracks([s.slots[i].track.uri]).catch(fail);
+      prepare(i + 1);
     };
     const intro = s.slots[i].intro;
-    if (live.current.voice && intro) {
-      live.current.speaking = true;
-      setSpeaking(true);
-      Speech.speak(intro, { language: s.lang, rate: 1.0, pitch: 1.0, onDone: start, onError: start, onStopped: () => {} });
-    } else start();
-  }, [stopEngine]);
+    if (!live.current.voice || !intro) return start();
+    live.current.speaking = true;
+    setSpeaking(true);
+    prepare(i);
+    (async () => {
+      const uri = await clips.current.get(i);
+      if (live.current.index !== i || !live.current.speaking) return; // skipped or paused while it was loading
+      const t = uri ? playClip(uri) : speakRobot(intro, s.lang);
+      talking.current = t;
+      if (await t.done) start();
+    })();
+  }, [stopEngine, prepare]);
 
   /** Watches Spotify: when the song is about to end, the next one gets its intro. */
   const tick = useCallback(async () => {
@@ -95,6 +118,11 @@ export default function RadioScreen() {
     try {
       const s = await buildShow(db, vibe, wish);
       live.current = { show: s, index: 0, speaking: false, paused: false, startedAt: 0, voice };
+      clips.current = new Map();
+      if (voice) {
+        prepare(0);
+        await clips.current.get(0); // the opening line is ready before we go on air
+      }
       setShow(s);
       setPaused(false);
       setPhase('onair');
@@ -112,7 +140,7 @@ export default function RadioScreen() {
       l.paused = true;
       setPaused(true);
       if (l.speaking) {
-        Speech.stop();
+        shush();
         l.speaking = false;
         setSpeaking(false);
       } else await pausePlayback().catch(fail);
@@ -127,7 +155,7 @@ export default function RadioScreen() {
   };
 
   const skip = () => {
-    Speech.stop();
+    shush();
     live.current.speaking = false;
     live.current.paused = false;
     setPaused(false);
@@ -137,7 +165,13 @@ export default function RadioScreen() {
   const toggleVoice = () => {
     live.current.voice = !voice;
     setVoice(!voice);
-    if (voice && live.current.speaking) Speech.stop(); // turning it off mid-sentence: let the song start
+    if (voice && live.current.speaking) {
+      // turning it off mid-sentence: let the song start
+      shush();
+      live.current.speaking = false;
+      setSpeaking(false);
+      playSlot(live.current.index);
+    }
   };
 
   const save = async () => {
