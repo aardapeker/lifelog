@@ -106,14 +106,8 @@ const ROUTES: Route[] = MODELS.flatMap((model) => [
 let working: Route | null = null; // the route that worked last time
 let failure: { at: number; message: string } | null = null; // everything failed: don't hammer the API
 
-/**
- * Turns one or two people talking into a .wav file in the cache and returns its uri.
- * With two speakers, Gemini voices them as a real back-and-forth conversation.
- * Tries the current API first, then older ones and older models, and remembers what works.
- */
-export async function synthesize(lines: SpokenLine[], cast: Cast): Promise<string> {
-  const apiKey = await getKey('gemini');
-  if (!apiKey) throw new Error('A natural voice needs a Gemini key.');
+/** One voice, one or more lines: tries every route (remembering what works) and returns WAV bytes. */
+async function voiceBytes(apiKey: string, lines: SpokenLine[], cast: Cast): Promise<Uint8Array> {
   if (failure && Date.now() - failure.at < 3 * 60_000) throw new Error(failure.message);
   const errors: string[] = [];
   for (const route of working ? [working, ...ROUTES.filter((r) => r !== working)] : ROUTES) {
@@ -121,10 +115,7 @@ export async function synthesize(lines: SpokenLine[], cast: Cast): Promise<strin
       const bytes = await route.call(apiKey, route.model, lines, cast);
       working = route;
       failure = null;
-      const file = new File(Paths.cache, `voice-${Date.now()}-${Math.round(Math.random() * 1e6)}.wav`);
-      file.create();
-      await file.write(bytes);
-      return file.uri;
+      return bytes;
     } catch (e) {
       errors.push(`${route.model} (${route.call === viaInteractions ? 'interactions' : 'generate'}): ${e instanceof Error ? e.message : e}`);
       if (/\b(401|403)\b/.test(String(e)) && /API key/i.test(String(e))) break; // a bad key fails everywhere
@@ -132,6 +123,22 @@ export async function synthesize(lines: SpokenLine[], cast: Cast): Promise<strin
   }
   failure = { at: Date.now(), message: `Natural voice failed. ${errors.join(' | ')}` };
   throw new Error(failure.message);
+}
+
+/**
+ * Turns one or two people talking into a .wav file in the cache and returns its uri.
+ * Every line is voiced on its own, in its speaker's voice (Gemini's two-speaker mode sometimes
+ * dropped the second person), then the lines are joined with short pauses, like a real exchange.
+ */
+export async function synthesize(lines: SpokenLine[], cast: Cast): Promise<string> {
+  const apiKey = await getKey('gemini');
+  if (!apiKey) throw new Error('A natural voice needs a Gemini key.');
+  const voiceFor = (name: string) => cast.find((c) => c.name === name) ?? cast[0];
+  const parts = await Promise.all(lines.map((l) => voiceBytes(apiKey, [l], [voiceFor(l.speaker)])));
+  const file = new File(Paths.cache, `voice-${Date.now()}-${Math.round(Math.random() * 1e6)}.wav`);
+  file.create();
+  await file.write(joinWavs(parts, 0.35));
+  return file.uri;
 }
 
 // ── bytes ──
@@ -247,4 +254,36 @@ export function clearClips(): void {
       if (f instanceof File && /^voice-.*\.wav$/.test(f.name)) f.delete();
     }
   } catch {}
+}
+
+/** Where the samples start in a WAV file, and its sample rate. */
+function pcmOf(w: Uint8Array): { pcm: Uint8Array; rate: number } {
+  const v = new DataView(w.buffer, w.byteOffset, w.byteLength);
+  let rate = 24000;
+  let o = 12;
+  while (o + 8 <= w.length) {
+    const id = String.fromCharCode(w[o], w[o + 1], w[o + 2], w[o + 3]);
+    const size = v.getUint32(o + 4, true);
+    if (id === 'fmt ') rate = v.getUint32(o + 12, true);
+    if (id === 'data') return { pcm: w.subarray(o + 8, Math.min(w.length, o + 8 + size)), rate };
+    o += 8 + size + (size % 2);
+  }
+  return { pcm: w.subarray(44), rate };
+}
+
+/** Joins WAV clips (16-bit mono) into one, with `gap` seconds of silence between them. */
+export function joinWavs(clips: Uint8Array[], gap: number): Uint8Array {
+  if (clips.length === 1) return clips[0];
+  const parts = clips.map(pcmOf);
+  const rate = parts[0]?.rate ?? 24000;
+  const silence = new Uint8Array(Math.round(rate * gap) * 2);
+  const total = parts.reduce((n, p, i) => n + p.pcm.length + (i ? silence.length : 0), 0);
+  const pcm = new Uint8Array(total);
+  let o = 0;
+  parts.forEach((p, i) => {
+    if (i) o += silence.length;
+    pcm.set(p.pcm, o);
+    o += p.pcm.length;
+  });
+  return wav(pcm, rate);
 }
