@@ -122,3 +122,50 @@ export const STATIONS: Station[] = [
 ];
 
 export const stationByKey = (key: string) => STATIONS.find((s) => s.key === key) ?? STATIONS[0];
+
+/** Gemini's prebuilt voices, with Google's own one-word description of each. */
+export const VOICES: { name: string; vibe: string }[] = [
+  { name: 'Puck', vibe: 'Upbeat' },
+  { name: 'Fenrir', vibe: 'Excitable' },
+  { name: 'Laomedeia', vibe: 'Upbeat' },
+  { name: 'Sadachbia', vibe: 'Lively' },
+  { name: 'Zephyr', vibe: 'Bright' },
+  { name: 'Autonoe', vibe: 'Bright' },
+  { name: 'Leda', vibe: 'Youthful' },
+  { name: 'Achird', vibe: 'Friendly' },
+  { name: 'Sulafat', vibe: 'Warm' },
+  { name: 'Aoede', vibe: 'Breezy' },
+  { name: 'Callirrhoe', vibe: 'Easy-going' },
+  { name: 'Umbriel', vibe: 'Easy-going' },
+  { name: 'Zubenelgenubi', vibe: 'Casual' },
+  { name: 'Algieba', vibe: 'Smooth' },
+  { name: 'Despina', vibe: 'Smooth' },
+  { name: 'Achernar', vibe: 'Soft' },
+  { name: 'Vindemiatrix', vibe: 'Gentle' },
+  { name: 'Enceladus', vibe: 'Breathy' },
+  { name: 'Algenib', vibe: 'Gravelly' },
+  { name: 'Gacrux', vibe: 'Mature' },
+  { name: 'Kore', vibe: 'Firm' },
+  { name: 'Orus', vibe: 'Firm' },
+  { name: 'Alnilam', vibe: 'Firm' },
+  { name: 'Charon', vibe: 'Informative' },
+  { name: 'Rasalgethi', vibe: 'Informative' },
+  { name: 'Sadaltager', vibe: 'Knowledgeable' },
+  { name: 'Iapetus', vibe: 'Clear' },
+  { name: 'Erinome', vibe: 'Clear' },
+  { name: 'Schedar', vibe: 'Even' },
+  { name: 'Pulcherrima', vibe: 'Forward' },
+];
+
+/** Your own voice choices per station: { neon: { host: 'Kore', sidekick: 'Charon' } }. */
+export type VoiceChoices = Record<string, { host?: string; sidekick?: string }>;
+
+/** The station with your chosen voices swapped in. */
+export function withVoices(station: Station, choices: VoiceChoices): Station {
+  const c = choices[station.key] ?? {};
+  return {
+    ...station,
+    host: { ...station.host, voice: c.host ?? station.host.voice },
+    sidekick: station.sidekick && { ...station.sidekick, voice: c.sidekick ?? station.sidekick.voice },
+  };
+}

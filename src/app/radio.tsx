@@ -8,7 +8,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FadeIn, Pulse, PressScale } from '../components/motion';
 import { Chip, IconButton, PillButton, StatusLine, type Status } from '../components/ui';
 import { buildShow, castOf, WISHES, type Show } from '../lib/radio';
-import { STATIONS, stationByKey } from '../lib/stations';
+import { STATIONS, stationByKey, VOICES, withVoices, type Persona, type VoiceChoices } from '../lib/stations';
+import { getSetting, setSetting } from '../lib/db';
 import { pausePlayback, playbackState, playTracks, resumePlayback, savePlaylist } from '../lib/spotify';
 import { colors, fonts, inputColors, radius } from '../lib/theme';
 import { clearClips, playClip, speakRobot, synthesize, type Talking } from '../lib/tts';
@@ -29,6 +30,37 @@ export default function RadioScreen() {
   const insets = useSafeAreaInsets();
   const [phase, setPhase] = useState<Phase>('pick');
   const [stationKey, setStationKey] = useState('neon');
+  const [choices, setChoices] = useState<VoiceChoices>({});
+  const [trying, setTrying] = useState<string | null>(null); // voice being previewed
+  const preview = useRef<Talking | null>(null);
+  const station = withVoices(stationByKey(stationKey), choices);
+
+  useEffect(() => {
+    getSetting(db, 'radio.voices', '{}')
+      .then((v) => setChoices(JSON.parse(v) as VoiceChoices))
+      .catch(() => {});
+  }, [db]);
+
+  /** Picks a voice for the host or sidekick, remembers it, and lets you hear it. */
+  const chooseVoice = async (role: 'host' | 'sidekick', p: Persona, voice: string) => {
+    const next = { ...choices, [stationKey]: { ...choices[stationKey], [role]: voice } };
+    setChoices(next);
+    setSetting(db, 'radio.voices', JSON.stringify(next)).catch(() => {});
+    preview.current?.stop();
+    setTrying(voice);
+    try {
+      const uri = await synthesize(
+        [{ speaker: p.name, text: `Hey! I'm ${p.name}, and you're listening to ${station.name} ${station.freq}.` }],
+        [{ name: p.name, voice, style: p.style }],
+      );
+      preview.current = playClip(uri);
+      await preview.current.done;
+    } catch (e) {
+      fail(e);
+    } finally {
+      setTrying((t) => (t === voice ? null : t));
+    }
+  };
   const [wish, setWish] = useState('');
   const [voice, setVoice] = useState(true);
   const [show, setShow] = useState<Show | null>(null);
@@ -56,6 +88,7 @@ export default function RadioScreen() {
   };
 
   const stopEngine = useCallback(() => {
+    preview.current?.stop();
     if (poll.current) clearInterval(poll.current);
     poll.current = null;
     talking.current?.stop();
@@ -117,7 +150,8 @@ export default function RadioScreen() {
     setPhase('building');
     setStatus({ kind: 'idle' });
     try {
-      const s = await buildShow(db, stationByKey(stationKey), wish);
+      preview.current?.stop();
+      const s = await buildShow(db, station, wish);
       live.current = { show: s, index: 0, speaking: false, paused: false, startedAt: 0, voice };
       clips.current = new Map();
       if (voice) {
@@ -246,6 +280,26 @@ export default function RadioScreen() {
                 );
               })}
             </View>
+            <Text style={styles.label}>Voices (tap one to hear it)</Text>
+            {[
+              { role: 'host' as const, p: station.host },
+              ...(station.sidekick ? [{ role: 'sidekick' as const, p: station.sidekick }] : []),
+            ].map(({ role, p }) => (
+              <View key={role} style={{ marginBottom: 12 }}>
+                <Text style={styles.voiceFor}>{p.name}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.voiceRow}>
+                  {VOICES.map((v) => (
+                    <Chip
+                      key={v.name}
+                      label={`${trying === v.name && p.voice === v.name ? '🔊 ' : ''}${v.name} · ${v.vibe}`}
+                      active={p.voice === v.name}
+                      onPress={() => chooseVoice(role, p, v.name)}
+                    />
+                  ))}
+                </ScrollView>
+              </View>
+            ))}
+
             <Text style={styles.label}>Anything else? (optional)</Text>
             <View style={[styles.chips, { marginBottom: 10 }]}>
               {WISHES.map((w) => (
@@ -268,7 +322,7 @@ export default function RadioScreen() {
           <View style={styles.center}>
             <ActivityIndicator color={colors.text} />
             <Text style={[styles.text, { marginTop: 14, textAlign: 'center' }]}>
-              {stationByKey(stationKey).host.name} is warming up the mic…
+              {station.host.name} is warming up the mic…
             </Text>
           </View>
         )}
@@ -351,6 +405,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   dial: { gap: 10, marginTop: 22 },
+  voiceFor: { fontFamily: fonts.sans, fontSize: 13, color: colors.text, marginBottom: 8 },
+  voiceRow: { gap: 8, paddingRight: 24 },
   station: {
     flexDirection: 'row',
     alignItems: 'center',
