@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ComponentProps, ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { colors, fonts, radius } from '../lib/theme';
-import { haptic, PressScale } from './motion';
+import { PressScale } from './motion';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -18,10 +18,7 @@ export function IconButton(props: {
   const light = props.variant === 'light';
   return (
     <PressScale
-      onPress={() => {
-        haptic.tap();
-        props.onPress();
-      }}
+      onPress={props.onPress}
       accessibilityLabel={props.label}
       hitSlop={6}
       scaleTo={0.88}
@@ -50,10 +47,7 @@ export function PillButton(props: {
 }) {
   return (
     <PressScale
-      onPress={() => {
-        haptic.press();
-        props.onPress();
-      }}
+      onPress={props.onPress}
       disabled={props.disabled}
       style={[
         styles.pill,
@@ -71,10 +65,7 @@ export function PillButton(props: {
 export function Chip(props: { label: string; active?: boolean; onPress?: () => void }) {
   return (
     <PressScale
-      onPress={() => {
-        haptic.tap();
-        props.onPress?.();
-      }}
+      onPress={props.onPress}
       style={[styles.chip, props.active && styles.chipActive]}
     >
       <Text style={[styles.chipText, props.active && styles.chipTextActive]}>{props.label}</Text>

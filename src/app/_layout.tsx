@@ -17,7 +17,8 @@ import { setPendingBackup, setPendingShare } from '../lib/share';
 import { useSQLiteContext } from 'expo-sqlite';
 import { syncBackgroundTask } from '../lib/autonomy';
 import { LockGate } from '../components/LockGate';
-import { DB_NAME, migrate } from '../lib/db';
+import { DB_NAME, getSetting, migrate } from '../lib/db';
+import { haptic } from '../components/motion';
 import { colors } from '../lib/theme';
 
 // keep the logo on screen until fonts are ready, so there's no blank flash
@@ -54,6 +55,7 @@ function BackgroundSync() {
   const db = useSQLiteContext();
   useEffect(() => {
     syncBackgroundTask(db).catch((e) => console.warn('background task registration failed', e));
+    getSetting(db, 'haptics', '1').then((v) => haptic.setEnabled(v === '1')).catch(() => {});
   }, [db]);
   return null;
 }

@@ -8,11 +8,18 @@ import { colors } from '../lib/theme';
  * press springs, fade-ins, typing dots, and haptics.
  */
 
-/** Little taps you can feel. Never throws (some phones have no vibration motor). */
+/**
+ * One buzz you can feel, kept for moments that matter (an entry saved), never for ordinary taps.
+ * Settings → Writing turns it off. Never throws (some phones have no vibration motor).
+ */
+let buzz = true;
 export const haptic = {
-  tap: () => Haptics.selectionAsync().catch(() => {}),
-  press: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}),
-  success: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}),
+  setEnabled: (on: boolean) => {
+    buzz = on;
+  },
+  success: () => {
+    if (buzz) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+  },
 };
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);

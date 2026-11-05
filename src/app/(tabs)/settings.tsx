@@ -5,6 +5,7 @@ import { Alert, KeyboardAvoidingView, Linking, Pressable, ScrollView, StyleSheet
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { authenticate, canUseBiometrics } from '../../components/LockGate';
 import * as IntentLauncher from 'expo-intent-launcher';
+import { haptic } from '../../components/motion';
 import { PillButton, SectionTitle, StatusLine, type Status } from '../../components/ui';
 import { backupNow, getPassphrase, lastBackupAt, restoreFromFile, setPassphrase } from '../../lib/backup';
 import {
@@ -605,14 +606,21 @@ function LearnedSection() {
 function WritingSection() {
   const db = useSQLiteContext();
   const [auto, setAuto] = useState(false);
+  const [buzz, setBuzz] = useState(true);
   useFocusEffect(
     useCallback(() => {
       getSetting(db, 'autoGrammar').then((v) => setAuto(v === '1'));
+      getSetting(db, 'haptics', '1').then((v) => setBuzz(v === '1'));
     }, [db]),
   );
   const toggle = async (on: boolean) => {
     setAuto(on);
     await setSetting(db, 'autoGrammar', on ? '1' : '0');
+  };
+  const toggleBuzz = async (on: boolean) => {
+    setBuzz(on);
+    haptic.setEnabled(on);
+    await setSetting(db, 'haptics', on ? '1' : '0');
   };
   return (
     <Section title="Writing" hint="The sparkles button in an entry fixes grammar any time, with Undo.">
@@ -622,6 +630,9 @@ function WritingSection() {
         value={auto}
         onChange={toggle}
       />
+      <View style={{ marginTop: 16 }}>
+        <Toggle label="Buzz when I save" hint="One short vibration when an entry is saved." value={buzz} onChange={toggleBuzz} />
+      </View>
     </Section>
   );
 }

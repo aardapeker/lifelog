@@ -2,7 +2,6 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
 import { useEffect, useRef, type ComponentProps } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
-import { haptic } from '../../components/motion';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../lib/theme';
 import { useKeyboardVisible } from '../../lib/useKeyboardVisible';
@@ -47,7 +46,6 @@ function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
           const meta = ICONS[route.name] ?? { icon: 'ellipse-outline', label: route.name };
           const onPress = () => {
             if (focused) return;
-            haptic.tap();
             navigateToTab(route.key);
           };
           return (

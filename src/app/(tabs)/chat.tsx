@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinkedText } from '../../components/LinkedText';
-import { FadeIn, haptic, PressScale, TypingDots } from '../../components/motion';
+import { FadeIn, PressScale, TypingDots } from '../../components/motion';
 import { Chip, IconButton, PillButton } from '../../components/ui';
 import { getChatConfig, PROVIDERS, type ChatMessage } from '../../lib/chat';
 import { titleChat } from '../../lib/chatMemory';
@@ -132,7 +132,6 @@ export default function ChatScreen() {
 
     setInput('');
     setBusy(true);
-    haptic.press();
     let id = chatId;
     if (id === null) {
       id = await createChat(db);
@@ -158,7 +157,6 @@ export default function ChatScreen() {
       });
       const replyId = await addMessage(db, id, 'assistant', reply);
       setMessages((prev) => prev.map((m) => (m.id === pendingId ? { ...m, id: replyId } : m)));
-      haptic.tap();
       if (!title) {
         const chatIdForTitle = id;
         titleChat(db, chatIdForTitle)
