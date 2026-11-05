@@ -1,7 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ComponentProps, ReactNode } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { colors, fonts, radius } from '../lib/theme';
+import { haptic, PressScale } from './motion';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -16,24 +17,25 @@ export function IconButton(props: {
   const size = props.size ?? 44;
   const light = props.variant === 'light';
   return (
-    <Pressable
-      onPress={props.onPress}
+    <PressScale
+      onPress={() => {
+        haptic.tap();
+        props.onPress();
+      }}
       accessibilityLabel={props.label}
       hitSlop={6}
-      style={({ pressed }) => [
-        {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: light ? colors.accent : colors.raised,
-          opacity: pressed ? 0.7 : 1,
-        },
-      ]}
+      scaleTo={0.88}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: light ? colors.accent : colors.raised,
+      }}
     >
       <Ionicons name={props.icon} size={size * 0.45} color={light ? colors.accentText : colors.text} />
-    </Pressable>
+    </PressScale>
   );
 }
 
@@ -47,27 +49,36 @@ export function PillButton(props: {
   style?: StyleProp<ViewStyle>;
 }) {
   return (
-    <Pressable
-      onPress={props.onPress}
+    <PressScale
+      onPress={() => {
+        haptic.press();
+        props.onPress();
+      }}
       disabled={props.disabled}
-      style={({ pressed }) => [
+      style={[
         styles.pill,
         props.ghost && styles.pillGhost,
         props.full && styles.pillFull,
-        (pressed || props.disabled) && { opacity: 0.6 },
+        props.disabled && { opacity: 0.6 },
         props.style,
       ]}
     >
       <Text style={[styles.pillText, props.ghost && { color: colors.text }]}>{props.label}</Text>
-    </Pressable>
+    </PressScale>
   );
 }
 
 export function Chip(props: { label: string; active?: boolean; onPress?: () => void }) {
   return (
-    <Pressable onPress={props.onPress} style={[styles.chip, props.active && styles.chipActive]}>
+    <PressScale
+      onPress={() => {
+        haptic.tap();
+        props.onPress?.();
+      }}
+      style={[styles.chip, props.active && styles.chipActive]}
+    >
       <Text style={[styles.chipText, props.active && styles.chipTextActive]}>{props.label}</Text>
-    </Pressable>
+    </PressScale>
   );
 }
 

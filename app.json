@@ -3,7 +3,7 @@
     "name": "Lifelog",
     "slug": "lifelog",
     "scheme": "lifelog",
-    "version": "0.9.3",
+    "version": "0.10.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",

@@ -3,9 +3,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinkedText } from '../../components/LinkedText';
+import { FadeIn, haptic, PressScale, TypingDots } from '../../components/motion';
 import { Chip, IconButton, PillButton } from '../../components/ui';
 import { getChatConfig, PROVIDERS, type ChatMessage } from '../../lib/chat';
 import { titleChat } from '../../lib/chatMemory';
@@ -24,7 +23,7 @@ import { buildSystemPrompt, searchTool } from '../../lib/context';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 import { useKeyboardVisible } from '../../lib/useKeyboardVisible';
 
-type Row = ChatMessage & { id: number | string };
+type Row = ChatMessage & { id: number | string; key?: string }; // key stays the same while a reply streams in
 
 const HISTORY = 20; // how many past messages are sent with each request
 const STARTERS = ['How was my week?', 'What have I been worried about?', 'Remind me what I planned'];
@@ -59,6 +58,7 @@ export default function ChatScreen() {
   const scrollRef = useRef<ScrollViewInstance>(null);
   const keyboardOpen = useKeyboardVisible();
   const opened = useRef<{ id: number | null; at: number } | null>(null); // what's on screen, and since when
+  const old = useRef(new Set<string>()); // messages that were already there when the chat opened: no entrance animation
 
   const open = useCallback(
     async (id: number | null) => {
@@ -71,6 +71,7 @@ export default function ChatScreen() {
       }
       const [chat, msgs] = await Promise.all([getChat(db, id), chatMessages(db, id)]);
       setTitle(chat?.title ?? null);
+      old.current = new Set(msgs.map((m) => String(m.id)));
       setMessages(msgs);
     },
     [db],
@@ -131,6 +132,7 @@ export default function ChatScreen() {
 
     setInput('');
     setBusy(true);
+    haptic.press();
     let id = chatId;
     if (id === null) {
       id = await createChat(db);
@@ -141,7 +143,7 @@ export default function ChatScreen() {
     const userId = await addMessage(db, id, 'user', text, now);
     const history: Row[] = [...messages, { id: userId, role: 'user', content: text }];
     const pendingId = `pending-${now}`;
-    setMessages([...history, { id: pendingId, role: 'assistant', content: '' }]);
+    setMessages([...history, { id: pendingId, key: pendingId, role: 'assistant', content: '' }]);
 
     try {
       const system = await buildSystemPrompt(db);
@@ -156,6 +158,7 @@ export default function ChatScreen() {
       });
       const replyId = await addMessage(db, id, 'assistant', reply);
       setMessages((prev) => prev.map((m) => (m.id === pendingId ? { ...m, id: replyId } : m)));
+      haptic.tap();
       if (!title) {
         const chatIdForTitle = id;
         titleChat(db, chatIdForTitle)
@@ -221,23 +224,29 @@ export default function ChatScreen() {
             </View>
           </View>
         )}
-        {messages.map((m) =>
-          m.role === 'user' ? (
-            <View key={m.id} style={styles.mine}>
-              <Text selectable style={styles.mineText}>
-                {m.content}
-              </Text>
-            </View>
+        {messages.map((m) => {
+          const key = m.key ?? String(m.id);
+          const bubble =
+            m.role === 'user' ? (
+              <View style={styles.mine}>
+                <Text selectable style={styles.mineText}>
+                  {m.content}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.theirs}>
+                {m.content ? <LinkedText text={m.content} style={styles.theirsText} /> : <TypingDots />}
+              </View>
+            );
+          // new messages slide up into the thread; the ones already there just sit
+          return old.current.has(key) ? (
+            <View key={key}>{bubble}</View>
           ) : (
-            <View key={m.id} style={styles.theirs}>
-              {m.content ? (
-                <LinkedText text={m.content} style={styles.theirsText} />
-              ) : (
-                <ActivityIndicator color={colors.text} style={{ alignSelf: 'flex-start' }} />
-              )}
-            </View>
-          ),
-        )}
+            <FadeIn key={key} from={m.role === 'user' ? 18 : 10}>
+              {bubble}
+            </FadeIn>
+          );
+        })}
       </ScrollView>
 
       <View style={[styles.composer, { marginBottom: keyboardOpen ? 8 : TAB_BAR_SPACE - 30 + insets.bottom }]}>
@@ -250,14 +259,15 @@ export default function ChatScreen() {
           onChangeText={setInput}
           {...inputColors}
         />
-        <Pressable
+        <PressScale
           style={[styles.send, !canSend && { backgroundColor: '#4A4949' }]}
           onPress={() => send()}
           disabled={!canSend}
+          scaleTo={0.85}
           accessibilityLabel="Send message"
         >
           <Ionicons name="arrow-up" size={20} color={canSend ? colors.accentText : colors.muted} />
-        </Pressable>
+        </PressScale>
       </View>
     </KeyboardAvoidingView>
   );

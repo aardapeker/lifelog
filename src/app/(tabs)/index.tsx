@@ -23,6 +23,7 @@ import {
   type Note,
 } from '../../lib/notes';
 import { hybridSearch } from '../../lib/search';
+import { FadeIn, PressScale, stagger } from '../../components/motion';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 
 type Range = 'all' | 'week' | 'month';
@@ -34,10 +35,7 @@ const RANGES: { key: Range; label: string; days: number }[] = [
 
 function EntryCard({ note, label, photos }: { note: Note; label: string; photos?: string[] }) {
   return (
-    <Pressable
-      style={({ pressed }) => [styles.card, pressed && { opacity: 0.75 }]}
-      onPress={() => router.push(`/note/${note.id}`)}
-    >
+    <PressScale style={styles.card} scaleTo={0.97} onPress={() => router.push(`/note/${note.id}`)}>
       <Text style={styles.cardTime}>{label}</Text>
       {!!note.body && (
         <Text style={styles.cardBody} numberOfLines={5}>
@@ -51,7 +49,7 @@ function EntryCard({ note, label, photos }: { note: Note; label: string; photos?
           ))}
         </View>
       )}
-    </Pressable>
+    </PressScale>
   );
 }
 
@@ -165,7 +163,7 @@ export default function JournalScreen() {
         </View>
       )}
       {newRead && (
-        <Pressable style={styles.memory} onPress={() => router.push(`/read/${newRead.id}`)}>
+        <PressScale scaleTo={0.97} style={styles.memory} onPress={() => router.push(`/read/${newRead.id}`)}>
           <Text style={styles.memoryLabel}>A new read for you</Text>
           <Text style={[styles.letterTitle, { color: colors.text, marginTop: 0 }]}>
             {articleOf(newRead)?.title ?? newRead.topic}
@@ -175,10 +173,11 @@ export default function JournalScreen() {
               {articleOf(newRead)!.hook}
             </Text>
           )}
-        </Pressable>
+        </PressScale>
       )}
       {dayOff !== null && (
-        <Pressable
+        <PressScale
+          scaleTo={0.97}
           style={styles.letter}
           onPress={async () => {
             const s = await getPlannerSettings(db);
@@ -195,24 +194,24 @@ export default function JournalScreen() {
           <Text style={styles.letterLabel}>{dayOff === midnight(Date.now()) ? 'Today is a day off' : 'Tomorrow is free'}</Text>
           <Text style={styles.letterTitle}>Plan my day</Text>
           <Text style={styles.letterBody}>Weather, real events nearby and a little push to get out there.</Text>
-        </Pressable>
+        </PressScale>
       )}
       {recap && (
-        <Pressable style={styles.letter} onPress={() => router.push(`/recap/${recap.id}`)}>
+        <PressScale scaleTo={0.97} style={styles.letter} onPress={() => router.push(`/recap/${recap.id}`)}>
           <Text style={styles.letterLabel}>{weekLabel(recap.week_start)}</Text>
           <Text style={styles.letterTitle}>Your week, in a letter</Text>
           <Text style={styles.letterBody} numberOfLines={3}>
             {recap.body}
           </Text>
-        </Pressable>
+        </PressScale>
       )}
       {memories.map((m) => (
-        <Pressable key={m.note.id} style={styles.memory} onPress={() => router.push(`/note/${m.note.id}`)}>
+        <PressScale key={m.note.id} scaleTo={0.97} style={styles.memory} onPress={() => router.push(`/note/${m.note.id}`)}>
           <Text style={styles.memoryLabel}>{m.label}</Text>
           <Text style={styles.memoryBody} numberOfLines={3}>
             {m.note.body}
           </Text>
-        </Pressable>
+        </PressScale>
       ))}
     </View>
   );
@@ -297,8 +296,10 @@ export default function JournalScreen() {
       keyboardShouldPersistTaps="handled"
       ListHeaderComponent={header}
       ListEmptyComponent={empty}
-      renderItem={({ item }) => (
-        <EntryCard note={item} label={formatDate(item.created_at)} photos={photos.get(item.id)} />
+      renderItem={({ item, index }) => (
+        <FadeIn delay={stagger(index)}>
+          <EntryCard note={item} label={formatDate(item.created_at)} photos={photos.get(item.id)} />
+        </FadeIn>
       )}
     />
   ) : (
@@ -310,7 +311,11 @@ export default function JournalScreen() {
       keyboardShouldPersistTaps="handled"
       ListHeaderComponent={header}
       ListEmptyComponent={empty}
-      renderItem={({ item }) => <Day section={item} photos={photos} />}
+      renderItem={({ item, index }) => (
+        <FadeIn delay={stagger(index, 70)}>
+          <Day section={item} photos={photos} />
+        </FadeIn>
+      )}
     />
   );
 }

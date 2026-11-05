@@ -94,16 +94,23 @@ export default function RootLayout() {
       <LockGate>
       <ShareHandler />
       <BackgroundSync />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.bg },
+          animation: 'slide_from_right',
+          animationDuration: 280,
+        }}
+      >
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="note/[id]" />
+        <Stack.Screen name="note/[id]" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="recap/[id]" />
         <Stack.Screen name="goal/[id]" />
         <Stack.Screen name="person/[name]" />
         <Stack.Screen name="plan/[day]" />
         <Stack.Screen name="chats" />
-        <Stack.Screen name="read/[id]" />
-        <Stack.Screen name="restore" />
+        <Stack.Screen name="read/[id]" options={{ animation: 'fade_from_bottom' }} />
+        <Stack.Screen name="restore" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="welcome" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
       </Stack>
       </LockGate>

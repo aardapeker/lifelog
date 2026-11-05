@@ -17,6 +17,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { haptic, Pulse } from '../../components/motion';
 import { IconButton, InfoTile, PillButton } from '../../components/ui';
 import { runBackgroundJobs } from '../../lib/background';
 import { getSetting, setSetting } from '../../lib/db';
@@ -181,6 +182,7 @@ export default function NoteScreen() {
     const savedId = await saveNote(db, noteId, text);
     await syncPhotos(db, savedId, photos);
     await clearDraft();
+    haptic.success();
     runBackgroundJobs(db).catch(() => {}); // captions, search index, facts: never block saving
     router.back();
   };
@@ -340,7 +342,7 @@ export default function NoteScreen() {
       <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
         {mic === 'recording' ? (
           <Pressable style={styles.recording} onPress={stopRecording} accessibilityLabel="Stop recording">
-            <View style={styles.recDot} />
+            <Pulse style={styles.recDot} />
             <Text style={styles.recText}>Listening {mm}</Text>
             <Text style={styles.recStop}>Tap to stop</Text>
           </Pressable>

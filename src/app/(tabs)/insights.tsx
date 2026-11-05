@@ -27,6 +27,7 @@ import {
   type Idea,
   type Person,
 } from '../../lib/insights';
+import { FadeIn, stagger } from '../../components/motion';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 
 const WEEKS = 12;
@@ -166,7 +167,7 @@ export default function InsightsScreen() {
       <Text style={styles.title}>Insights</Text>
 
       {/* ── mood ── */}
-      <View style={styles.section}>
+      <FadeIn style={styles.section} delay={stagger(0, 60)}>
         <SectionTitle title="Your Mood" />
         <Text style={styles.hint}>Every entry gets a mood, read from what you wrote. Last {WEEKS} weeks.</Text>
         <View style={styles.panel}>
@@ -195,11 +196,11 @@ export default function InsightsScreen() {
             </>
           )}
         </View>
-      </View>
+      </FadeIn>
 
       {/* ── reads ── */}
       {reads.length > 0 && (
-        <View style={styles.section}>
+        <FadeIn style={styles.section} delay={stagger(1, 60)}>
           <SectionTitle title="Reads" />
           <Text style={styles.hint}>Short articles your friend researched and wrote after your chats.</Text>
           <View style={{ gap: 10 }}>
@@ -227,12 +228,12 @@ export default function InsightsScreen() {
               );
             })}
           </View>
-        </View>
+        </FadeIn>
       )}
 
       {/* ── research ── */}
       {research.length > 0 && (
-        <View style={styles.section}>
+        <FadeIn style={styles.section} delay={stagger(2, 60)}>
           <SectionTitle title="Looked Into" />
           <Text style={styles.hint}>Things your friend searched for after reading your entries. Hold one to remove it.</Text>
           <View style={styles.panel}>
@@ -274,11 +275,11 @@ export default function InsightsScreen() {
               </Pressable>
             ))}
           </View>
-        </View>
+        </FadeIn>
       )}
 
       {/* ── goals ── */}
-      <View style={styles.section}>
+      <FadeIn style={styles.section} delay={stagger(3, 60)}>
         <SectionTitle title="Goals" />
         <Text style={styles.hint}>Entries about a goal link to it on their own.</Text>
         <View style={styles.panel}>
@@ -324,10 +325,10 @@ export default function InsightsScreen() {
             </View>
           )}
         </View>
-      </View>
+      </FadeIn>
 
       {/* ── people ── */}
-      <View style={styles.section}>
+      <FadeIn style={styles.section} delay={stagger(4, 60)}>
         <SectionTitle title="People & Pets" />
         <Text style={styles.hint}>Everyone who shows up in your journal. Tap a name to see it all.</Text>
         <View style={styles.panel}>
@@ -345,10 +346,10 @@ export default function InsightsScreen() {
             </View>
           )}
         </View>
-      </View>
+      </FadeIn>
 
       {/* ── video ideas ── */}
-      <View style={styles.section}>
+      <FadeIn style={styles.section} delay={stagger(5, 60)}>
         <SectionTitle title="Video Ideas" />
         <Text style={styles.hint}>Collected from your entries whenever you mention something worth a video.</Text>
         <View style={styles.panel}>
@@ -397,10 +398,10 @@ export default function InsightsScreen() {
           </View>
           {ideas.length > 0 && <Text style={[styles.rowMeta, { marginTop: 10 }]}>Tap to tick off, hold to delete.</Text>}
         </View>
-      </View>
+      </FadeIn>
 
       {/* ── widget + export ── */}
-      <View style={styles.section}>
+      <FadeIn style={styles.section} delay={stagger(6, 60)}>
         <SectionTitle title="Home Screen" />
         <Text style={styles.hint}>A widget with Talk and Write buttons, so a break is enough for an entry.</Text>
         <View style={styles.panel}>
@@ -409,9 +410,9 @@ export default function InsightsScreen() {
             Nothing happens on Xiaomi? Turn on "Home screen shortcuts" for Lifelog in its app permissions first.
           </Text>
         </View>
-      </View>
+      </FadeIn>
 
-      <View style={styles.section}>
+      <FadeIn style={styles.section} delay={stagger(7, 60)}>
         <SectionTitle title="Export" />
         <Text style={styles.hint}>
           Your whole journal as one JSON file, ready to move to your own server one day. Not encrypted, so keep it private.
@@ -419,7 +420,7 @@ export default function InsightsScreen() {
         <View style={styles.panel}>
           <PillButton label="Export everything" onPress={exportAll} ghost full />
         </View>
-      </View>
+      </FadeIn>
     </ScrollView>
   );
 }
