@@ -15,15 +15,18 @@ const INTERACTIONS = 'https://generativelanguage.googleapis.com/v1beta/interacti
 const MODEL = 'gemini-3.8-flash-tts';
 
 export type VoiceStyle = { voice: string; style: string };
-export const RADIO_HOST: VoiceStyle = {
-  voice: 'Puck', // "upbeat"
-  style: 'a warm, charismatic late-night radio DJ, playful and relaxed, smiling while talking',
-};
+/** One spoken line; `speaker` is the persona's name when a show has two voices. */
+export type SpokenLine = { speaker: string; text: string };
 
-/** Turns text into a .wav file in the cache. Returns its uri. */
-export async function synthesize(text: string, v: VoiceStyle = RADIO_HOST): Promise<string> {
+/**
+ * Turns one or two people talking into a .wav file in the cache and returns its uri.
+ * With two speakers, Gemini voices them as a real back-and-forth conversation.
+ */
+export async function synthesize(lines: SpokenLine[], cast: (VoiceStyle & { name: string })[]): Promise<string> {
   const apiKey = await getKey('gemini');
   if (!apiKey) throw new Error('A natural voice needs a Gemini key.');
+  const duo = cast.length > 1;
+  const styleOf = (name: string) => (cast.find((c) => c.name === name) ?? cast[0]).style;
   const res = await fetch(INTERACTIONS, {
     method: 'POST',
     headers: jsonHeaders(apiKey),
@@ -32,11 +35,21 @@ export async function synthesize(text: string, v: VoiceStyle = RADIO_HOST): Prom
       input: [
         {
           type: 'user_input',
-          content: [{ type: 'text', text, annotations: [{ type: 'speech_metadata', style: v.style }] }],
+          content: lines.map((l) => ({
+            type: 'text',
+            text: l.text,
+            annotations: [
+              { type: 'speech_metadata', style: styleOf(l.speaker), ...(duo ? { speaker: speakerOf(l.speaker, cast) } : {}) },
+            ],
+          })),
         },
       ],
       response_format: { type: 'audio' },
-      generation_config: { speech_config: [{ voice: v.voice }] },
+      generation_config: {
+        speech_config: duo
+          ? { mode: 'conversational', speakers: cast.map((c) => ({ speaker: speakerOf(c.name, cast), voice: c.voice })) }
+          : [{ voice: cast[0].voice }],
+      },
     }),
   });
   if (!res.ok) throw new Error(`Gemini voice ${res.status}: ${(await res.text()).slice(0, 200)}`);
@@ -52,6 +65,9 @@ export async function synthesize(text: string, v: VoiceStyle = RADIO_HOST): Prom
   await file.write(audio.data, { encoding: 'base64' });
   return file.uri;
 }
+
+/** Speaker ids must be simple: "Kaan \"Riff\" Demir" → "Speaker1"-style, stable per cast slot. */
+const speakerOf = (name: string, cast: { name: string }[]) => `Speaker${Math.max(0, cast.findIndex((c) => c.name === name)) + 1}`;
 
 export type Talking = { done: Promise<boolean>; stop: () => void }; // done: true if it finished, false if stopped
 

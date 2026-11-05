@@ -7,7 +7,8 @@ import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TextInput, View
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FadeIn, Pulse, PressScale } from '../components/motion';
 import { Chip, IconButton, PillButton, StatusLine, type Status } from '../components/ui';
-import { buildShow, VIBES, type Show, type Vibe } from '../lib/radio';
+import { buildShow, castOf, WISHES, type Show } from '../lib/radio';
+import { STATIONS, stationByKey } from '../lib/stations';
 import { pausePlayback, playbackState, playTracks, resumePlayback, savePlaylist } from '../lib/spotify';
 import { colors, fonts, inputColors, radius } from '../lib/theme';
 import { clearClips, playClip, speakRobot, synthesize, type Talking } from '../lib/tts';
@@ -27,7 +28,7 @@ export default function RadioScreen() {
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();
   const [phase, setPhase] = useState<Phase>('pick');
-  const [vibe, setVibe] = useState<Vibe>('surprise');
+  const [stationKey, setStationKey] = useState('neon');
   const [wish, setWish] = useState('');
   const [voice, setVoice] = useState(true);
   const [show, setShow] = useState<Show | null>(null);
@@ -45,8 +46,8 @@ export default function RadioScreen() {
 
   const prepare = useCallback((i: number) => {
     const s = live.current.show;
-    if (!s || i >= s.slots.length || clips.current.has(i) || !s.slots[i].intro) return;
-    clips.current.set(i, synthesize(s.slots[i].intro).catch(() => null));
+    if (!s || i >= s.slots.length || clips.current.has(i) || !s.slots[i].talk.length) return;
+    clips.current.set(i, synthesize(s.slots[i].talk, castOf(s.station)).catch(() => null));
   }, []);
 
   const shush = () => {
@@ -84,15 +85,15 @@ export default function RadioScreen() {
       playTracks([s.slots[i].track.uri]).catch(fail);
       prepare(i + 1);
     };
-    const intro = s.slots[i].intro;
-    if (!live.current.voice || !intro) return start();
+    const talk = s.slots[i].talk;
+    if (!live.current.voice || !talk.length) return start();
     live.current.speaking = true;
     setSpeaking(true);
     prepare(i);
     (async () => {
       const uri = await clips.current.get(i);
       if (live.current.index !== i || !live.current.speaking) return; // skipped or paused while it was loading
-      const t = uri ? playClip(uri) : speakRobot(intro, s.lang);
+      const t = uri ? playClip(uri) : speakRobot(talk.map((l) => l.text).join(' '), s.lang);
       talking.current = t;
       if (await t.done) start();
     })();
@@ -116,7 +117,7 @@ export default function RadioScreen() {
     setPhase('building');
     setStatus({ kind: 'idle' });
     try {
-      const s = await buildShow(db, vibe, wish);
+      const s = await buildShow(db, stationByKey(stationKey), wish);
       live.current = { show: s, index: 0, speaking: false, paused: false, startedAt: 0, voice };
       clips.current = new Map();
       if (voice) {
@@ -178,7 +179,7 @@ export default function RadioScreen() {
     if (!show) return;
     setStatus({ kind: 'busy' });
     try {
-      await savePlaylist(show.title, 'Made by your friend in Lifelog Radio', show.slots.map((s) => s.track.uri));
+      await savePlaylist(show.title, `${show.station.name} ${show.station.freq}, made for you in Lifelog Radio`, show.slots.map((s) => s.track.uri));
       setStatus({ kind: 'ok', msg: `Saved "${show.title}" to your Spotify playlists.` });
     } catch (e) {
       fail(e);
@@ -211,23 +212,51 @@ export default function RadioScreen() {
       >
         {phase === 'pick' && (
           <FadeIn>
-            <Text style={styles.title}>{'Your Own\nRadio Show'}</Text>
+            <Text style={styles.title}>{'Tune In'}</Text>
             <Text style={styles.text}>
-              Your friend picks the songs, and before each one tells you why, out loud, like a radio host. Spotify plays
-              them.
+              Pick a station. The hosts play real songs on your Spotify and talk between them, with fake ads and news about
+              your life.
             </Text>
-            <Text style={styles.label}>What's the vibe?</Text>
-            <View style={styles.chips}>
-              {VIBES.map((v) => (
-                <Chip key={v.key} label={v.label} active={vibe === v.key} onPress={() => setVibe(v.key)} />
-              ))}
+            <View style={styles.dial}>
+              {STATIONS.map((st) => {
+                const on = st.key === stationKey;
+                return (
+                  <PressScale
+                    key={st.key}
+                    scaleTo={0.97}
+                    style={[styles.station, on && styles.stationOn]}
+                    onPress={() => setStationKey(st.key)}
+                    accessibilityLabel={st.name}
+                  >
+                    <Text style={styles.stationEmoji}>{st.emoji}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.stationName, on && { color: colors.accentText }]}>
+                        {st.name} <Text style={styles.freq}>{st.freq}</Text>
+                      </Text>
+                      <Text style={[styles.stationTag, on && { color: colors.accentText }]} numberOfLines={2}>
+                        {st.tagline}
+                      </Text>
+                      {on && (
+                        <Text style={styles.stationHosts}>
+                          {st.sidekick ? `${st.host.name} & ${st.sidekick.name}` : st.host.name}
+                        </Text>
+                      )}
+                    </View>
+                  </PressScale>
+                );
+              })}
             </View>
             <Text style={styles.label}>Anything else? (optional)</Text>
+            <View style={[styles.chips, { marginBottom: 10 }]}>
+              {WISHES.map((w) => (
+                <Chip key={w} label={w} active={wish === w} onPress={() => setWish(wish === w ? '' : w)} />
+              ))}
+            </View>
             <TextInput
               style={styles.input}
               value={wish}
               onChangeText={setWish}
-              placeholder="90s rock, no sad songs, something Turkish…"
+              placeholder="No sad songs, something Turkish…"
               placeholderTextColor={colors.muted}
               {...inputColors}
             />
@@ -239,21 +268,27 @@ export default function RadioScreen() {
           <View style={styles.center}>
             <ActivityIndicator color={colors.text} />
             <Text style={[styles.text, { marginTop: 14, textAlign: 'center' }]}>
-              Digging through your week and your records…
+              {stationByKey(stationKey).host.name} is warming up the mic…
             </Text>
           </View>
         )}
 
         {(phase === 'onair' || phase === 'done') && show && current && (
           <>
-            <Text style={styles.showTitle}>{show.title}</Text>
+            <Text style={styles.showTitle}>
+              {show.station.emoji} {show.station.name} {show.station.freq} · {show.title}
+            </Text>
             <FadeIn key={current.track.id}>
               {current.track.image && <Image source={{ uri: current.track.image }} style={styles.cover} />}
               <Text style={styles.trackName}>{current.track.name}</Text>
               <Text style={styles.trackArtist}>{current.track.artist}</Text>
-              {!!current.intro && (
-                <Text style={[styles.intro, speaking && { color: colors.text }]}>“{current.intro}”</Text>
-              )}
+              {!!current.label && <Text style={styles.breakLabel}>{current.label === 'News' ? '📰 News' : '📢 Commercial break'}</Text>}
+              {current.talk.map((l, k) => (
+                <Text key={k} style={[styles.intro, speaking && { color: colors.text }]}>
+                  {show.station.sidekick && <Text style={styles.who}>{l.speaker}: </Text>}
+                  {l.text.replace(/<[^>]+>/g, '').trim()}
+                </Text>
+              ))}
             </FadeIn>
 
             {phase === 'onair' ? (
@@ -315,11 +350,28 @@ const styles = StyleSheet.create({
     fontFamily: fonts.sansRegular,
     fontSize: 15,
   },
+  dial: { gap: 10, marginTop: 22 },
+  station: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 14,
+    borderRadius: radius.md,
+    backgroundColor: colors.raised,
+  },
+  stationOn: { backgroundColor: colors.accent },
+  stationEmoji: { fontSize: 28 },
+  stationName: { fontFamily: fonts.serif, fontSize: 19, color: colors.text },
+  freq: { fontFamily: fonts.sans, fontSize: 13, color: colors.muted },
+  stationTag: { fontFamily: fonts.sansRegular, fontSize: 13, lineHeight: 18, color: colors.muted, marginTop: 2 },
+  stationHosts: { fontFamily: fonts.sans, fontSize: 12, color: colors.accentText, marginTop: 6, opacity: 0.7 },
+  breakLabel: { fontFamily: fonts.sans, fontSize: 13, color: colors.text, marginTop: 16, letterSpacing: 0.5 },
+  who: { fontFamily: fonts.serifBold, fontStyle: 'normal' },
   showTitle: { fontFamily: fonts.serifItalic, fontSize: 16, color: colors.muted, marginBottom: 16 },
   cover: { width: '100%', aspectRatio: 1, borderRadius: radius.md, marginBottom: 18, backgroundColor: colors.raised },
   trackName: { fontFamily: fonts.serif, fontSize: 28, lineHeight: 34, color: colors.text },
   trackArtist: { fontFamily: fonts.sans, fontSize: 15, color: colors.muted, marginTop: 4 },
-  intro: { fontFamily: fonts.serifItalic, fontSize: 17, lineHeight: 26, color: colors.muted, marginTop: 16 },
+  intro: { fontFamily: fonts.serifItalic, fontSize: 17, lineHeight: 26, color: colors.muted, marginTop: 12 },
   controls: { flexDirection: 'row', alignItems: 'center', gap: 18, marginTop: 22 },
   control: {
     width: 68,

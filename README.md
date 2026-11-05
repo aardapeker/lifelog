@@ -35,7 +35,9 @@ Android only. No server, no account. Everything lives on the phone.
   Notices when you've gone quiet. Settings → On Its Own has Autostart / Battery saver shortcuts for Xiaomi
 - **Spotify (Premium)**: the friend suggests songs with ▶ Play buttons in the chat, every new entry remembers the
   song you were listening to, and **Lifelog Radio** hosts a show for you: a set picked from your week and taste,
-  with a spoken intro before each song (Android text-to-speech). Your own Spotify app's Client ID, PKCE login, no server
+  with the hosts talking before each song in natural Gemini voices. Stations in the spirit of old open-world
+  game radio: Neon FM (80s pop), Night Shift FM (synthwave), Gebze Rock 104, Şemistan Chill (the cat co-hosts),
+  each with a host + comedian duo, fake commercials and news bulletins about your life. Your own Spotify app's Client ID, PKCE login, no server
 - **Reads**: after a chat goes quiet, the friend researches its topic from three angles with Google Search
   and writes a short magazine-style article just for you, with sources (at most one a day)
 
