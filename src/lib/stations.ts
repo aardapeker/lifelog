@@ -16,7 +16,15 @@ export type Station = {
   host: Persona;
   sidekick: Persona | null;
   ads: string; // the flavour of its commercials
+  lang: Lang; // what the hosts speak (you can change it per station)
 };
+
+export type Lang = 'auto' | 'en' | 'tr';
+export const LANGS: { key: Lang; label: string }[] = [
+  { key: 'auto', label: 'Auto' },
+  { key: 'en', label: 'English' },
+  { key: 'tr', label: 'Türkçe' },
+];
 
 export const STATIONS: Station[] = [
   {
@@ -34,6 +42,7 @@ export const STATIONS: Station[] = [
     },
     sidekick: null,
     ads: 'none, this is a cosy show',
+    lang: 'auto',
   },
   {
     key: 'neon',
@@ -55,6 +64,7 @@ export const STATIONS: Station[] = [
       bio: "Candy's co-host, a broke comedian who mocks everything, especially the listener's life choices",
     },
     ads: "cheesy 1980s TV commercials with fake phone numbers like 1-800-..., absurd products made for the listener's exact problems",
+    lang: 'en',
   },
   {
     key: 'nightshift',
@@ -76,6 +86,7 @@ export const STATIONS: Station[] = [
       bio: 'a fellow night-shift worker who keeps bringing Max back to boring reality',
     },
     ads: 'fake ads for energy drinks, coffee, sleep and miracle products for night-shift workers, read like action trailers',
+    lang: 'en',
   },
   {
     key: 'rock',
@@ -97,6 +108,7 @@ export const STATIONS: Station[] = [
       bio: "the station's producer who exposes Riff's fake stories",
     },
     ads: 'fake ads for guitar shops, earplugs, hair products and bad bands, read with rock attitude',
+    lang: 'auto',
   },
   {
     key: 'chill',
@@ -118,6 +130,31 @@ export const STATIONS: Station[] = [
       bio: "the listener's actual cat, demanding food and attention, judging the music and the owner",
     },
     ads: 'fake ads from the cat\'s point of view: premium tuna, sunny windowsills, boxes to sit in',
+    lang: 'tr',
+  },
+  {
+    key: 'arabesk',
+    name: 'Tuzla Arabesk FM',
+    freq: '90.5',
+    tagline: 'Derdin varsa, şarkımız var.',
+    emoji: '🥀',
+    music:
+      'Turkish arabesk and arabesk-fantezi classics from the 70s to the 2000s: heartbreak, longing, fate, ' +
+      'the great voices of the genre, plus a few modern arabesk-influenced songs',
+    host: {
+      name: 'Kederli Kemal',
+      voice: 'Algenib',
+      style: 'a dramatic, heartbroken Turkish arabesk radio host, slow, sighing, every sentence a tragedy, deep and gravelly',
+      bio: 'an arabesk DJ who has suffered more than anyone alive, turns every small thing into a sad destiny, says "of" and "ah" a lot',
+    },
+    sidekick: {
+      name: 'Çaycı Cengiz',
+      voice: 'Achird',
+      style: 'a cheerful, chatty Istanbul tea seller, fast, friendly, totally unbothered, a bit of street humour',
+      bio: 'brings Kemal tea, never understands why everyone is so sad, has a practical (and funny) answer for every tragedy',
+    },
+    ads: 'fake ads for çay ocakları, kaset dükkanları, dolmuş lines, lahmacun places and tespih shops, read with arabesk drama',
+    lang: 'tr',
   },
 ];
 
@@ -157,14 +194,15 @@ export const VOICES: { name: string; vibe: string }[] = [
   { name: 'Pulcherrima', vibe: 'Forward' },
 ];
 
-/** Your own voice choices per station: { neon: { host: 'Kore', sidekick: 'Charon' } }. */
-export type VoiceChoices = Record<string, { host?: string; sidekick?: string }>;
+/** Your own choices per station: { neon: { host: 'Kore', sidekick: 'Charon', lang: 'en' } }. */
+export type VoiceChoices = Record<string, { host?: string; sidekick?: string; lang?: Lang }>;
 
 /** The station with your chosen voices swapped in. */
 export function withVoices(station: Station, choices: VoiceChoices): Station {
   const c = choices[station.key] ?? {};
   return {
     ...station,
+    lang: c.lang ?? station.lang,
     host: { ...station.host, voice: c.host ?? station.host.voice },
     sidekick: station.sidekick && { ...station.sidekick, voice: c.sidekick ?? station.sidekick.voice },
   };

@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FadeIn, Pulse, PressScale } from '../components/motion';
 import { Chip, IconButton, PillButton, StatusLine, type Status } from '../components/ui';
 import { buildShow, castOf, WISHES, type Show } from '../lib/radio';
-import { STATIONS, stationByKey, VOICES, withVoices, type Persona, type VoiceChoices } from '../lib/stations';
+import { LANGS, STATIONS, stationByKey, VOICES, withVoices, type Lang, type Persona, type VoiceChoices } from '../lib/stations';
 import { getSetting, setSetting } from '../lib/db';
 import { pausePlayback, playbackState, playTracks, resumePlayback, savePlaylist } from '../lib/spotify';
 import { colors, fonts, inputColors, radius } from '../lib/theme';
@@ -41,16 +41,30 @@ export default function RadioScreen() {
       .catch(() => {});
   }, [db]);
 
-  /** Picks a voice for the host or sidekick, remembers it, and lets you hear it. */
-  const chooseVoice = async (role: 'host' | 'sidekick', p: Persona, voice: string) => {
-    const next = { ...choices, [stationKey]: { ...choices[stationKey], [role]: voice } };
+  /** Remembers a choice for this station. */
+  const remember = (patch: VoiceChoices[string]) => {
+    const next = { ...choices, [stationKey]: { ...choices[stationKey], ...patch } };
     setChoices(next);
     setSetting(db, 'radio.voices', JSON.stringify(next)).catch(() => {});
+  };
+  const chooseLang = (lang: Lang) => remember({ lang });
+
+  /** Picks a voice for the host or sidekick, remembers it, and lets you hear it. */
+  const chooseVoice = async (role: 'host' | 'sidekick', p: Persona, voice: string) => {
+    remember({ [role]: voice });
     preview.current?.stop();
     setTrying(voice);
     try {
       const uri = await synthesize(
-        [{ speaker: p.name, text: `Hey! I'm ${p.name}, and you're listening to ${station.name} ${station.freq}.` }],
+        [
+          {
+            speaker: p.name,
+            text:
+              station.lang === 'tr'
+                ? `Merhaba! Ben ${p.name}, ${station.name} ${station.freq} dinliyorsunuz.`
+                : `Hey! I'm ${p.name}, and you're listening to ${station.name} ${station.freq}.`,
+          },
+        ],
         [{ name: p.name, voice, style: p.style }],
       );
       preview.current = playClip(uri);
@@ -317,6 +331,13 @@ export default function RadioScreen() {
                 );
               })}
             </View>
+            <Text style={styles.label}>Language</Text>
+            <View style={styles.chips}>
+              {LANGS.map((l) => (
+                <Chip key={l.key} label={l.label} active={station.lang === l.key} onPress={() => chooseLang(l.key)} />
+              ))}
+            </View>
+
             <Text style={styles.label}>Voices (tap one to hear it)</Text>
             {[
               { role: 'host' as const, p: station.host },

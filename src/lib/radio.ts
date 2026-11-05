@@ -22,6 +22,12 @@ export const WISHES = ['On the way to work', 'After the shift', 'Focus', 'Rainy 
 
 const SHOW_LENGTH = 8;
 
+const LANGUAGE: Record<Station['lang'], string> = {
+  auto: 'Speak the language of their journal.',
+  en: 'Speak English only (simple, natural, fun; the listener is learning English), and lean towards English-language songs.',
+  tr: 'Sadece Türkçe konuş (doğal, samimi İstanbul Türkçesi). Speak Turkish only, and lean towards Turkish songs.',
+};
+
 const persona = (p: Persona, role: string) => `- ${p.name} (${role}): ${p.bio}`;
 
 export async function buildShow(db: SQLiteDatabase, station: Station, wish: string): Promise<Show> {
@@ -63,7 +69,9 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
         : `Before songs 3 and 6, instead of a normal intro, do a break: one fake commercial (${station.ads}) or a short ` +
           'news bulletin (their weather, their week, their goals, read like breaking news), then lead into the song. ') +
       'Lines are SPOKEN aloud by a voice engine: no emojis, no markdown, no stage directions in brackets, natural speech, ' +
-      'short sentences. You may put <laugh> or <short pause> inside a line. Use the language of their journal.\n\n' +
+      'short sentences. You may put <laugh> or <short pause> inside a line. ' +
+      LANGUAGE[station.lang] +
+      '\n\n' +
       `Return {"title":"show name","lang":"tr or en","songs":[{"title":"…","artist":"…","label":null or "Commercial" or "News",` +
       `"talk":[{"who":${names},"text":"…"}]}]} with ${SHOW_LENGTH} songs.\n\n` +
       about,
@@ -92,7 +100,8 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
   if (!slots.length) throw new Error("Couldn't find those songs on Spotify. Try again?");
   return {
     title: plan.title?.trim() || station.name,
-    lang: plan.lang?.toLowerCase().startsWith('tr') ? 'tr-TR' : 'en-US',
+    lang:
+      station.lang === 'tr' || (station.lang === 'auto' && plan.lang?.toLowerCase().startsWith('tr')) ? 'tr-TR' : 'en-US',
     station,
     slots,
   };
