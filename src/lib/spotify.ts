@@ -176,27 +176,38 @@ const pickDevice = (list: Device[]) =>
   list.find((d) => d.is_active) ?? list.find((d) => d.type === 'Smartphone') ?? list[0] ?? null;
 
 /**
- * Finds a Spotify device to play on. If none is awake and Lifelog is on screen, opens the
- * Spotify app to wake it (Android doesn't let a background app open other apps) and waits
- * up to ~12 s for it to show up.
+ * Finds a Spotify device to play on. Spotify on a phone only counts as a device once it
+ * has played something, so when none is awake and Lifelog is on screen (Android doesn't let a
+ * background app open other apps), it opens `startWith` (a track) in the Spotify app, which
+ * starts playing it, waits up to ~15 s for the phone to show up, then pauses it again so the
+ * hosts can talk first.
  */
-export async function wakeSpotify(): Promise<string | null> {
+export async function wakeSpotify(startWith?: string): Promise<string | null> {
   const found = pickDevice(await listDevices().catch(() => []));
   if (found) return (lastDevice = found.id);
   if (AppState.currentState !== 'active') return lastDevice;
-  await Linking.openURL('spotify:').catch(() => {});
-  for (let k = 0; k < 8; k++) {
+  await Linking.openURL(startWith ?? 'spotify:').catch(() => {});
+  for (let k = 0; k < 10; k++) {
     await waitMs(1500);
     const d = pickDevice(await listDevices().catch(() => []));
-    if (d) return (lastDevice = d.id);
+    if (d) {
+      lastDevice = d.id;
+      if (startWith) await api(`/me/player/pause?device_id=${d.id}`, { method: 'PUT' }).catch(() => {});
+      return d.id;
+    }
   }
   return null;
 }
 
+/** Makes `device` the one Spotify plays on (it may be listed but not active). */
+const transferTo = (device: string) =>
+  api('/me/player', { method: 'PUT', body: { device_ids: [device], play: false } }).catch(() => {});
+
 /**
  * Plays tracks (in order, as a queue) in the Spotify app. Always names the device, so a
- * phone Spotify that dozed off during the hosts' talk still gets the command; if Spotify
- * says there's no device, wakes it and tries again.
+ * phone Spotify that dozed off during the hosts' talk still gets the command. If Spotify says
+ * there's no such device, finds one, moves playback to it and tries again; as a last resort
+ * (only possible while Lifelog is on screen) opens the first track in Spotify.
  */
 export async function playTracks(uris: string[]): Promise<void> {
   const play = (device: string | null) =>
@@ -207,8 +218,16 @@ export async function playTracks(uris: string[]): Promise<void> {
   } catch (e) {
     if (!(e instanceof SpotifyError) || (e.status !== 404 && e.status !== 502)) throw e;
   }
-  const device = await wakeSpotify();
-  if (!device) throw new SpotifyError(404, 'Spotify is asleep on your phone. Open Spotify for a second, come back and tap ▶.');
+  const listed = pickDevice(await listDevices().catch(() => []));
+  if (listed) {
+    lastDevice = listed.id;
+    await transferTo(listed.id);
+    await waitMs(800);
+    await play(listed.id);
+    return;
+  }
+  const device = await wakeSpotify(uris[0]);
+  if (!device) throw new SpotifyError(404, 'Spotify is asleep on your phone. Play any song in Spotify for a second, come back and tap ▶.');
   await play(device);
 }
 

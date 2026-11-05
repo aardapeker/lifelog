@@ -1,9 +1,10 @@
 import { useKeepAwake } from 'expo-keep-awake';
+import * as Notifications from 'expo-notifications';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AppState, Image, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MorphPlayButton, WavyProgress } from '../components/expressive';
 import { Glass, GlassArea } from '../components/Glass';
@@ -213,7 +214,15 @@ export default function RadioScreen() {
       live.current.paused = true;
       live.current.startedAt = 0; // ▶ will start this song again
       setPaused(true);
+      setOnAirPlaying(false);
       fail(e);
+      // you're probably in Spotify or the phone is in your pocket: say it where you'll see it
+      if (AppState.currentState !== 'active') {
+        Notifications.scheduleNotificationAsync({
+          content: { title: 'Lifelog Radio paused', body: e instanceof Error ? e.message : String(e), data: { kind: 'radio' } },
+          trigger: null,
+        }).catch(() => {});
+      }
     }
   }, []);
 
@@ -278,7 +287,7 @@ export default function RadioScreen() {
       setPhase('onair');
       await goOnAir(s.title, `${s.station.name} ${s.station.freq}`);
       // make sure Spotify is awake on the phone now, while Lifelog is on screen and allowed to open it
-      await wakeSpotify().catch(() => null);
+      await wakeSpotify(s.slots[0].track.uri).catch(() => null);
       poll.current = onBeat(tick); // ~every second, even while you're in Spotify
       playSlot(0);
     } catch (e) {

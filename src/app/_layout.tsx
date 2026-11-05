@@ -81,6 +81,7 @@ export default function RootLayout() {
       if (data?.kind === 'checkin') setTimeout(() => router.navigate('/chat'), 300);
       if (data?.kind === 'planner' && typeof data.day === 'string') setTimeout(() => router.push(`/plan/${data.day}`), 300);
       if (data?.kind === 'read' && data.id !== undefined) setTimeout(() => router.push(`/read/${data.id}`), 300);
+      if (data?.kind === 'radio') setTimeout(() => router.navigate('/radio'), 300); // back to the running show
     };
     handle(Notifications.getLastNotificationResponse()?.notification.request.content.data);
     const sub = Notifications.addNotificationResponseReceivedListener((r) => handle(r.notification.request.content.data));
