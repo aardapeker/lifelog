@@ -112,6 +112,7 @@ export default function RootLayout() {
         <Stack.Screen name="plan/[day]" />
         <Stack.Screen name="chats" />
         <Stack.Screen name="read/[id]" options={{ animation: 'fade_from_bottom' }} />
+        <Stack.Screen name="research/[id]" options={{ animation: 'fade_from_bottom' }} />
         <Stack.Screen name="restore" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="spotify-auth" options={{ animation: 'none' }} />
         <Stack.Screen name="radio" options={{ animation: 'slide_from_bottom' }} />

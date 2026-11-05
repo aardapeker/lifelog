@@ -38,13 +38,19 @@ export type Research = {
   done_at: number | null;
 };
 
+/** The pages a lookup used, one per site (Google often cites the same site twice). */
 export const researchSources = (r: Research): { title: string; uri: string }[] => {
   try {
-    return JSON.parse(r.sources ?? '[]');
+    const all = JSON.parse(r.sources ?? '[]') as { title: string; uri: string }[];
+    return all.filter((src, i) => all.findIndex((o) => o.title === src.title) === i);
   } catch {
     return [];
   }
 };
+
+export function getResearch(db: SQLiteDatabase, id: number): Promise<Research | null> {
+  return db.getFirstAsync<Research>('SELECT * FROM research WHERE id = ?', id);
+}
 
 export function listResearch(db: SQLiteDatabase, limit = 15): Promise<Research[]> {
   return db.getAllAsync<Research>(

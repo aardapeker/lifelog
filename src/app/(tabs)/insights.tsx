@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { requestPinWidget } from 'react-native-android-widget';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chip, PillButton, SectionTitle } from '../../components/ui';
@@ -235,12 +235,13 @@ export default function InsightsScreen() {
       {research.length > 0 && (
         <FadeIn style={styles.section} delay={stagger(2, 60)}>
           <SectionTitle title="Looked Into" />
-          <Text style={styles.hint}>Things your friend searched for after reading your entries. Hold one to remove it.</Text>
+          <Text style={styles.hint}>Things your friend searched for after reading your entries. Tap to read, hold to remove.</Text>
           <View style={styles.panel}>
             {research.map((r) => (
               <Pressable
                 key={r.id}
                 style={styles.research}
+                onPress={() => router.push(`/research/${r.id}`)}
                 onLongPress={() =>
                   Alert.alert('Remove this?', r.topic, [
                     { text: 'Keep', style: 'cancel' },
@@ -260,16 +261,12 @@ export default function InsightsScreen() {
                   <Text style={styles.rowMeta}>On the list, looking it up soon.</Text>
                 ) : (
                   <>
-                    <Text style={styles.researchText}>{r.result}</Text>
-                    {researchSources(r)
-                      .slice(0, 3)
-                      .map((src) => (
-                        <Pressable key={src.uri} onPress={() => Linking.openURL(src.uri).catch(() => {})} hitSlop={4}>
-                          <Text style={styles.researchLink} numberOfLines={1}>
-                            {src.title}
-                          </Text>
-                        </Pressable>
-                      ))}
+                    <Text style={styles.researchText} numberOfLines={3}>
+                      {r.result}
+                    </Text>
+                    <Text style={styles.researchLink}>
+                      Read · {researchSources(r).length} source{researchSources(r).length === 1 ? '' : 's'} →
+                    </Text>
                   </>
                 )}
               </Pressable>
