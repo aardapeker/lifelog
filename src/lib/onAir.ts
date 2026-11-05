@@ -1,5 +1,6 @@
 import { createAudioPlaylist, type AudioPlaylist } from 'expo-audio';
 import { File, Paths } from 'expo-file-system';
+import { beat } from './heartbeat';
 import { radioAudioMode, wav } from './tts';
 
 /*
@@ -16,7 +17,6 @@ import { radioAudioMode, wav } from './tts';
  */
 
 let keeper: AudioPlaylist | null = null;
-const beats = new Set<() => void>();
 export type Remote = { pause: () => void; play: () => void; next: () => void };
 let remote: Remote | null = null;
 
@@ -45,7 +45,7 @@ export async function goOnAir(title: string, station: string): Promise<void> {
   lastTime = 0;
   armed = false;
   keeper.addListener('playlistStatusUpdate', (s) => {
-    beats.forEach((f) => f());
+    beat();
     if (!armed) {
       armed = s.playing;
       lastPlaying = true;
@@ -99,24 +99,4 @@ export function goOffAir(): void {
   keeper = null;
 }
 
-/** Runs `f` about once a second while on air, in the foreground and the background. */
-export function onBeat(f: () => void): () => void {
-  beats.add(f);
-  return () => beats.delete(f);
-}
-
-/** Waits `ms`, even in the background (a frozen timer is rescued by the heartbeat). */
-export function waitMs(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    const end = Date.now() + ms;
-    const done = () => {
-      clearTimeout(timer);
-      off();
-      resolve();
-    };
-    const timer = setTimeout(done, ms);
-    const off = onBeat(() => {
-      if (Date.now() >= end) done();
-    });
-  });
-}
+export { onBeat, waitMs } from './heartbeat';

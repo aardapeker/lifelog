@@ -5,7 +5,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { AppState, Linking } from 'react-native';
 import type { Tool } from './chat';
 import { getSetting, setSetting } from './db';
-import { waitMs } from './onAir';
+import { waitMs } from './heartbeat';
 
 /*
  * Spotify, with no server: you register your own Spotify app (Development Mode, free,

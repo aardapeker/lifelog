@@ -3,6 +3,7 @@ import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { File, Paths } from 'expo-file-system';
 import * as Speech from 'expo-speech';
 import { jsonHeaders } from './gemini';
+import { onBeat } from './heartbeat';
 import { getKey } from './keys';
 
 /*
@@ -190,9 +191,10 @@ export function wav(pcm: Uint8Array, rate: number): Uint8Array {
 export type Talking = { done: Promise<boolean>; stop: () => void }; // done: true if it finished, false if stopped
 
 /**
- * Plays a voice clip and reports when it's over. The "finished" event doesn't always arrive on
- * Android, so it also watches the position itself, with a hard stop after 90 s: a clip can never
- * leave the show hanging.
+ * Plays a voice clip and reports when it's over. Three ways to notice the end, because on
+ * Android the "finished" event doesn't always arrive and timers freeze in the background:
+ * the player's own events, a check on every heartbeat (and a timer, in the foreground), and
+ * the clip's length worked out from the file size, so a show can never hang after a talk.
  */
 export function playClip(uri: string): Talking {
   const player = createAudioPlayer(uri);
@@ -200,31 +202,49 @@ export function playClip(uri: string): Talking {
   const done = new Promise<boolean>((r) => (settle = r));
   let over = false;
   let started = false;
+  let startedAt = 0;
+  // 24 kHz, 16-bit mono: 48,000 bytes a second (after the 44-byte header)
+  const seconds = (() => {
+    try {
+      return Math.max(1, ((new File(uri).size ?? 0) - 44) / 48000);
+    } catch {
+      return 60;
+    }
+  })();
   const end = (finished: boolean) => {
     if (over) return;
     over = true;
-    clearTimeout(guard);
     clearInterval(watch);
+    offBeat();
     sub.remove();
     try {
       player.remove();
     } catch {}
     settle(finished);
   };
-  const guard = setTimeout(() => end(true), 90_000);
-  const sub = player.addListener('playbackStatusUpdate', (s) => {
-    if (s.playing) started = true;
-    if (s.didJustFinish || (started && s.isLoaded && s.duration > 0 && !s.playing && s.currentTime >= s.duration - 0.3)) {
+  const check = () => {
+    try {
+      if (player.playing && !started) {
+        started = true;
+        startedAt = Date.now();
+      }
+      const d = player.duration;
+      if (started && d > 0 && !player.playing && player.currentTime >= d - 0.3) return end(true);
+      // past its length (+1.5 s): over, whatever the player says
+      if (started && Date.now() - startedAt > seconds * 1000 + 1500) return end(true);
+      // never started at all within 10 s: give up on it, the show goes on
+      if (!started && Date.now() - createdAt > 10_000) return end(true);
+    } catch {
       end(true);
     }
+  };
+  const createdAt = Date.now();
+  const sub = player.addListener('playbackStatusUpdate', (s) => {
+    if (s.didJustFinish) end(true);
+    else check();
   });
-  const watch = setInterval(() => {
-    try {
-      if (player.playing) started = true;
-      const d = player.duration;
-      if (started && d > 0 && !player.playing && player.currentTime >= d - 0.3) end(true);
-    } catch {}
-  }, 400);
+  const watch = setInterval(check, 400);
+  const offBeat = onBeat(check);
   radioAudioMode().finally(() => player.play());
   return {
     done,
