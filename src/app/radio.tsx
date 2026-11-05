@@ -79,7 +79,14 @@ export default function RadioScreen() {
   const prepare = useCallback((i: number) => {
     const s = live.current.show;
     if (!s || i >= s.slots.length || clips.current.has(i) || !s.slots[i].talk.length) return;
-    clips.current.set(i, synthesize(s.slots[i].talk, castOf(s.station)).catch(() => null));
+    clips.current.set(
+      i,
+      synthesize(s.slots[i].talk, castOf(s.station)).catch((e) => {
+        // say why it sounds robotic, instead of failing silently
+        setStatus({ kind: 'err', msg: `${e instanceof Error ? e.message : e} Using the phone's voice for now.` });
+        return null;
+      }),
+    );
   }, []);
 
   const shush = () => {
