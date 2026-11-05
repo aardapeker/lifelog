@@ -365,7 +365,7 @@ export default function RadioScreen() {
         <IconButton icon={voice ? 'mic' : 'mic-off'} label={voice ? 'Host talks' : 'Host is quiet'} onPress={toggleVoice} />
       </View>
 
-      <Glass radius={28} style={styles.sheet}>
+      <Glass blur radius={28} style={styles.sheet}>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 70 }]}

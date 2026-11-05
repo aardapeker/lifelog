@@ -5,7 +5,7 @@ import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 /*
  * Frosted glass. On Android a blur needs to know what's behind it, so screens that have
- * glass on top wrap their content in <GlassArea>; any <Glass> inside blurs that area.
+ * glass on top wrap their content in <GlassArea>; a <Glass blur> inside blurs that area (one per area).
  * Android 12+ gets the real blur; older phones get the same look without the blur.
  */
 
@@ -37,13 +37,15 @@ export function Glass({
   style,
   radius = 28,
   intensity = 60,
-  blur = true,
+  blur = false,
 }: {
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
   radius?: number;
   intensity?: number;
-  blur?: boolean; // false for cards that sit on a plain background: same look, no blur cost
+  // real blur is opt-in, ONE panel per GlassArea: several blur views capturing the same area
+  // capture each other, and that crashed the app when switching tabs
+  blur?: boolean;
 }) {
   const area = useContext(Area);
   const target = blur ? area : null;

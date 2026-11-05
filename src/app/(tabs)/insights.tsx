@@ -40,7 +40,7 @@ const WEEKDAY = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 /** One bento tile: glass card, small label, big value, an optional extra line. */
 function Tile(props: { label: string; value: string; sub?: string; style?: object; onPress?: () => void; children?: React.ReactNode }) {
   const body = (
-    <Glass blur={false} radius={radius.md} style={[styles.tile, props.style]}>
+    <Glass radius={radius.md} style={[styles.tile, props.style]}>
       <Text style={styles.tileLabel}>{props.label}</Text>
       <Text style={styles.tileValue} numberOfLines={1}>
         {props.value}

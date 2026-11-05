@@ -40,7 +40,7 @@ function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
   if (keyboardOpen) return null;
   return (
     <View pointerEvents="box-none" style={[styles.wrap, { bottom: insets.bottom + 14 }]}>
-      <Glass radius={31} style={styles.pill}>
+      <Glass blur radius={31} style={styles.pill}>
         <Animated.View style={[styles.indicator, { transform: [{ translateX: x }, { scale: pop }] }]} />
         {state.routes.map((route, index) => {
           const focused = state.index === index;
