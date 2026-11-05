@@ -15,9 +15,9 @@ import { LANGS, STATIONS, stationByKey, VOICES, withVoices, type Lang, type Pers
 import { getSetting, setSetting } from '../lib/db';
 import { pausePlayback, playbackState, playTracks, resumePlayback, savePlaylist } from '../lib/spotify';
 import { colors, fonts, inputColors, radius } from '../lib/theme';
+import { goOffAir, goOnAir, onBeat, updateOnAir, waitMs } from '../lib/onAir';
 import { clearClips, playClip, speakRobot, synthesize, type Talking } from '../lib/tts';
 
-const POLL_MS = 1500;
 const END_MARGIN_MS = 2500; // stop this close to the end, so Spotify doesn't drift into its own autoplay
 
 type Phase = 'pick' | 'building' | 'onair' | 'done';
@@ -114,7 +114,7 @@ export default function RadioScreen() {
   // the engine runs on refs: timers and speech callbacks must see the latest values
   // talked: the last slot whose talk already played (so resuming starts just the song)
   const live = useRef({ show: null as Show | null, index: 0, speaking: false, paused: false, startedAt: 0, voice: true, talked: -1 });
-  const poll = useRef<ReturnType<typeof setInterval> | null>(null);
+  const poll = useRef<(() => void) | null>(null); // stops the heartbeat that drives the show
   const talking = useRef<Talking | null>(null);
   // intros are voiced ahead of time (while the previous song plays), so the host never makes you wait
   const clips = useRef(new Map<number, Promise<string | null>>());
@@ -139,8 +139,9 @@ export default function RadioScreen() {
 
   const stopEngine = useCallback(() => {
     preview.current?.stop();
-    if (poll.current) clearInterval(poll.current);
+    poll.current?.();
     poll.current = null;
+    goOffAir();
     talking.current?.stop();
     talking.current = null;
     clearClips();
@@ -161,6 +162,7 @@ export default function RadioScreen() {
     live.current.index = i;
     setIndex(i);
     setProgress(0);
+    updateOnAir(s.slots[i].track.name, `${s.station.name} · ${s.slots[i].track.artist}`);
     const start = () => {
       live.current.speaking = false;
       setSpeaking(false);
@@ -196,7 +198,7 @@ export default function RadioScreen() {
     // can't step in between songs, Spotify still plays OUR next song, not the album or autoplay
     const rest = s.slots.slice(i).map((x) => x.track.uri);
     const playing = async () => {
-      await new Promise((r) => setTimeout(r, 3500));
+      await waitMs(3500); // works in the background too
       const p = await playbackState().catch(() => null);
       return !!p?.isPlaying && p.track?.uri === uri;
     };
@@ -216,11 +218,27 @@ export default function RadioScreen() {
   }, []);
 
   /** Watches Spotify: when the song is about to end, the next one gets its intro. */
+  const ticking = useRef(false);
+  const timing = useRef({ checkedAt: 0, endsAt: 0 }); // go easy on Spotify's API: look often only near the end
   const tick = useCallback(async () => {
     const l = live.current;
-    if (!l.show || l.speaking || l.paused || Date.now() - l.startedAt < 4000) return;
+    if (ticking.current || !l.show || l.speaking || l.paused || Date.now() - l.startedAt < 4000) return;
+    const now = Date.now();
+    if (now - timing.current.checkedAt < 4000 && now < timing.current.endsAt - 7000) return;
+    ticking.current = true;
+    try {
+      await follow(l);
+    } finally {
+      ticking.current = false;
+    }
+  }, []);
+
+  /** One look at Spotify: catch up if it moved on, and step in before the song ends. */
+  const follow = async (l: typeof live.current) => {
+    if (!l.show) return;
     const p = await playbackState().catch(() => null);
     const slot = l.show.slots[l.index];
+    timing.current = { checkedAt: Date.now(), endsAt: p?.track ? Date.now() + p.track.durationMs - p.progressMs : 0 };
     if (!p?.track) return;
     if (p.track.uri !== slot.track.uri) {
       // Spotify moved on through the queue while we weren't looking (app in the background):
@@ -241,7 +259,7 @@ export default function RadioScreen() {
       if (next < l.show.slots.length) await pausePlayback().catch(() => {});
       playSlot(next);
     }
-  }, [playSlot, prepare]);
+  };
 
   const start = async () => {
     setPhase('building');
@@ -258,7 +276,8 @@ export default function RadioScreen() {
       setShow(s);
       setPaused(false);
       setPhase('onair');
-      poll.current = setInterval(tick, POLL_MS);
+      await goOnAir(s.title, `${s.station.name} ${s.station.freq}`);
+      poll.current = onBeat(tick); // ~every second, even while you're in Spotify
       playSlot(0);
     } catch (e) {
       setPhase('pick');

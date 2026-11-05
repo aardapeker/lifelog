@@ -225,9 +225,7 @@ export function playClip(uri: string): Talking {
       if (started && d > 0 && !player.playing && player.currentTime >= d - 0.3) end(true);
     } catch {}
   }, 400);
-  setAudioModeAsync({ playsInSilentMode: true, interruptionMode: 'mixWithOthers' })
-    .catch(() => {})
-    .finally(() => player.play());
+  radioAudioMode().finally(() => player.play());
   return {
     done,
     stop: () => {
@@ -238,6 +236,12 @@ export function playClip(uri: string): Talking {
     },
   };
 }
+
+/** The audio settings for the radio voices: keep playing in the background, mix with Spotify. */
+export const radioAudioMode = () =>
+  setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: true, interruptionMode: 'mixWithOthers' }).catch(
+    () => {},
+  );
 
 /** Android's built-in voice, the fallback. */
 export function speakRobot(text: string, language: string): Talking {
