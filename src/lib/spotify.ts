@@ -2,9 +2,10 @@ import { fetch } from 'expo/fetch';
 import * as AuthSession from 'expo-auth-session';
 import * as SecureStore from 'expo-secure-store';
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { Linking } from 'react-native';
+import { AppState, Linking } from 'react-native';
 import type { Tool } from './chat';
 import { getSetting, setSetting } from './db';
+import { waitMs } from './onAir';
 
 /*
  * Spotify, with no server: you register your own Spotify app (Development Mode, free,
@@ -164,30 +165,59 @@ export async function getTrack(id: string): Promise<Track | null> {
   return t ? toTrack(t) : null;
 }
 
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+type Device = { id: string; type: string; is_active: boolean };
+let lastDevice: string | null = null; // the phone's Spotify, once we've seen it
+
+async function listDevices(): Promise<Device[]> {
+  return (await api<{ devices: Device[] }>('/me/player/devices'))?.devices ?? [];
+}
+
+const pickDevice = (list: Device[]) =>
+  list.find((d) => d.is_active) ?? list.find((d) => d.type === 'Smartphone') ?? list[0] ?? null;
 
 /**
- * Plays tracks in the Spotify app. With no active device, wakes the phone's Spotify
- * (or opens the track in it) and tries once more.
+ * Finds a Spotify device to play on. If none is awake and Lifelog is on screen, opens the
+ * Spotify app to wake it (Android doesn't let a background app open other apps) and waits
+ * up to ~12 s for it to show up.
+ */
+export async function wakeSpotify(): Promise<string | null> {
+  const found = pickDevice(await listDevices().catch(() => []));
+  if (found) return (lastDevice = found.id);
+  if (AppState.currentState !== 'active') return lastDevice;
+  await Linking.openURL('spotify:').catch(() => {});
+  for (let k = 0; k < 8; k++) {
+    await waitMs(1500);
+    const d = pickDevice(await listDevices().catch(() => []));
+    if (d) return (lastDevice = d.id);
+  }
+  return null;
+}
+
+/**
+ * Plays tracks (in order, as a queue) in the Spotify app. Always names the device, so a
+ * phone Spotify that dozed off during the hosts' talk still gets the command; if Spotify
+ * says there's no device, wakes it and tries again.
  */
 export async function playTracks(uris: string[]): Promise<void> {
+  const play = (device: string | null) =>
+    api(`/me/player/play${device ? `?device_id=${device}` : ''}`, { method: 'PUT', body: { uris } });
   try {
-    await api('/me/player/play', { method: 'PUT', body: { uris } });
+    await play(lastDevice);
     return;
   } catch (e) {
-    if (!(e instanceof SpotifyError) || e.status !== 404) throw e;
+    if (!(e instanceof SpotifyError) || (e.status !== 404 && e.status !== 502)) throw e;
   }
-  const devices = (await api<{ devices: { id: string; type: string }[] }>('/me/player/devices'))?.devices ?? [];
-  const device = devices.find((d) => d.type === 'Smartphone') ?? devices[0];
-  if (device) {
-    await api(`/me/player/play?device_id=${device.id}`, { method: 'PUT', body: { uris } });
-    return;
-  }
-  // Spotify isn't running: opening the track starts the app (and usually the song)
-  await Linking.openURL(uris[0]);
-  await wait(3500);
-  await api('/me/player/play', { method: 'PUT', body: { uris } }).catch(() => {});
+  const device = await wakeSpotify();
+  if (!device) throw new SpotifyError(404, 'Spotify is asleep on your phone. Open Spotify for a second, come back and tap ▶.');
+  await play(device);
 }
+
+/** The same song? Spotify sometimes plays an equivalent track with a different id. */
+export const sameTrack = (a: Pick<Track, 'uri' | 'name' | 'artist'> | null | undefined, b: Pick<Track, 'uri' | 'name' | 'artist'>) =>
+  !!a &&
+  (a.uri === b.uri ||
+    (a.name.toLocaleLowerCase('tr') === b.name.toLocaleLowerCase('tr') &&
+      a.artist.split(',')[0].trim().toLocaleLowerCase('tr') === b.artist.split(',')[0].trim().toLocaleLowerCase('tr')));
 
 export const pausePlayback = () => api('/me/player/pause', { method: 'PUT' }).then(() => {});
 export const resumePlayback = () => api('/me/player/play', { method: 'PUT' }).then(() => {});

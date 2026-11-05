@@ -13,7 +13,7 @@ import { Chip, IconButton, PillButton, StatusLine, type Status } from '../compon
 import { buildShow, castOf, WISHES, type Show } from '../lib/radio';
 import { LANGS, STATIONS, stationByKey, VOICES, withVoices, type Lang, type Persona, type VoiceChoices } from '../lib/stations';
 import { getSetting, setSetting } from '../lib/db';
-import { pausePlayback, playbackState, playTracks, resumePlayback, savePlaylist } from '../lib/spotify';
+import { pausePlayback, playbackState, playTracks, resumePlayback, sameTrack, savePlaylist, wakeSpotify } from '../lib/spotify';
 import { colors, fonts, inputColors, radius } from '../lib/theme';
 import { goOffAir, goOnAir, onBeat, updateOnAir, waitMs } from '../lib/onAir';
 import { clearClips, playClip, speakRobot, synthesize, type Talking } from '../lib/tts';
@@ -200,7 +200,7 @@ export default function RadioScreen() {
     const playing = async () => {
       await waitMs(3500); // works in the background too
       const p = await playbackState().catch(() => null);
-      return !!p?.isPlaying && p.track?.uri === uri;
+      return !!p?.isPlaying && sameTrack(p.track, s.slots[i].track);
     };
     try {
       await playTracks(rest);
@@ -240,10 +240,10 @@ export default function RadioScreen() {
     const slot = l.show.slots[l.index];
     timing.current = { checkedAt: Date.now(), endsAt: p?.track ? Date.now() + p.track.durationMs - p.progressMs : 0 };
     if (!p?.track) return;
-    if (p.track.uri !== slot.track.uri) {
+    if (!sameTrack(p.track, slot.track)) {
       // Spotify moved on through the queue while we weren't looking (app in the background):
       // catch up quietly to the song it's playing, and keep the talk for the next one
-      const j = l.show.slots.findIndex((x, k) => k > l.index && x.track.uri === p.track!.uri);
+      const j = l.show.slots.findIndex((x, k) => k > l.index && sameTrack(p.track, x.track));
       if (j > 0) {
         l.index = j;
         l.talked = j;
@@ -277,6 +277,8 @@ export default function RadioScreen() {
       setPaused(false);
       setPhase('onair');
       await goOnAir(s.title, `${s.station.name} ${s.station.freq}`);
+      // make sure Spotify is awake on the phone now, while Lifelog is on screen and allowed to open it
+      await wakeSpotify().catch(() => null);
       poll.current = onBeat(tick); // ~every second, even while you're in Spotify
       playSlot(0);
     } catch (e) {
@@ -300,7 +302,8 @@ export default function RadioScreen() {
     l.paused = false;
     setPaused(false);
     // paused during the talk: start the song; paused during the song: carry on
-    if (l.startedAt === 0 || (await playbackState().catch(() => null))?.track?.uri !== l.show?.slots[l.index].track.uri) {
+    const now = (await playbackState().catch(() => null))?.track;
+    if (l.startedAt === 0 || !l.show || !sameTrack(now, l.show.slots[l.index].track)) {
       playSlot(l.index);
     } else await resumePlayback().catch(fail);
   };
