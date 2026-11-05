@@ -15,6 +15,7 @@ import {
   SPOTIFY_REDIRECT,
   spotifyConnected,
   spotifyName,
+  testPlayback,
 } from '../../lib/spotify';
 import { PillButton, SectionTitle, StatusLine, type Status } from '../../components/ui';
 import { backupNow, getPassphrase, lastBackupAt, restoreFromFile, setPassphrase } from '../../lib/backup';
@@ -649,7 +650,9 @@ function SpotifySection() {
       {who ? (
         <>
           <Text style={styles.keyTitle}>Connected as {who}</Text>
+          <Text style={styles.hint}>Test plays one song the way the radio does and says what Spotify sees.</Text>
           <View style={styles.row}>
+            <PillButton label="Test playback" onPress={() => run(testPlayback)} />
             <PillButton label="Disconnect" onPress={disconnect} ghost />
           </View>
         </>

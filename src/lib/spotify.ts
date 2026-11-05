@@ -165,20 +165,27 @@ export async function getTrack(id: string): Promise<Track | null> {
   return t ? toTrack(t) : null;
 }
 
-type Device = { id: string; name: string; type: string; is_active: boolean };
+type Device = { id: string; name: string; type: string; is_active: boolean; is_restricted?: boolean };
 let lastDevice: string | null = null; // the phone's Spotify, once we've seen it
 
 async function listDevices(): Promise<Device[]> {
   return (await api<{ devices: Device[] }>('/me/player/devices'))?.devices ?? [];
 }
 
+/** Devices that accept remote commands (Spotify marks some as restricted). */
+const usable = (list: Device[]) => list.filter((d) => !d.is_restricted);
+
 // the phone first (the radio lives on the phone), even if a computer or speaker is the active one
-const pickDevice = (list: Device[]) =>
+const pickDevice = (all: Device[]) => {
+  const list = usable(all);
+  return (
   list.find((d) => d.type === 'Smartphone' && d.is_active) ??
   list.find((d) => d.type === 'Smartphone') ??
   list.find((d) => d.is_active) ??
   list[0] ??
-  null;
+  null
+  );
+};
 
 /**
  * Finds a Spotify device to play on. Spotify on a phone only counts as a device once it
@@ -197,7 +204,7 @@ export async function wakeSpotify(startWith?: string): Promise<string | null> {
     const d = pickDevice(await listDevices().catch(() => []));
     if (d) {
       lastDevice = d.id;
-      if (startWith) await api(`/me/player/pause?device_id=${d.id}`, { method: 'PUT' }).catch(() => {});
+      if (startWith) await api('/me/player/pause', { method: 'PUT' }).catch(() => {});
       return d.id;
     }
   }
@@ -209,16 +216,16 @@ export const transferTo = (device: string) =>
   api('/me/player', { method: 'PUT', body: { device_ids: [device], play: false } }).catch(() => {});
 
 /**
- * Plays tracks (in order, as a queue) in the Spotify app. Always names the device, so a
- * phone Spotify that dozed off during the hosts' talk still gets the command. If Spotify says
- * there's no such device, finds one, moves playback to it and tries again; as a last resort
- * (only possible while Lifelog is on screen) opens the first track in Spotify.
+ * Plays tracks (in order, as a queue) in the Spotify app. First the plain way (whatever device
+ * Spotify has active), which is what worked reliably. If Spotify says there's no active device,
+ * finds the phone, moves playback to it and tries again; as a last resort (only possible while
+ * Lifelog is on screen) opens the first track in Spotify.
  */
 export async function playTracks(uris: string[]): Promise<void> {
   const play = (device: string | null) =>
     api(`/me/player/play${device ? `?device_id=${device}` : ''}`, { method: 'PUT', body: { uris } });
   try {
-    await play(lastDevice);
+    await play(null);
     return;
   } catch (e) {
     if (!(e instanceof SpotifyError) || (e.status !== 404 && e.status !== 502)) throw e;
@@ -244,6 +251,19 @@ export async function nudgeSpotify(): Promise<void> {
   await transferTo(d.id);
 }
 
+/** Settings → Spotify → Test: plays a song the same way the radio does, then reports. */
+export async function testPlayback(): Promise<string> {
+  const t = await findTrack('Nightcall', 'Kavinsky');
+  if (!t) throw new Error('Search works, but the test song wasn\'t found.');
+  await playTracks([t.uri]);
+  for (let k = 0; k < 5; k++) {
+    await waitMs(2000);
+    const p = await playbackState().catch(() => null);
+    if (p?.isPlaying && sameTrack(p.track, t)) return `It works: "${t.name}" is playing. ${await spotifyReport()}`;
+  }
+  throw new Error(`Spotify accepted the command but isn't playing. ${await spotifyReport()}`);
+}
+
 /** What Spotify reports right now, in one line, for error messages: "where" and "what". */
 export async function spotifyReport(): Promise<string> {
   const [devices, p] = await Promise.all([
@@ -251,7 +271,7 @@ export async function spotifyReport(): Promise<string> {
     api<{ is_playing: boolean; device?: { name: string }; item?: { name: string } | null }>('/me/player').catch(() => null),
   ]);
   const where = devices.length
-    ? devices.map((d) => `${d.name} (${d.type}${d.is_active ? ', active' : ''})`).join(', ')
+    ? devices.map((d) => `${d.name} (${d.type}${d.is_active ? ', active' : ''}${d.is_restricted ? ', restricted' : ''})`).join(', ')
     : 'no devices';
   const what = p ? `${p.is_playing ? 'playing' : 'paused'} "${p.item?.name ?? '?'}" on ${p.device?.name ?? '?'}` : 'nothing loaded';
   return `Spotify sees: ${where}. Player: ${what}.`;
