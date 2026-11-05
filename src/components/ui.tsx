@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ComponentProps, ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { colors, fonts, radius } from '../lib/theme';
+import { Glass } from './Glass';
 import { PressScale } from './motion';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -22,16 +23,17 @@ export function IconButton(props: {
       accessibilityLabel={props.label}
       hitSlop={6}
       scaleTo={0.88}
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: light ? colors.accent : colors.raised,
-      }}
+      style={{ width: size, height: size }}
     >
-      <Ionicons name={props.icon} size={size * 0.45} color={light ? colors.accentText : colors.text} />
+      {light ? (
+        <View style={[styles.round, { borderRadius: size / 2, backgroundColor: colors.accent }]}>
+          <Ionicons name={props.icon} size={size * 0.45} color={colors.accentText} />
+        </View>
+      ) : (
+        <Glass radius={size / 2} style={styles.round}>
+          <Ionicons name={props.icon} size={size * 0.45} color={colors.text} />
+        </Glass>
+      )}
     </PressScale>
   );
 }
@@ -103,6 +105,7 @@ export function SectionTitle({ title, right }: { title: string; right?: ReactNod
 }
 
 const styles = StyleSheet.create({
+  round: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   pill: {
     backgroundColor: colors.accent,
     borderRadius: radius.pill,

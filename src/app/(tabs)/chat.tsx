@@ -12,6 +12,7 @@ import {
   type ScrollViewInstance,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Glass } from '../../components/Glass';
 import { LinkedText } from '../../components/LinkedText';
 import { FadeIn, PressScale, TypingDots } from '../../components/motion';
 import { Chip, IconButton, PillButton } from '../../components/ui';
@@ -251,7 +252,7 @@ export default function ChatScreen() {
         })}
       </ScrollView>
 
-      <View style={[styles.composer, { marginBottom: keyboardOpen ? 8 : TAB_BAR_SPACE - 30 + insets.bottom }]}>
+      <Glass radius={26} style={[styles.composer, { marginBottom: keyboardOpen ? 8 : TAB_BAR_SPACE - 30 + insets.bottom }]}>
         <TextInput
           style={styles.input}
           multiline
@@ -270,7 +271,7 @@ export default function ChatScreen() {
         >
           <Ionicons name="arrow-up" size={20} color={canSend ? colors.accentText : colors.muted} />
         </PressScale>
-      </View>
+      </Glass>
     </KeyboardAvoidingView>
   );
 }
@@ -310,8 +311,6 @@ const styles = StyleSheet.create({
     paddingLeft: 20,
     paddingRight: 5,
     paddingVertical: 5,
-    borderRadius: 26,
-    backgroundColor: colors.raised,
   },
   input: {
     flex: 1,
