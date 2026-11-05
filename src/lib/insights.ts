@@ -221,3 +221,44 @@ export async function exportJson(db: SQLiteDatabase): Promise<void> {
   await Sharing.shareAsync(file.uri, { mimeType: 'application/json', dialogTitle: 'Export your journal' });
 }
 
+
+export type WeekStats = { entries: number; words: number; streak: number; mood: number | null; days: (number | null)[] };
+
+/** The last 7 days at a glance: entries, words, writing streak, mood per day (oldest first). */
+export async function weekStats(db: SQLiteDatabase): Promise<WeekStats> {
+  const DAY = 86_400_000;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const from = today.getTime() - 6 * DAY;
+  const rows = await db.getAllAsync<{ created_at: number; body: string; mood: number | null }>(
+    'SELECT created_at, body, mood FROM notes WHERE created_at >= ?',
+    from,
+  );
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const own = rows.filter((r) => r.created_at >= from + i * DAY && r.created_at < from + (i + 1) * DAY && r.mood !== null);
+    return own.length ? own.reduce((a, r) => a + (r.mood ?? 0), 0) / own.length : null;
+  });
+  const moods = days.filter((d): d is number => d !== null);
+  // streak: consecutive days with an entry, counting back from today (or yesterday, if today is still empty)
+  const stamps = await db.getAllAsync<{ day: number }>(
+    "SELECT DISTINCT CAST(strftime('%s', datetime(created_at / 1000, 'unixepoch', 'localtime'), 'start of day') AS INTEGER) AS day FROM notes ORDER BY day DESC LIMIT 400",
+  );
+  const have = new Set(stamps.map((s) => s.day));
+  const key = (ms: number) => {
+    const d = new Date(ms);
+    return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 1000;
+  };
+  let streak = 0;
+  let day = have.has(key(today.getTime())) ? today.getTime() : today.getTime() - DAY;
+  while (have.has(key(day))) {
+    streak++;
+    day -= DAY;
+  }
+  return {
+    entries: rows.length,
+    words: rows.reduce((n, r) => n + (r.body.trim() ? r.body.trim().split(/\s+/).length : 0), 0),
+    streak,
+    mood: moods.length ? moods.reduce((a, b) => a + b, 0) / moods.length : null,
+    days,
+  };
+}

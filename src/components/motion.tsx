@@ -91,6 +91,41 @@ export function FadeIn({
 /** Stagger for the first items of a list; later ones (scrolled into view) come in right away. */
 export const stagger = (index: number, step = 45) => (index < 10 ? index * step : 0);
 
+/** A placeholder that shimmers while something loads: shapes of what's coming, not a spinner. */
+export function Shimmer({ style }: { style?: StyleProp<ViewStyle> }) {
+  const t = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(t, { toValue: 1, duration: 750, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(t, { toValue: 0, duration: 750, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [t]);
+  return (
+    <Animated.View
+      style={[
+        { backgroundColor: colors.raised, borderRadius: 8, height: 14 },
+        style,
+        { opacity: t.interpolate({ inputRange: [0, 1], outputRange: [0.45, 1] }) },
+      ]}
+    />
+  );
+}
+
+/** A few shimmering lines, like a paragraph that's about to appear. */
+export function ShimmerText({ lines = 3 }: { lines?: number }) {
+  return (
+    <View style={{ gap: 10 }}>
+      {Array.from({ length: lines }, (_, i) => (
+        <Shimmer key={i} style={{ width: i === lines - 1 ? '62%' : '100%' }} />
+      ))}
+    </View>
+  );
+}
+
 /** Gently breathes forever: the recording dot. */
 export function Pulse({ style }: { style?: StyleProp<ViewStyle> }) {
   const t = useRef(new Animated.Value(0)).current;

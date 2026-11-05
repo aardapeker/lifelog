@@ -2,7 +2,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Shimmer, ShimmerText } from '../../components/motion';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton, InfoTile, PillButton, StatusLine, type Status } from '../../components/ui';
 import {
@@ -88,9 +89,21 @@ export default function PlanScreen() {
         <Text style={styles.title}>{dayTitle(dayMs)}</Text>
 
         {making && (
-          <View style={styles.making}>
-            <ActivityIndicator color={colors.text} />
+          <View>
             <Text style={styles.makingText}>Checking the weather, looking for events, planning your day…</Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginVertical: 18 }}>
+              <Shimmer style={{ flex: 1, height: 58, borderRadius: 12 }} />
+              <Shimmer style={{ flex: 1, height: 58, borderRadius: 12 }} />
+              <Shimmer style={{ flex: 1, height: 58, borderRadius: 12 }} />
+            </View>
+            {[0, 1, 2, 3].map((i) => (
+              <View key={i} style={{ flexDirection: 'row', gap: 12, marginBottom: 18 }}>
+                <Shimmer style={{ width: 22, height: 22, borderRadius: 11 }} />
+                <View style={{ flex: 1 }}>
+                  <ShimmerText lines={2} />
+                </View>
+              </View>
+            ))}
           </View>
         )}
 

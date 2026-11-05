@@ -1,11 +1,14 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useKeepAwake } from 'expo-keep-awake';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FadeIn, Pulse, PressScale } from '../components/motion';
+import { MorphPlayButton, WavyProgress } from '../components/expressive';
+import { Glass, GlassArea } from '../components/Glass';
+import { FadeIn, Pulse, PressScale, Shimmer, ShimmerText } from '../components/motion';
+import { albumColors, type Palette } from '../lib/albumColors';
 import { Chip, IconButton, PillButton, StatusLine, type Status } from '../components/ui';
 import { buildShow, castOf, WISHES, type Show } from '../lib/radio';
 import { LANGS, STATIONS, stationByKey, VOICES, withVoices, type Lang, type Persona, type VoiceChoices } from '../lib/stations';
@@ -23,6 +26,29 @@ type Phase = 'pick' | 'building' | 'onair' | 'done';
 function KeepAwake() {
   useKeepAwake('radio');
   return null;
+}
+
+const withAlpha = (rgb: string, a: number) => rgb.replace('rgb(', 'rgba(').replace(')', `, ${a})`);
+
+/** A soft glow in the album cover's colours behind the glass; fades over when the song changes. */
+function AlbumGlow({ palette }: { palette: Palette | null }) {
+  const [layers, setLayers] = useState<{ key: number; p: Palette }[]>([]);
+  useEffect(() => {
+    if (palette) setLayers((l) => [...l.slice(-1), { key: Date.now(), p: palette }]);
+  }, [palette]);
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {layers.map(({ key, p }) => (
+        <FadeIn key={key} from={0} style={StyleSheet.absoluteFill}>
+          <LinearGradient
+            colors={[withAlpha(p.glow, 0.55), withAlpha(p.deep, 0.9), colors.bg]}
+            locations={[0, 0.45, 0.9]}
+            style={StyleSheet.absoluteFill}
+          />
+        </FadeIn>
+      ))}
+    </View>
+  );
 }
 
 export default function RadioScreen() {
@@ -82,6 +108,8 @@ export default function RadioScreen() {
   const [speaking, setSpeaking] = useState(false);
   const [paused, setPaused] = useState(false);
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
+  const [progress, setProgress] = useState(0); // of the current song, 0..1
+  const [palette, setPalette] = useState<Palette | null>(null); // the album cover's colours
 
   // the engine runs on refs: timers and speech callbacks must see the latest values
   // talked: the last slot whose talk already played (so resuming starts just the song)
@@ -132,6 +160,7 @@ export default function RadioScreen() {
     }
     live.current.index = i;
     setIndex(i);
+    setProgress(0);
     const start = () => {
       live.current.speaking = false;
       setSpeaking(false);
@@ -190,6 +219,7 @@ export default function RadioScreen() {
     const p = await playbackState().catch(() => null);
     const slot = l.show.slots[l.index];
     if (!p?.track || p.track.uri !== slot.track.uri) return;
+    setProgress(p.progressMs / Math.max(1, p.track.durationMs));
     if (p.track.durationMs - p.progressMs < END_MARGIN_MS) {
       const next = l.index + 1;
       if (next < l.show.slots.length) await pausePlayback().catch(() => {});
@@ -277,9 +307,19 @@ export default function RadioScreen() {
   };
 
   const current = show?.slots[index];
+  const cover = phase === 'onair' || phase === 'done' ? (current?.track.image ?? null) : null;
+  useEffect(() => {
+    let alive = true;
+    albumColors(cover).then((p) => alive && setPalette(p));
+    return () => {
+      alive = false;
+    };
+  }, [cover]);
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+    <View style={styles.screen}>
+    <GlassArea style={{ paddingTop: insets.top + 8 }}>
+      <AlbumGlow palette={palette} />
       {phase === 'onair' && <KeepAwake />}
       <View style={styles.bar}>
         <IconButton icon="chevron-down" label="Close radio" onPress={close} />
@@ -290,9 +330,10 @@ export default function RadioScreen() {
         <IconButton icon={voice ? 'mic' : 'mic-off'} label={voice ? 'Host talks' : 'Host is quiet'} onPress={toggleVoice} />
       </View>
 
+      <Glass radius={28} style={styles.sheet}>
       <ScrollView
-        style={styles.sheet}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 30 }]}
+        style={{ flex: 1 }}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 70 }]}
         keyboardShouldPersistTaps="handled"
       >
         {phase === 'pick' && (
@@ -377,11 +418,12 @@ export default function RadioScreen() {
         )}
 
         {phase === 'building' && (
-          <View style={styles.center}>
-            <ActivityIndicator color={colors.text} />
-            <Text style={[styles.text, { marginTop: 14, textAlign: 'center' }]}>
-              {station.host.name} is warming up the mic…
-            </Text>
+          <View>
+            <Text style={[styles.showTitle, { marginBottom: 16 }]}>{station.host.name} is warming up the mic…</Text>
+            <Shimmer style={styles.cover} />
+            <Shimmer style={{ height: 26, width: '70%', marginBottom: 10 }} />
+            <Shimmer style={{ width: '40%', marginBottom: 24 }} />
+            <ShimmerText lines={4} />
           </View>
         )}
 
@@ -403,11 +445,10 @@ export default function RadioScreen() {
               ))}
             </FadeIn>
 
+            {phase === 'onair' && <WavyProgress progress={progress} playing={!paused && !speaking} />}
             {phase === 'onair' ? (
               <View style={styles.controls}>
-                <PressScale style={styles.control} onPress={togglePause} accessibilityLabel={paused ? 'Play' : 'Pause'}>
-                  <Ionicons name={paused ? 'play' : 'pause'} size={28} color={colors.accentText} />
-                </PressScale>
+                <MorphPlayButton playing={!paused} onPress={togglePause} />
                 <IconButton icon="play-skip-forward" label="Next song" onPress={skip} size={54} />
               </View>
             ) : (
@@ -436,6 +477,8 @@ export default function RadioScreen() {
         )}
         <StatusLine status={status} />
       </ScrollView>
+      </Glass>
+    </GlassArea>
     </View>
   );
 }
@@ -446,7 +489,7 @@ const styles = StyleSheet.create({
   onAir: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   onAirDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.danger },
   barTitle: { fontFamily: fonts.serif, fontSize: 18, color: colors.text },
-  sheet: { flex: 1, backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg },
+  sheet: { flex: 1, marginBottom: -40 },
   content: { padding: 24 },
   center: { paddingVertical: 80, alignItems: 'center' },
   title: { fontFamily: fonts.serif, fontSize: 40, lineHeight: 46, color: colors.text, marginBottom: 14 },
@@ -487,14 +530,6 @@ const styles = StyleSheet.create({
   trackArtist: { fontFamily: fonts.sans, fontSize: 15, color: colors.muted, marginTop: 4 },
   intro: { fontFamily: fonts.serifItalic, fontSize: 17, lineHeight: 26, color: colors.muted, marginTop: 12 },
   controls: { flexDirection: 'row', alignItems: 'center', gap: 18, marginTop: 22 },
-  control: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 10, paddingHorizontal: 10, borderRadius: radius.sm },
   rowNow: { backgroundColor: colors.raised },
   rowNum: { fontFamily: fonts.serif, fontSize: 15, color: colors.muted, width: 18 },

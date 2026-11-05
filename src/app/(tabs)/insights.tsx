@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Animated, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { requestPinWidget } from 'react-native-android-widget';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chip, PillButton, SectionTitle } from '../../components/ui';
@@ -23,14 +23,76 @@ import {
   quietDays,
   setIdeaDone,
   topMoodWords,
+  weekStats,
+  type WeekStats,
   type Goal,
   type Idea,
   type Person,
 } from '../../lib/insights';
-import { FadeIn, stagger } from '../../components/motion';
+import { bigTitleMotion, CollapsingHeader, useCollapsingHeader } from '../../components/CollapsingHeader';
+import { Glass } from '../../components/Glass';
+import { FadeIn, PressScale, stagger } from '../../components/motion';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 
 const WEEKS = 12;
+const WEEKDAY = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+/** One bento tile: glass card, small label, big value, an optional extra line. */
+function Tile(props: { label: string; value: string; sub?: string; style?: object; onPress?: () => void; children?: React.ReactNode }) {
+  const body = (
+    <Glass blur={false} radius={radius.md} style={[styles.tile, props.style]}>
+      <Text style={styles.tileLabel}>{props.label}</Text>
+      <Text style={styles.tileValue} numberOfLines={1}>
+        {props.value}
+      </Text>
+      {!!props.sub && <Text style={styles.tileSub}>{props.sub}</Text>}
+      {props.children}
+    </Glass>
+  );
+  return props.onPress ? (
+    <PressScale scaleTo={0.96} onPress={props.onPress} style={props.style}>
+      {body}
+    </PressScale>
+  ) : (
+    body
+  );
+}
+
+/** The week at a glance, as a bento grid: one big mood tile, small tiles around it. */
+function Bento(props: { week: WeekStats; openGoals: number; doneGoals: number; people: number; reads: number; onRead: () => void }) {
+  const { week } = props;
+  const today = new Date().getDay();
+  return (
+    <View style={styles.bento}>
+      <View style={styles.bentoRow}>
+        <Tile label="This week" value={week.mood === null ? '–' : week.mood.toFixed(1)} sub="mood out of 5" style={{ flex: 1.25 }}>
+          <View style={styles.spark}>
+            {week.days.map((m, i) => (
+              <View key={i} style={styles.sparkCol}>
+                <View
+                  style={[
+                    styles.sparkBar,
+                    m === null ? styles.sparkEmpty : { height: 8 + (m / 5) * 40, backgroundColor: shade(m) },
+                  ]}
+                />
+                <Text style={styles.sparkDay}>{WEEKDAY[(today + 1 + i) % 7]}</Text>
+              </View>
+            ))}
+          </View>
+        </Tile>
+        <View style={styles.bentoStack}>
+          <Tile label="Streak" value={`${week.streak}🔥`} sub={week.streak === 1 ? 'day' : 'days in a row'} />
+          <Tile label="Entries" value={String(week.entries)} sub={`${week.words} words this week`} />
+        </View>
+      </View>
+      <View style={styles.bentoRow}>
+        <Tile label="Goals" value={String(props.openGoals)} sub={`open · ${props.doneGoals} done`} style={{ flex: 1 }} />
+        <Tile label="People" value={String(props.people)} sub="in your story" style={{ flex: 1 }} />
+        <Tile label="Reads" value={String(props.reads)} sub="written for you" style={{ flex: 1 }} onPress={props.reads ? props.onRead : undefined} />
+      </View>
+    </View>
+  );
+}
 const DAY = 86_400_000;
 // mood 1…5 as brightness: dark charcoal for rough days, white for great ones
 const MOOD_SHADES = ['#3D3C3C', '#5E5D5D', '#868585', '#B9B8B8', '#FFFFFF'];
@@ -79,6 +141,7 @@ function MoodGrid({ moods }: { moods: Map<number, number> }) {
 export default function InsightsScreen() {
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();
+  const { y, onScroll } = useCollapsingHeader();
   const [moods, setMoods] = useState<Map<number, number>>(new Map());
   const [words, setWords] = useState<string[]>([]);
   const [byShift, setByShift] = useState<{ label: string; mood: number; n: number }[]>([]);
@@ -90,6 +153,7 @@ export default function InsightsScreen() {
   const [newIdea, setNewIdea] = useState('');
   const [research, setResearch] = useState<Research[]>([]);
   const [reads, setReads] = useState<Read[]>([]);
+  const [week, setWeek] = useState<WeekStats | null>(null);
 
   const load = useCallback(async () => {
     const [m, w, s, g, sg, p, i] = await Promise.all([
@@ -110,6 +174,7 @@ export default function InsightsScreen() {
     setIdeas(i);
     setResearch(await listResearch(db));
     setReads(await listReads(db));
+    setWeek(await weekStats(db));
   }, [db]);
 
   useFocusEffect(
@@ -159,12 +224,28 @@ export default function InsightsScreen() {
   const doneGoals = goals.filter((g) => g.done);
 
   return (
-    <ScrollView
+    <View style={styles.screen}>
+    <Animated.ScrollView
+      onScroll={onScroll}
+      scrollEventThrottle={16}
       style={styles.screen}
       contentContainerStyle={[styles.content, { paddingTop: insets.top + 12, paddingBottom: TAB_BAR_SPACE + insets.bottom }]}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.title}>Insights</Text>
+      <Animated.Text style={[styles.title, bigTitleMotion(y)]}>Insights</Animated.Text>
+
+      {week && (
+        <FadeIn>
+          <Bento
+            week={week}
+            openGoals={openGoals.length}
+            doneGoals={doneGoals.length}
+            people={people.length}
+            reads={reads.length}
+            onRead={() => reads[0] && router.push(`/read/${reads[0].id}`)}
+          />
+        </FadeIn>
+      )}
 
       {/* ── mood ── */}
       <FadeIn style={styles.section} delay={stagger(0, 60)}>
@@ -418,7 +499,9 @@ export default function InsightsScreen() {
           <PillButton label="Export everything" onPress={exportAll} ghost full />
         </View>
       </FadeIn>
-    </ScrollView>
+    </Animated.ScrollView>
+    <CollapsingHeader title="Insights" y={y} />
+    </View>
   );
 }
 
@@ -429,6 +512,18 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 20, gap: 30 },
   title: { fontFamily: fonts.serif, fontSize: 34, color: colors.text },
   section: { gap: 6 },
+  bento: { gap: 10, marginTop: 4 },
+  bentoRow: { flexDirection: 'row', gap: 10 },
+  bentoStack: { flex: 1, gap: 10 },
+  tile: { padding: 16, minHeight: 96 },
+  tileLabel: { fontFamily: fonts.serif, fontSize: 13, color: colors.muted },
+  tileValue: { fontFamily: fonts.serif, fontSize: 34, lineHeight: 42, color: colors.text, marginTop: 4 },
+  tileSub: { fontFamily: fonts.sansRegular, fontSize: 12, color: colors.muted },
+  spark: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, marginTop: 14, height: 66 },
+  sparkCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 4 },
+  sparkBar: { width: '100%', borderRadius: 4 },
+  sparkEmpty: { height: 4, backgroundColor: colors.line },
+  sparkDay: { fontFamily: fonts.sansRegular, fontSize: 10, color: colors.muted },
   hint: { fontFamily: fonts.sansRegular, fontSize: 13, lineHeight: 19, color: colors.muted, marginBottom: 6 },
   panel: { backgroundColor: colors.surface, borderRadius: radius.md, padding: 18 },
   stat: { fontFamily: fonts.serif, fontSize: 16, lineHeight: 24, color: colors.text, marginTop: 14 },

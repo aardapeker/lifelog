@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Animated, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chip, IconButton, PillButton, SectionTitle } from '../../components/ui';
 import { getSetting } from '../../lib/db';
@@ -24,7 +24,8 @@ import {
   type Note,
 } from '../../lib/notes';
 import { hybridSearch } from '../../lib/search';
-import { FadeIn, PressScale, stagger } from '../../components/motion';
+import { bigTitleMotion, CollapsingHeader, useCollapsingHeader } from '../../components/CollapsingHeader';
+import { FadeIn, PressScale, Shimmer, ShimmerText, stagger } from '../../components/motion';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 
 type Range = 'all' | 'week' | 'month';
@@ -57,10 +58,17 @@ function EntryCard({ note, label, photos }: { note: Note; label: string; photos?
   );
 }
 
+// mood 1…5 as a faint temperature: cool slate for rough days, warm gold for great ones
+const MOOD_TINTS = ['#6E7A93', '#8D93A6', '#A8A29A', '#D2B48C', '#EBC96E'];
+const moodTint = (m: number) => MOOD_TINTS[Math.min(4, Math.max(0, Math.round(m) - 1))];
+
 function Day({ section, photos }: { section: DaySection; photos: Map<number, string[]> }) {
+  const moods = section.data.map((n) => n.mood).filter((m): m is number => typeof m === 'number');
+  const mood = moods.length ? moods.reduce((a, b) => a + b, 0) / moods.length : null;
   return (
     <View style={styles.day}>
       <View style={styles.dayHeader}>
+        {mood !== null && <View style={[styles.moodDot, { backgroundColor: moodTint(mood) }]} />}
         <Text style={styles.dayTitle}>{section.weekday}</Text>
         <Text style={styles.dayDate}>
           {section.day} {section.month}
@@ -76,6 +84,7 @@ function Day({ section, photos }: { section: DaySection; photos: Map<number, str
 export default function JournalScreen() {
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();
+  const { y, onScroll } = useCollapsingHeader();
   const [notes, setNotes] = useState<Note[]>([]);
   const [name, setName] = useState('');
   const [query, setQuery] = useState('');
@@ -228,9 +237,9 @@ export default function JournalScreen() {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.hello}>{greeting()}</Text>
-          <Text style={styles.name} numberOfLines={1}>
+          <Animated.Text style={[styles.name, bigTitleMotion(y)]} numberOfLines={1}>
             {name.trim() || 'Your journal'}
-          </Text>
+          </Animated.Text>
         </View>
         <IconButton icon="add" label="Write a new entry" variant="light" onPress={() => router.push('/note/new')} />
       </View>
@@ -273,7 +282,16 @@ export default function JournalScreen() {
     </View>
   );
 
-  const empty = (
+  const empty = isSearch && searching ? (
+    <View style={{ gap: 10, marginTop: 14 }}>
+      {[0, 1, 2].map((i) => (
+        <View key={i} style={[styles.card, { gap: 10 }]}>
+          <Shimmer style={{ width: '35%', height: 11 }} />
+          <ShimmerText lines={3} />
+        </View>
+      ))}
+    </View>
+  ) : (
     <View style={styles.empty}>
       <Text style={styles.emptyTitle}>
         {isSearch ? (searching ? 'Looking through your days…' : 'Nothing matches that.') : 'A blank first page.'}
@@ -291,8 +309,13 @@ export default function JournalScreen() {
 
   const contentStyle = [styles.list, { paddingTop: insets.top + 12, paddingBottom: TAB_BAR_SPACE + insets.bottom }];
 
-  return isSearch ? (
-    <FlatList
+  const scrolling = { onScroll, scrollEventThrottle: 16 };
+
+  return (
+    <View style={styles.screen}>
+      {isSearch ? (
+    <Animated.FlatList
+      {...scrolling}
       style={styles.screen}
       data={notes}
       keyExtractor={(n) => String(n.id)}
@@ -306,8 +329,9 @@ export default function JournalScreen() {
         </FadeIn>
       )}
     />
-  ) : (
-    <FlatList
+      ) : (
+    <Animated.FlatList
+      {...scrolling}
       style={styles.screen}
       data={days}
       keyExtractor={(d) => d.key}
@@ -321,6 +345,9 @@ export default function JournalScreen() {
         </FadeIn>
       )}
     />
+      )}
+      <CollapsingHeader title={name.trim() || 'Journal'} y={y} />
+    </View>
   );
 }
 
@@ -364,6 +391,7 @@ const styles = StyleSheet.create({
 
   day: { marginTop: 14, gap: 10 },
   dayHeader: { flexDirection: 'row', alignItems: 'baseline', gap: 10 },
+  moodDot: { width: 8, height: 8, borderRadius: 4, alignSelf: 'center', opacity: 0.85 },
   dayTitle: { fontFamily: fonts.serif, fontSize: 19, color: colors.text },
   dayDate: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.muted },
 

@@ -1,10 +1,11 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState, type ReactNode } from 'react';
-import { Alert, KeyboardAvoidingView, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, Animated, KeyboardAvoidingView, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { authenticate, canUseBiometrics } from '../../components/LockGate';
 import * as IntentLauncher from 'expo-intent-launcher';
+import { bigTitleMotion, CollapsingHeader, useCollapsingHeader } from '../../components/CollapsingHeader';
 import { haptic } from '../../components/motion';
 import {
   connectSpotify,
@@ -723,6 +724,7 @@ function WritingSection() {
 export default function SettingsScreen() {
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();
+  const { y, onScroll } = useCollapsingHeader();
   const [name, setName] = useState('');
   const [profile, setProfile] = useState('');
   const [provider, setProvider] = useState<Provider>('gemini');
@@ -782,7 +784,9 @@ export default function SettingsScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
-      <ScrollView
+      <Animated.ScrollView
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         style={styles.screen}
         contentContainerStyle={[
           styles.content,
@@ -790,7 +794,7 @@ export default function SettingsScreen() {
         ]}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.title}>Settings</Text>
+        <Animated.Text style={[styles.title, bigTitleMotion(y)]}>Settings</Animated.Text>
 
         <Section title="About You" hint="Your friend reads this before every reply.">
           <Text style={styles.label}>Name</Text>
@@ -884,7 +888,8 @@ export default function SettingsScreen() {
           </View>
           <StatusLine status={indexStatus} />
         </Section>
-      </ScrollView>
+      </Animated.ScrollView>
+      <CollapsingHeader title="Settings" y={y} />
     </KeyboardAvoidingView>
   );
 }

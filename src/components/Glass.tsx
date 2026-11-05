@@ -37,13 +37,16 @@ export function Glass({
   style,
   radius = 28,
   intensity = 60,
+  blur = true,
 }: {
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
   radius?: number;
   intensity?: number;
+  blur?: boolean; // false for cards that sit on a plain background: same look, no blur cost
 }) {
-  const target = useContext(Area);
+  const area = useContext(Area);
+  const target = blur ? area : null;
   return (
     <View style={[styles.shell, { borderRadius: radius }, style]}>
       {target ? (
