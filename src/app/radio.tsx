@@ -19,6 +19,7 @@ import {
   pausePlayback,
   playbackState,
   playTracks,
+  remoteReady,
   resumePlayback,
   sameTrack,
   savePlaylist,
@@ -303,7 +304,8 @@ export default function RadioScreen() {
       setPhase('onair');
       await goOnAir(s.title, `${s.station.name} ${s.station.freq}`);
       // make sure Spotify is awake on the phone now, while Lifelog is on screen and allowed to open it
-      await wakeSpotify(s.slots[0].track.uri).catch(() => null);
+      // the direct line to the Spotify app wakes it by itself; the old way opens Spotify on screen
+      if (!(await remoteReady())) await wakeSpotify(s.slots[0].track.uri).catch(() => null);
       poll.current = onBeat(tick); // ~every second, even while you're in Spotify
       playSlot(0);
     } catch (e) {

@@ -6,7 +6,7 @@
       "lifelog",
       "dev.arda.lifelog"
     ],
-    "version": "0.16.7",
+    "version": "0.17.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -105,7 +105,8 @@
           ],
           "disableIOS": true
         }
-      ]
+      ],
+      "./plugins/withSpotifyRemote"
     ]
   }
 }

@@ -1,0 +1,7 @@
+{
+  "name": "spotify-remote",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lifelog's bridge to the Spotify app on the same phone (Spotify App Remote SDK)",
+  "main": "index.ts"
+}

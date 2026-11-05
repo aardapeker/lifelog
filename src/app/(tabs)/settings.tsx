@@ -14,6 +14,7 @@ import {
   setSpotifyClientId,
   SPOTIFY_REDIRECT,
   spotifyConnected,
+  remoteReady,
   spotifyName,
   testPlayback,
 } from '../../lib/spotify';
@@ -632,7 +633,9 @@ function SpotifySection() {
       if (!(await connectSpotify())) return 'Cancelled.';
       const name = await spotifyName();
       setWho(name);
-      return `Connected as ${name}. Ask your friend for a song, or open Radio from the chat.`;
+      // also open the direct line to the Spotify app now (Spotify asks once to allow it)
+      const direct = await remoteReady(true);
+      return `Connected as ${name}.${direct ? ' Direct line to the Spotify app: on.' : ''} Ask your friend for a song, or open Radio from the chat.`;
     });
 
   const disconnect = () =>

@@ -1,0 +1,26 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'dev.arda.lifelog'
+version = '0.1.0'
+
+// Spotify's App Remote SDK isn't published to Maven; it lives here as a tiny local repository
+// (the app's root build.gradle gets the same repository from plugins/withSpotifyRemote.js)
+repositories {
+  maven { url = uri("$projectDir/maven") }
+}
+
+android {
+  namespace "expo.modules.spotifyremote"
+  defaultConfig {
+    versionCode 1
+    versionName '0.1.0'
+  }
+}
+
+dependencies {
+  implementation 'com.spotify.android:spotify-app-remote:0.8.0'
+  implementation 'com.google.code.gson:gson:2.10.1'
+}

@@ -5,6 +5,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { AppState, Linking } from 'react-native';
 import type { Tool } from './chat';
 import { getSetting, setSetting } from './db';
+import { SpotifyRemote } from '../../modules/spotify-remote';
 import { waitMs } from './heartbeat';
 
 /*
@@ -222,6 +223,12 @@ export const transferTo = (device: string) =>
  * Lifelog is on screen) opens the first track in Spotify.
  */
 export async function playTracks(uris: string[]): Promise<void> {
+  // the direct line first: the Spotify app on this phone plays it, no servers in between
+  if (await remoteReady()) {
+    await SpotifyRemote!.switchToPhone().catch(() => {});
+    await SpotifyRemote!.play(uris[0]);
+    return;
+  }
   const play = (device: string | null) =>
     api(`/me/player/play${device ? `?device_id=${device}` : ''}`, { method: 'PUT', body: { uris } });
   try {
@@ -274,7 +281,12 @@ export async function spotifyReport(): Promise<string> {
     ? devices.map((d) => `${d.name} (${d.type}${d.is_active ? ', active' : ''}${d.is_restricted ? ', restricted' : ''})`).join(', ')
     : 'no devices';
   const what = p ? `${p.is_playing ? 'playing' : 'paused'} "${p.item?.name ?? '?'}" on ${p.device?.name ?? '?'}` : 'nothing loaded';
-  return `Spotify sees: ${where}. Player: ${what}.`;
+  const direct = SpotifyRemote
+    ? SpotifyRemote.isConnected()
+      ? 'Direct line to the Spotify app: connected.'
+      : `Direct line to the Spotify app: not connected${lastRemoteError ? ` (${lastRemoteError})` : ''}.`
+    : 'Direct line: not in this build.';
+  return `${direct} Spotify sees: ${where}. Player: ${what}.`;
 }
 
 /** The same song? Spotify sometimes plays an equivalent track with a different id. */
@@ -284,12 +296,52 @@ export const sameTrack = (a: Pick<Track, 'uri' | 'name' | 'artist'> | null | und
     (a.name.toLocaleLowerCase('tr') === b.name.toLocaleLowerCase('tr') &&
       a.artist.split(',')[0].trim().toLocaleLowerCase('tr') === b.artist.split(',')[0].trim().toLocaleLowerCase('tr')));
 
-export const pausePlayback = () => api('/me/player/pause', { method: 'PUT' }).then(() => {});
-export const resumePlayback = () => api('/me/player/play', { method: 'PUT' }).then(() => {});
+// ── on the phone itself: the Spotify App Remote SDK (modules/spotify-remote) ──
+// Spotify's servers accepted "play" for the phone and then nothing happened, so playback goes
+// straight to the Spotify app when it can. The Web API stays as the fallback.
+
+/**
+ * Connects to the Spotify app on this phone. The first time, Spotify shows its own "allow
+ * Lifelog to control Spotify" screen (needs Lifelog on screen). Returns false if it can't.
+ */
+export async function remoteReady(showAuth = AppState.currentState === 'active'): Promise<boolean> {
+  if (!SpotifyRemote) return false;
+  if (SpotifyRemote.isConnected()) return true;
+  const clientId = await getSpotifyClientId();
+  if (!clientId) return false;
+  try {
+    lastRemoteError = null;
+    return await SpotifyRemote.connect(clientId, SPOTIFY_REDIRECT, showAuth);
+  } catch (e) {
+    lastRemoteError = e instanceof Error ? e.message : String(e);
+    return false;
+  }
+}
+let lastRemoteError: string | null = null;
+
+export async function pausePlayback(): Promise<void> {
+  if (await remoteReady(false)) return void (await SpotifyRemote!.pause());
+  await api('/me/player/pause', { method: 'PUT' });
+}
+
+export async function resumePlayback(): Promise<void> {
+  if (await remoteReady(false)) return void (await SpotifyRemote!.resume());
+  await api('/me/player/play', { method: 'PUT' });
+}
 
 export type Playback = { isPlaying: boolean; progressMs: number; track: Track | null };
 
 export async function playbackState(): Promise<Playback | null> {
+  if (await remoteReady(false)) {
+    const r = await SpotifyRemote!.getState().catch(() => null);
+    if (r) {
+      const track =
+        r.uri?.startsWith('spotify:track:') && r.name
+          ? { id: r.uri.slice('spotify:track:'.length), uri: r.uri, name: r.name, artist: r.artist ?? '', image: null, durationMs: r.durationMs }
+          : null;
+      return { isPlaying: !r.paused, progressMs: r.positionMs, track };
+    }
+  }
   const p = await api<{ is_playing: boolean; progress_ms: number | null; item: ApiTrack | null }>('/me/player');
   if (!p) return null;
   return { isPlaying: p.is_playing, progressMs: p.progress_ms ?? 0, track: p.item?.uri?.startsWith('spotify:track:') ? toTrack(p.item) : null };
