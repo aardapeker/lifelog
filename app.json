@@ -2,8 +2,11 @@
   "expo": {
     "name": "Lifelog",
     "slug": "lifelog",
-    "scheme": "lifelog",
-    "version": "0.10.1",
+    "scheme": [
+      "lifelog",
+      "dev.arda.lifelog"
+    ],
+    "version": "0.11.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",

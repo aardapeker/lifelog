@@ -6,6 +6,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { authenticate, canUseBiometrics } from '../../components/LockGate';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { haptic } from '../../components/motion';
+import {
+  connectSpotify,
+  disconnectSpotify,
+  getSpotifyClientId,
+  setSpotifyClientId,
+  SPOTIFY_REDIRECT,
+  spotifyConnected,
+  spotifyName,
+} from '../../lib/spotify';
 import { PillButton, SectionTitle, StatusLine, type Status } from '../../components/ui';
 import { backupNow, getPassphrase, lastBackupAt, restoreFromFile, setPassphrase } from '../../lib/backup';
 import {
@@ -602,6 +611,80 @@ function LearnedSection() {
   );
 }
 
+/** Your own Spotify app (Client ID), the login, and what it unlocks. */
+function SpotifySection() {
+  const [clientId, setClientId] = useState('');
+  const [who, setWho] = useState<string | null>(null);
+  const [status, run] = useStatus();
+
+  useFocusEffect(
+    useCallback(() => {
+      getSpotifyClientId().then((id) => setClientId(id ?? ''));
+      spotifyConnected().then((on) => (on ? spotifyName().then(setWho).catch(() => setWho('you')) : setWho(null)));
+    }, []),
+  );
+
+  const connect = () =>
+    run(async () => {
+      await setSpotifyClientId(clientId);
+      if (!(await connectSpotify())) return 'Cancelled.';
+      const name = await spotifyName();
+      setWho(name);
+      return `Connected as ${name}. Ask your friend for a song, or open Radio from the chat.`;
+    });
+
+  const disconnect = () =>
+    run(async () => {
+      await disconnectSpotify();
+      setWho(null);
+      return 'Disconnected.';
+    });
+
+  return (
+    <Section
+      title="Spotify"
+      hint="Songs you can play right from the chat, the song you were listening to on every entry, and Lifelog Radio. Needs Premium."
+    >
+      {who ? (
+        <>
+          <Text style={styles.keyTitle}>Connected as {who}</Text>
+          <View style={styles.row}>
+            <PillButton label="Disconnect" onPress={disconnect} ghost />
+          </View>
+        </>
+      ) : (
+        <>
+          <Text style={styles.hint}>
+            {'One-time setup, about 5 minutes:\n' +
+              '1. Open developer.spotify.com/dashboard and tap Create app (any name).\n' +
+              '2. Under Redirect URIs, add the address below. Tick "Web API" and save.\n' +
+              '3. Open the app\'s Settings, copy the Client ID and paste it here.'}
+          </Text>
+          <Text style={styles.label}>Redirect URI (hold to copy)</Text>
+          <Text selectable style={[styles.input, { color: colors.text }]}>
+            {SPOTIFY_REDIRECT}
+          </Text>
+          <Text style={styles.label}>Client ID</Text>
+          <TextInput
+            style={styles.input}
+            value={clientId}
+            onChangeText={setClientId}
+            autoCapitalize="none"
+            autoCorrect={false}
+            placeholder="32 letters and numbers"
+            placeholderTextColor={colors.muted}
+            {...inputColors}
+          />
+          <View style={styles.row}>
+            <PillButton label="Connect Spotify" onPress={connect} />
+          </View>
+        </>
+      )}
+      <StatusLine status={status} />
+    </Section>
+  );
+}
+
 /** Silent proofreading of entries, no lessons. */
 function WritingSection() {
   const db = useSQLiteContext();
@@ -767,6 +850,8 @@ export default function SettingsScreen() {
         <DaysOffSection />
 
         <AutonomySection />
+
+        <SpotifySection />
 
         <PrivacySection />
 

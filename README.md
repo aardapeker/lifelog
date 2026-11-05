@@ -33,6 +33,9 @@ Android only. No server, no account. Everything lives on the phone.
 - **Never ghosts you**: one message every day (what it found, or just checking in), plus check-ins at break time,
   all written a week ahead as local notifications, so they arrive even when HyperOS keeps the app asleep.
   Notices when you've gone quiet. Settings → On Its Own has Autostart / Battery saver shortcuts for Xiaomi
+- **Spotify (Premium)**: the friend suggests songs with ▶ Play buttons in the chat, every new entry remembers the
+  song you were listening to, and **Lifelog Radio** hosts a show for you: a set picked from your week and taste,
+  with a spoken intro before each song (Android text-to-speech). Your own Spotify app's Client ID, PKCE login, no server
 - **Reads**: after a chat goes quiet, the friend researches its topic from three angles with Google Search
   and writes a short magazine-style article just for you, with sources (at most one a day)
 

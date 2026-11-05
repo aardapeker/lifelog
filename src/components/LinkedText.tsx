@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import type { ReactNode } from 'react';
 import { Linking, StyleSheet, Text, type StyleProp, type TextStyle } from 'react-native';
+import { playTracks } from '../lib/spotify';
 import { colors, fonts } from '../lib/theme';
 
 // a link ends before trailing punctuation: "see https://x.com/a." → https://x.com/a
@@ -10,6 +11,7 @@ const INLINE = /(\*\*[^*\n]+?\*\*|\*[^*\s][^*\n]*?\*|`[^`\n]+`)/g;
 
 const label = (url: string) => {
   if (url.startsWith('lifelog://read/')) return '📖 Open the read';
+  if (url.startsWith('lifelog://play/')) return '▶ Play on Spotify';
   const bare = url.replace(/^https?:\/\/(www\.)?/, '');
   return bare.length > 40 ? `${bare.slice(0, 40)}…` : bare;
 };
@@ -19,6 +21,17 @@ const blocks = (text: string) =>
   text
     .replace(/^[ \t]*[-*+][ \t]+/gm, '• ')
     .replace(/^#{1,6}[ \t]+(.+?)[ \t]*#*$/gm, '**$1**');
+
+function open(url: string) {
+  if (url.startsWith('lifelog://play/')) {
+    const id = url.slice('lifelog://play/'.length);
+    // plays in the Spotify app; if Lifelog can't drive it, just open the song there
+    playTracks([`spotify:track:${id}`]).catch(() => Linking.openURL(`https://open.spotify.com/track/${id}`).catch(() => {}));
+    return;
+  }
+  if (url.startsWith('lifelog://')) router.push(`/${url.slice('lifelog://'.length)}` as never);
+  else Linking.openURL(url).catch(() => {});
+}
 
 /** The bold / italic version of whatever font the message is set in. */
 function variants(style: StyleProp<TextStyle>): { bold: TextStyle; italic: TextStyle } {
@@ -49,11 +62,7 @@ export function LinkedText({ text, style }: { text: string; style?: StyleProp<Te
           <Text
             key={i}
             style={{ textDecorationLine: 'underline', color: colors.text }}
-            onPress={() =>
-              part.startsWith('lifelog://')
-                ? router.push(`/${part.slice('lifelog://'.length)}` as never)
-                : Linking.openURL(part).catch(() => {})
-            }
+            onPress={() => open(part)}
           >
             {label(part)}
           </Text>

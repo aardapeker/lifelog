@@ -179,6 +179,10 @@ const MIGRATIONS: string[] = [
     done_at    INTEGER
   );
   `,
+  // v7: the song you were listening to when you wrote an entry (Spotify track as JSON)
+  `
+  ALTER TABLE notes ADD COLUMN song TEXT;
+  `,
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<void> {

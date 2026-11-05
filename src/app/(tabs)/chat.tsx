@@ -20,6 +20,7 @@ import { titleChat } from '../../lib/chatMemory';
 import { addMessage, chatMessages, chatTitle, createChat, getChat, latestChat } from '../../lib/chats';
 import { deliverDue } from '../../lib/checkins';
 import { buildSystemPrompt, searchTool } from '../../lib/context';
+import { songsTool, spotifyConnected } from '../../lib/spotify';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 import { useKeyboardVisible } from '../../lib/useKeyboardVisible';
 
@@ -54,6 +55,7 @@ export default function ChatScreen() {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [hasKey, setHasKey] = useState(true);
+  const [radio, setRadio] = useState(false); // Spotify connected: the Radio button shows
   const [label, setLabel] = useState('');
   const scrollRef = useRef<ScrollViewInstance>(null);
   const keyboardOpen = useKeyboardVisible();
@@ -98,6 +100,7 @@ export default function ChatScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      spotifyConnected().then(setRadio);
       getChatConfig(db).then((c) => {
         setHasKey(!!c.apiKey);
         setLabel(`${PROVIDERS[c.provider].label}, ${c.model}`);
@@ -151,7 +154,7 @@ export default function ChatScreen() {
         model,
         system,
         messages: toApiMessages(history.slice(-HISTORY)),
-        tools: [searchTool(db)],
+        tools: [searchTool(db), ...((await spotifyConnected()) ? [songsTool()] : [])],
         onText: (full) =>
           setMessages((prev) => prev.map((m) => (m.id === pendingId ? { ...m, content: full } : m))),
       });
@@ -200,6 +203,7 @@ export default function ChatScreen() {
           </Text>
           {!!label && <Text style={styles.model}>{label}</Text>}
         </View>
+        {radio && <IconButton icon="radio-outline" label="Lifelog Radio" onPress={() => router.push('/radio')} />}
         <IconButton icon="time-outline" label="Chat history" onPress={() => router.push('/chats')} />
         {!isEmptyNew && <IconButton icon="create-outline" label="New chat" onPress={startNew} />}
       </View>

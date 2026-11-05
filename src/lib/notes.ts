@@ -7,7 +7,23 @@ export type Note = {
   updated_at: number;
   mood?: number | null;
   mood_label?: string | null;
+  song?: string | null; // JSON of a Spotify Track: what was playing when it was written
 };
+
+export type NoteSong = { id: string; name: string; artist: string; image: string | null };
+
+export function noteSong(n: Pick<Note, 'song'>): NoteSong | null {
+  try {
+    return n.song ? (JSON.parse(n.song) as NoteSong) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function setNoteSong(db: SQLiteDatabase, id: number, song: NoteSong | null): Promise<void> {
+  const value = song ? JSON.stringify({ id: song.id, name: song.name, artist: song.artist, image: song.image }) : null;
+  await db.runAsync('UPDATE notes SET song = ? WHERE id = ?', value, id);
+}
 
 const CHUNK_WORDS = 400;
 

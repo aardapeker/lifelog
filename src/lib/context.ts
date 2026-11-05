@@ -2,7 +2,8 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import type { Tool } from './chat';
 import { getSetting } from './db';
 import { listFacts } from './facts';
-import { formatDate, recentNotes, type Note } from './notes';
+import { formatDate, noteSong, recentNotes, type Note } from './notes';
+import { musicTaste, spotifyConnected } from './spotify';
 import { hybridSearch } from './search';
 
 const MAX_NOTE_CHARS = 1500;
@@ -12,7 +13,8 @@ export function renderNotes(notes: Note[]): string {
   return notes
     .map((n) => {
       const body = n.body.length > MAX_NOTE_CHARS ? `${n.body.slice(0, MAX_NOTE_CHARS)}…` : n.body;
-      return `[${formatDate(n.created_at)}]\n${body}`;
+      const song = noteSong(n);
+      return `[${formatDate(n.created_at)}]${song ? ` (listening to "${song.name}" by ${song.artist})` : ''}\n${body}`;
     })
     .join('\n\n---\n\n');
 }
@@ -65,6 +67,16 @@ If it's still not there, say you don't know or ask.
 Current time: ${formatDate(Date.now())}.`,
   ];
   if (about) parts.push(about);
+  if (await spotifyConnected()) {
+    const taste = await musicTaste(db);
+    parts.push(
+      `## Music
+They use Spotify Premium and you can play songs for them. When music would fit (their mood, a long shift,
+they ask), suggest a few songs: call find_songs, then copy each returned lifelog://play link exactly, on its
+own line under the song's name. Don't push music into every message.` +
+        (taste.length ? `\nTheir top artists lately: ${taste.join(', ')}.` : ''),
+    );
+  }
   parts.push(
     recent.length
       ? `## Journal, last ${RECENT_DAYS} days (newest first)\n${renderNotes(recent)}`

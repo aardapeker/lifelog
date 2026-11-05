@@ -18,6 +18,7 @@ import {
   greeting,
   groupByDay,
   listNotes,
+  noteSong,
   onThisDay,
   type DaySection,
   type Note,
@@ -36,7 +37,10 @@ const RANGES: { key: Range; label: string; days: number }[] = [
 function EntryCard({ note, label, photos }: { note: Note; label: string; photos?: string[] }) {
   return (
     <PressScale style={styles.card} scaleTo={0.97} onPress={() => router.push(`/note/${note.id}`)}>
-      <Text style={styles.cardTime}>{label}</Text>
+      <Text style={styles.cardTime}>
+        {label}
+        {noteSong(note) ? `  ·  ♪ ${noteSong(note)!.name}` : ''}
+      </Text>
       {!!note.body && (
         <Text style={styles.cardBody} numberOfLines={5}>
           {note.body}
