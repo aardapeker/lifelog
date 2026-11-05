@@ -70,7 +70,8 @@ export default function RadioScreen() {
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
 
   // the engine runs on refs: timers and speech callbacks must see the latest values
-  const live = useRef({ show: null as Show | null, index: 0, speaking: false, paused: false, startedAt: 0, voice: true });
+  // talked: the last slot whose talk already played (so resuming starts just the song)
+  const live = useRef({ show: null as Show | null, index: 0, speaking: false, paused: false, startedAt: 0, voice: true, talked: -1 });
   const poll = useRef<ReturnType<typeof setInterval> | null>(null);
   const talking = useRef<Talking | null>(null);
   // intros are voiced ahead of time (while the previous song plays), so the host never makes you wait
@@ -122,11 +123,12 @@ export default function RadioScreen() {
       setSpeaking(false);
       if (live.current.paused || live.current.index !== i) return;
       live.current.startedAt = Date.now();
-      playTracks([s.slots[i].track.uri]).catch(fail);
+      live.current.talked = i;
       prepare(i + 1);
+      startSong(i);
     };
     const talk = s.slots[i].talk;
-    if (!live.current.voice || !talk.length) return start();
+    if (!live.current.voice || !talk.length || live.current.talked === i) return start();
     live.current.speaking = true;
     setSpeaking(true);
     prepare(i);
@@ -138,6 +140,34 @@ export default function RadioScreen() {
       if (await t.done) start();
     })();
   }, [stopEngine, prepare]);
+
+  /**
+   * Starts slot i's song on Spotify and checks it really plays. Spotify on the phone sometimes
+   * ignores the first command (asleep, or another device was active): one retry, then a clear message.
+   */
+  const startSong = useCallback(async (i: number) => {
+    const s = live.current.show;
+    if (!s) return;
+    const uri = s.slots[i].track.uri;
+    const playing = async () => {
+      await new Promise((r) => setTimeout(r, 3500));
+      const p = await playbackState().catch(() => null);
+      return !!p?.isPlaying && p.track?.uri === uri;
+    };
+    try {
+      await playTracks([uri]);
+      if (live.current.index !== i || (await playing())) return setStatus({ kind: 'idle' });
+      await playTracks([uri]);
+      if (live.current.index !== i || (await playing())) return setStatus({ kind: 'idle' });
+      throw new Error("Spotify didn't start the song. Open the Spotify app, play anything for a second, come back and tap ▶.");
+    } catch (e) {
+      if (live.current.index !== i) return;
+      live.current.paused = true;
+      live.current.startedAt = 0; // ▶ will start this song again
+      setPaused(true);
+      fail(e);
+    }
+  }, []);
 
   /** Watches Spotify: when the song is about to end, the next one gets its intro. */
   const tick = useCallback(async () => {
@@ -159,7 +189,7 @@ export default function RadioScreen() {
     try {
       preview.current?.stop();
       const s = await buildShow(db, station, wish);
-      live.current = { show: s, index: 0, speaking: false, paused: false, startedAt: 0, voice };
+      live.current = { show: s, index: 0, speaking: false, paused: false, startedAt: 0, voice, talked: -1 };
       clips.current = new Map();
       if (voice) {
         prepare(0);

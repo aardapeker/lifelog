@@ -1,5 +1,5 @@
 import { fetch } from 'expo/fetch';
-import { createAudioPlayer } from 'expo-audio';
+import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { File, Paths } from 'expo-file-system';
 import * as Speech from 'expo-speech';
 import { jsonHeaders } from './gemini';
@@ -182,29 +182,51 @@ export function wav(pcm: Uint8Array, rate: number): Uint8Array {
 
 export type Talking = { done: Promise<boolean>; stop: () => void }; // done: true if it finished, false if stopped
 
-/** Plays a voice clip. Gives up after 90 s if the player never reports the end, so nothing hangs. */
+/**
+ * Plays a voice clip and reports when it's over. The "finished" event doesn't always arrive on
+ * Android, so it also watches the position itself, with a hard stop after 90 s: a clip can never
+ * leave the show hanging.
+ */
 export function playClip(uri: string): Talking {
   const player = createAudioPlayer(uri);
   let settle: (finished: boolean) => void = () => {};
   const done = new Promise<boolean>((r) => (settle = r));
   let over = false;
+  let started = false;
   const end = (finished: boolean) => {
     if (over) return;
     over = true;
     clearTimeout(guard);
+    clearInterval(watch);
     sub.remove();
-    player.remove();
+    try {
+      player.remove();
+    } catch {}
     settle(finished);
   };
   const guard = setTimeout(() => end(true), 90_000);
   const sub = player.addListener('playbackStatusUpdate', (s) => {
-    if (s.didJustFinish) end(true);
+    if (s.playing) started = true;
+    if (s.didJustFinish || (started && s.isLoaded && s.duration > 0 && !s.playing && s.currentTime >= s.duration - 0.3)) {
+      end(true);
+    }
   });
-  player.play();
+  const watch = setInterval(() => {
+    try {
+      if (player.playing) started = true;
+      const d = player.duration;
+      if (started && d > 0 && !player.playing && player.currentTime >= d - 0.3) end(true);
+    } catch {}
+  }, 400);
+  setAudioModeAsync({ playsInSilentMode: true, interruptionMode: 'mixWithOthers' })
+    .catch(() => {})
+    .finally(() => player.play());
   return {
     done,
     stop: () => {
-      player.pause();
+      try {
+        player.pause();
+      } catch {}
       end(false);
     },
   };

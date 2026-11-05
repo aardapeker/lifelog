@@ -6,7 +6,7 @@
       "lifelog",
       "dev.arda.lifelog"
     ],
-    "version": "0.12.2",
+    "version": "0.12.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
