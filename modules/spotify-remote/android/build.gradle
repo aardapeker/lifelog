@@ -17,6 +17,8 @@ android {
   defaultConfig {
     versionCode 1
     versionName '0.1.0'
+    // the SDK needs keep rules in release (minified) builds
+    consumerProguardFiles 'proguard-rules.pro'
   }
 }
 
