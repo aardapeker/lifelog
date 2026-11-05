@@ -165,15 +165,20 @@ export async function getTrack(id: string): Promise<Track | null> {
   return t ? toTrack(t) : null;
 }
 
-type Device = { id: string; type: string; is_active: boolean };
+type Device = { id: string; name: string; type: string; is_active: boolean };
 let lastDevice: string | null = null; // the phone's Spotify, once we've seen it
 
 async function listDevices(): Promise<Device[]> {
   return (await api<{ devices: Device[] }>('/me/player/devices'))?.devices ?? [];
 }
 
+// the phone first (the radio lives on the phone), even if a computer or speaker is the active one
 const pickDevice = (list: Device[]) =>
-  list.find((d) => d.is_active) ?? list.find((d) => d.type === 'Smartphone') ?? list[0] ?? null;
+  list.find((d) => d.type === 'Smartphone' && d.is_active) ??
+  list.find((d) => d.type === 'Smartphone') ??
+  list.find((d) => d.is_active) ??
+  list[0] ??
+  null;
 
 /**
  * Finds a Spotify device to play on. Spotify on a phone only counts as a device once it
@@ -200,7 +205,7 @@ export async function wakeSpotify(startWith?: string): Promise<string | null> {
 }
 
 /** Makes `device` the one Spotify plays on (it may be listed but not active). */
-const transferTo = (device: string) =>
+export const transferTo = (device: string) =>
   api('/me/player', { method: 'PUT', body: { device_ids: [device], play: false } }).catch(() => {});
 
 /**
@@ -229,6 +234,27 @@ export async function playTracks(uris: string[]): Promise<void> {
   const device = await wakeSpotify(uris[0]);
   if (!device) throw new SpotifyError(404, 'Spotify is asleep on your phone. Play any song in Spotify for a second, come back and tap ▶.');
   await play(device);
+}
+
+/** Moves playback to the phone's Spotify (if we know it), for a second try. */
+export async function nudgeSpotify(): Promise<void> {
+  const d = pickDevice(await listDevices().catch(() => []));
+  if (!d) return;
+  lastDevice = d.id;
+  await transferTo(d.id);
+}
+
+/** What Spotify reports right now, in one line, for error messages: "where" and "what". */
+export async function spotifyReport(): Promise<string> {
+  const [devices, p] = await Promise.all([
+    listDevices().catch(() => [] as Device[]),
+    api<{ is_playing: boolean; device?: { name: string }; item?: { name: string } | null }>('/me/player').catch(() => null),
+  ]);
+  const where = devices.length
+    ? devices.map((d) => `${d.name} (${d.type}${d.is_active ? ', active' : ''})`).join(', ')
+    : 'no devices';
+  const what = p ? `${p.is_playing ? 'playing' : 'paused'} "${p.item?.name ?? '?'}" on ${p.device?.name ?? '?'}` : 'nothing loaded';
+  return `Spotify sees: ${where}. Player: ${what}.`;
 }
 
 /** The same song? Spotify sometimes plays an equivalent track with a different id. */

@@ -14,7 +14,17 @@ import { Chip, IconButton, PillButton, StatusLine, type Status } from '../compon
 import { buildShow, castOf, WISHES, type Show } from '../lib/radio';
 import { LANGS, STATIONS, stationByKey, VOICES, withVoices, type Lang, type Persona, type VoiceChoices } from '../lib/stations';
 import { getSetting, setSetting } from '../lib/db';
-import { pausePlayback, playbackState, playTracks, resumePlayback, sameTrack, savePlaylist, wakeSpotify } from '../lib/spotify';
+import {
+  nudgeSpotify,
+  pausePlayback,
+  playbackState,
+  playTracks,
+  resumePlayback,
+  sameTrack,
+  savePlaylist,
+  spotifyReport,
+  wakeSpotify,
+} from '../lib/spotify';
 import { colors, fonts, inputColors, radius } from '../lib/theme';
 import { goOffAir, goOnAir, onBeat, onRemote, setOnAirPlaying, updateOnAir, waitMs } from '../lib/onAir';
 import { clearClips, playClip, speakRobot, synthesize, type Talking } from '../lib/tts';
@@ -198,17 +208,23 @@ export default function RadioScreen() {
     // the rest of the show goes to Spotify as one queue: if Lifelog is in the background and
     // can't step in between songs, Spotify still plays OUR next song, not the album or autoplay
     const rest = s.slots.slice(i).map((x) => x.track.uri);
+    // on mobile data Spotify can take a while to buffer: look a few times over ~10 s
     const playing = async () => {
-      await waitMs(3500); // works in the background too
-      const p = await playbackState().catch(() => null);
-      return !!p?.isPlaying && sameTrack(p.track, s.slots[i].track);
+      for (let k = 0; k < 5; k++) {
+        await waitMs(2000); // works in the background too
+        if (live.current.index !== i) return true;
+        const p = await playbackState().catch(() => null);
+        if (p?.isPlaying && sameTrack(p.track, s.slots[i].track)) return true;
+      }
+      return false;
     };
     try {
       await playTracks(rest);
-      if (live.current.index !== i || (await playing())) return setStatus({ kind: 'idle' });
+      if (await playing()) return setStatus({ kind: 'idle' });
+      await nudgeSpotify(); // second try: move playback to the phone first
       await playTracks(rest);
-      if (live.current.index !== i || (await playing())) return setStatus({ kind: 'idle' });
-      throw new Error("Spotify didn't start the song. Open the Spotify app, play anything for a second, come back and tap ▶.");
+      if (await playing()) return setStatus({ kind: 'idle' });
+      throw new Error(`Spotify didn't start the song. ${await spotifyReport()}`);
     } catch (e) {
       if (live.current.index !== i) return;
       live.current.paused = true;
