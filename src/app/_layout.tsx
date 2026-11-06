@@ -12,7 +12,9 @@ import * as SplashScreen from 'expo-splash-screen';
 import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { Alert, Image, StyleSheet, View } from 'react-native';
 import { isBackupFileName } from '../lib/backup';
+import { clearCrash, lastCrash } from '../lib/crashLog';
 import { setPendingBackup, setPendingShare } from '../lib/share';
 import { useSQLiteContext } from 'expo-sqlite';
 import { syncBackgroundTask } from '../lib/autonomy';
@@ -50,6 +52,15 @@ function ShareHandler() {
   return null;
 }
 
+/** A whisper of paper grain over everything, like a printed magazine. Touches pass straight through. */
+function Grain() {
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      <Image source={require('../../assets/grain.png')} resizeMode="repeat" style={StyleSheet.absoluteFill} />
+    </View>
+  );
+}
+
 /** Registers (or removes) the Android background task to match Settings → On Its Own. */
 function BackgroundSync() {
   const db = useSQLiteContext();
@@ -72,6 +83,24 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (loaded) SplashScreen.hideAsync().catch(() => {});
+  }, [loaded]);
+
+  // Lifelog closed because of an error last time: say what it was (screenshot it for a fix)
+  useEffect(() => {
+    if (!loaded) return;
+    const crash = lastCrash();
+    if (!crash) return;
+    clearCrash();
+    if (Date.now() - crash.at > 2 * 86_400_000) return;
+    setTimeout(
+      () =>
+        Alert.alert(
+          'Lifelog closed last time',
+          `${crash.message}\n\n${crash.where}\n\n${new Date(crash.at).toLocaleString()}`,
+          [{ text: 'OK' }],
+        ),
+      1200,
+    );
   }, [loaded]);
 
   // tapping a check-in opens the chat, a day-off reminder the plan, a Read the article
@@ -119,6 +148,7 @@ export default function RootLayout() {
         <Stack.Screen name="radio" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="welcome" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
       </Stack>
+      <Grain />
       </LockGate>
     </SQLiteProvider>
     </ShareIntentProvider>
