@@ -3,7 +3,7 @@ import { Tabs } from 'expo-router';
 import { useEffect, useRef, type ComponentProps } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Glass, GlassArea } from '../../components/Glass';
+import { Glass } from '../../components/Glass';
 import { colors } from '../../lib/theme';
 import { useKeyboardVisible } from '../../lib/useKeyboardVisible';
 
@@ -40,7 +40,7 @@ function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
   if (keyboardOpen) return null;
   return (
     <View pointerEvents="box-none" style={[styles.wrap, { bottom: insets.bottom + 14 }]}>
-      <Glass blur radius={31} style={styles.pill}>
+      <Glass radius={31} style={styles.pill}>
         <Animated.View style={[styles.indicator, { transform: [{ translateX: x }, { scale: pop }] }]} />
         {state.routes.map((route, index) => {
           const focused = state.index === index;
@@ -69,8 +69,8 @@ function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
 
 export default function TabsLayout() {
   return (
-    // the tab bar floats over the screens as frosted glass, so the screens are what it blurs
-    <GlassArea>
+    // The tab bar used to blur the screens behind it; on Android that blur crashed the app when
+    // the bar came back (after the editor, after the keyboard). It keeps the glass look without it.
     <Tabs
       tabBar={(props) => <FloatingTabBar {...props} />}
       screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg }, animation: 'shift' }}
@@ -80,7 +80,6 @@ export default function TabsLayout() {
       <Tabs.Screen name="insights" options={{ title: 'Insights' }} />
       <Tabs.Screen name="settings" options={{ title: 'Settings' }} />
     </Tabs>
-    </GlassArea>
   );
 }
 
