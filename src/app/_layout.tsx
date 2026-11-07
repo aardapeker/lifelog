@@ -12,7 +12,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { Alert, Image, StyleSheet, View } from 'react-native';
+import { Alert } from 'react-native';
 import { isBackupFileName } from '../lib/backup';
 import { clearCrash, lastCrash } from '../lib/crashLog';
 import { RadioProvider } from '../lib/radioEngine';
@@ -51,15 +51,6 @@ function ShareHandler() {
     setTimeout(() => router.push('/note/new?shared=1'), 300);
   }, [hasShareIntent, shareIntent, resetShareIntent]);
   return null;
-}
-
-/** A whisper of paper grain over everything, like a printed magazine. Touches pass straight through. */
-function Grain() {
-  return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <Image source={require('../../assets/grain.png')} resizeMode="repeat" style={StyleSheet.absoluteFill} />
-    </View>
-  );
 }
 
 /** Registers (or removes) the Android background task to match Settings → On Its Own. */
@@ -150,7 +141,6 @@ export default function RootLayout() {
         <Stack.Screen name="radio" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="welcome" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
       </Stack>
-      <Grain />
       </LockGate>
       </RadioProvider>
     </SQLiteProvider>
