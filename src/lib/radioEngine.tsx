@@ -161,6 +161,8 @@ function useRadioEngine() {
     setSpeaking(true);
     prepare(i);
     (async () => {
+      // the hosts never talk over a song: whatever Spotify is playing (e.g. after ⏭ mid-song) stops first
+      await pausePlayback().catch(() => {});
       const uri = await clips.current.get(i);
       if (live.current.index !== i || !live.current.speaking) return; // skipped or paused while it was loading
       const t = uri ? playClip(uri) : speakRobot(talk.map((l) => l.text).join(' '), s.lang);
