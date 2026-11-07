@@ -3,7 +3,7 @@ import { getChatConfig, parseJsonReply, PROVIDERS } from './chat';
 import { getCheckinSettings, shiftFor } from './checkins';
 import { aboutUser, renderNotes } from './context';
 import { getSetting } from './db';
-import { formatDate, recentNotes } from './notes';
+import { formatDate, noteSong, recentNotes } from './notes';
 import { likedSongs, playedSongs, songLine } from './songMemory';
 import { findTrack, musicTaste, type Track } from './spotify';
 import type { Persona, Station } from './stations';
@@ -67,6 +67,13 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
   ]);
   const twist = TWISTS[Math.floor(Math.random() * TWISTS.length)];
   const likedHere = liked.filter(() => Math.random() < 0.5).slice(0, 3); // a few of the hearted ones, different each time
+  // songs that were playing while they wrote this week's entries: they're welcome back, like hearted ones
+  const journalSongs = recent
+    .map((n) => noteSong(n))
+    .filter((x): x is NonNullable<typeof x> => !!x)
+    .filter((x, i, all) => all.findIndex((o) => o.id === x.id) === i)
+    .map((x) => ({ id: x.id, uri: `spotify:track:${x.id}`, name: x.name, artist: x.artist }));
+  const welcome = [...likedHere, ...journalSongs.filter((j) => !likedHere.some((l) => l.id === j.id))];
   const duo = !!station.sidekick;
   const names = duo ? `"${station.host.name}" or "${station.sidekick!.name}"` : `"${station.host.name}"`;
 
@@ -82,7 +89,8 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
       `Hosts:\n${persona(station.host, 'host')}\n${duo ? persona(station.sidekick!, 'sidekick, the comedian') : ''}\n\n` +
       `Music: ${station.music}. Pick ${SHOW_LENGTH} REAL songs that exist on Spotify, in an order that flows. ` +
       (station.key === 'friend' ? 'Use their taste and their day. ' : 'Stay true to the station\'s style. ') +
-      'DEEP CUTS: at most 2 songs per show may be big, obvious hits (or songs the listener hearted); every other ' +
+      'DEEP CUTS: at most 2 songs per show may be big, obvious hits; songs the listener hearted or was listening to ' +
+      'while writing their journal are welcome on top of that (up to 2). Every other ' +
       'song must be a lesser-known track, album cut, B-side or forgotten gem that still fits perfectly. Never repeat ' +
       'a song from the "already played" list. Surprise them. ' +
       `\n\nBefore every song the hosts talk${duo ? ' as a quick back-and-forth (2 to 5 lines; the sidekick gets the punchlines)' : ' (1 to 3 sentences)'}. ` +
@@ -104,9 +112,12 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
       `Now: ${formatDate(Date.now())}, ${shiftFor(shifts, Date.now())} shift week${city ? `, in ${city}` : ''}.\n` +
       `Tonight's twist for the playlist: ${twist}.\n` +
       (likedHere.length ? `Songs they hearted (you may bring back up to 2 of these): ${likedHere.map(songLine).join('; ')}\n` : '') +
+      (journalSongs.length
+        ? `Songs they were listening to while writing this week (they like these, play 1 or 2): ${journalSongs.map(songLine).join('; ')}\n`
+        : '') +
       (played.length
         ? `Already played on the radio (do NOT pick these): ${played
-            .filter((p) => !likedHere.some((l) => l.id === p.id))
+            .filter((p) => !welcome.some((l) => l.id === p.id))
             .slice(0, 120)
             .map(songLine)
             .join('; ')}\n`
@@ -127,7 +138,9 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
     const track = await findTrack(s.title, s.artist).catch(() => null);
     if (!track || slots.some((x) => x.track.id === track.id)) continue;
     // the AI ignored the memory: skip a repeat unless it's one they hearted
-    if (played.some((p) => p.id === track.id) && !liked.some((l) => l.id === track.id)) continue;
+    if (played.some((p) => p.id === track.id) && !liked.some((l) => l.id === track.id) && !welcome.some((w) => w.id === track.id)) {
+      continue;
+    }
     const talk = (s.talk ?? [])
       .filter((l) => l.text?.trim())
       .map((l) => ({ speaker: cast.includes(l.who ?? '') ? l.who! : cast[0], text: l.text!.trim() }));
