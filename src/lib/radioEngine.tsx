@@ -308,13 +308,26 @@ function useRadioEngine() {
     } else await resumePlayback().catch(fail);
   };
 
-  const skip = () => {
+  /** Jumps to song i of the show. `withTalk` false: straight to the music, no host intro. */
+  const jumpTo = (i: number, withTalk = true) => {
+    const s = live.current.show;
+    if (!s || i < 0 || i >= s.slots.length) return;
     shush();
     live.current.speaking = false;
     live.current.paused = false;
+    if (!withTalk) live.current.talked = i;
     setPaused(false);
     setOnAirPlaying(true);
-    playSlot(live.current.index + 1);
+    playSlot(i);
+  };
+
+  const skip = () => jumpTo(live.current.index + 1);
+
+  /** Like a music app: a few seconds in, ⏮ restarts the song; at the start, it goes back one. */
+  const previous = () => {
+    const i = live.current.index;
+    const intoSong = live.current.startedAt > 0 && Date.now() - live.current.startedAt > 5000;
+    jumpTo(intoSong || i === 0 ? i : i - 1, false);
   };
 
   // the lock screen / notification buttons drive the show too
@@ -391,7 +404,7 @@ function useRadioEngine() {
     });
   };
 
-  return { hearts, toggleHeart, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
+  return { hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
 }
 
 export type RadioEngine = ReturnType<typeof useRadioEngine>;

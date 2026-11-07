@@ -4,6 +4,7 @@ import { useEffect, useRef, type ComponentProps } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Glass } from '../../components/Glass';
+import { MiniPlayer } from '../../components/MiniPlayer';
 import { colors } from '../../lib/theme';
 import { useKeyboardVisible } from '../../lib/useKeyboardVisible';
 
@@ -40,6 +41,12 @@ function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
   if (keyboardOpen) return null;
   return (
     <View pointerEvents="box-none" style={[styles.wrap, { bottom: insets.bottom + 14 }]}>
+      {/* the radio, docked above the tabs while a show is on (not on Chat: it would cover the message box) */}
+      {state.routes[state.index]?.name !== 'chat' && (
+        <View style={styles.mini}>
+          <MiniPlayer />
+        </View>
+      )}
       <Glass radius={31} style={styles.pill}>
         <Animated.View style={[styles.indicator, { transform: [{ translateX: x }, { scale: pop }] }]} />
         {state.routes.map((route, index) => {
@@ -85,6 +92,7 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
   wrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
+  mini: { alignSelf: 'stretch', marginHorizontal: 16 },
   pill: {
     flexDirection: 'row',
     gap: GAP,

@@ -53,7 +53,7 @@ function AlbumGlow({ palette }: { palette: Palette | null }) {
 }
 export default function RadioScreen() {
   const insets = useSafeAreaInsets();
-  const { hearts, toggleHeart, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current } = useRadio();
+  const { hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current } = useRadio();
 
   return (
     <View style={styles.screen}>
@@ -192,6 +192,7 @@ export default function RadioScreen() {
             {phase === 'onair' && <WavyProgress progress={progress} playing={!paused && !speaking} />}
             {phase === 'onair' ? (
               <View style={styles.controls}>
+                <IconButton icon="play-skip-back" label="Previous" onPress={previous} size={54} />
                 <MorphPlayButton playing={!paused} onPress={togglePause} />
                 <IconButton icon="play-skip-forward" label="Next song" onPress={skip} size={54} />
                 <IconButton icon="stop" label="End the show" onPress={stop} size={54} />
@@ -202,7 +203,13 @@ export default function RadioScreen() {
 
             <Text style={styles.label}>{index + 1 < show.slots.length ? 'Up next' : 'Tonight’s set'}</Text>
             {show.slots.map((s, i) => (
-              <View key={s.track.id} style={[styles.row, i === index && styles.rowNow]}>
+              <PressScale
+                key={s.track.id}
+                scaleTo={0.98}
+                style={[styles.row, i === index && styles.rowNow]}
+                onPress={() => phase === 'onair' && i !== index && jumpTo(i, false)}
+                accessibilityLabel={`Play ${s.track.name}`}
+              >
                 <Text style={styles.rowNum}>{i + 1}</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.rowName, i < index && { color: colors.muted }]} numberOfLines={1}>
@@ -213,7 +220,7 @@ export default function RadioScreen() {
                   </Text>
                 </View>
                 <Heart on={hearts.has(s.track.id)} onPress={() => toggleHeart(s.track)} size={20} />
-              </View>
+              </PressScale>
             ))}
             <View style={styles.after}>
               <PillButton label="Save as playlist" onPress={save} ghost />
