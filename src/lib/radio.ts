@@ -4,6 +4,7 @@ import { getCheckinSettings, shiftFor } from './checkins';
 import { aboutUser, renderNotes } from './context';
 import { getSetting } from './db';
 import { formatDate, recentNotes } from './notes';
+import { likedSongs, playedSongs, songLine } from './songMemory';
 import { findTrack, musicTaste, type Track } from './spotify';
 import type { Persona, Station } from './stations';
 import type { SpokenLine } from './tts';
@@ -22,6 +23,22 @@ export const WISHES = ['On the way to work', 'After the shift', 'Focus', 'Rainy 
 
 const SHOW_LENGTH = 8;
 
+/** One random flavour per show, so the same station never plays the same set twice. */
+const TWISTS = [
+  'mostly from one specific year of the era, your pick',
+  'female vocalists lead the way',
+  'one-hit wonders and forgotten gems',
+  'songs about the night, cities or driving',
+  'B-sides and album tracks only, plus one hit',
+  'artists from different countries',
+  'covers and reinterpretations',
+  'a slow build: start soft, end loud',
+  'songs with great opening seconds',
+  'duets and collaborations',
+  'the underdog bands of the genre',
+  'songs that were bigger outside the US and UK',
+];
+
 const LANGUAGE: Record<Station['lang'], string> = {
   auto: 'Speak the language of their journal.',
   en: 'Speak English only (simple, natural, fun; the listener is learning English), and lean towards English-language songs.',
@@ -33,7 +50,7 @@ const persona = (p: Persona, role: string) => `- ${p.name} (${role}): ${p.bio}`;
 export async function buildShow(db: SQLiteDatabase, station: Station, wish: string): Promise<Show> {
   const chat = await getChatConfig(db);
   if (!chat.apiKey) throw new Error('Add an AI key in Settings first.');
-  const [about, recent, taste, shifts, city] = await Promise.all([
+  const [about, recent, taste, shifts, city, played, liked] = await Promise.all([
     aboutUser(db),
     recentNotes(db, 7, 8),
     musicTaste(db),
@@ -45,7 +62,11 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
         return '';
       }
     }),
+    playedSongs(db),
+    likedSongs(db),
   ]);
+  const twist = TWISTS[Math.floor(Math.random() * TWISTS.length)];
+  const likedHere = liked.filter(() => Math.random() < 0.5).slice(0, 3); // a few of the hearted ones, different each time
   const duo = !!station.sidekick;
   const names = duo ? `"${station.host.name}" or "${station.sidekick!.name}"` : `"${station.host.name}"`;
 
@@ -61,6 +82,9 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
       `Hosts:\n${persona(station.host, 'host')}\n${duo ? persona(station.sidekick!, 'sidekick, the comedian') : ''}\n\n` +
       `Music: ${station.music}. Pick ${SHOW_LENGTH} REAL songs that exist on Spotify, in an order that flows. ` +
       (station.key === 'friend' ? 'Use their taste and their day. ' : 'Stay true to the station\'s style. ') +
+      'DEEP CUTS: at most 2 songs per show may be big, obvious hits (or songs the listener hearted); every other ' +
+      'song must be a lesser-known track, album cut, B-side or forgotten gem that still fits perfectly. Never repeat ' +
+      'a song from the "already played" list. Surprise them. ' +
       `\n\nBefore every song the hosts talk${duo ? ' as a quick back-and-forth (2 to 5 lines; the sidekick gets the punchlines)' : ' (1 to 3 sentences)'}. ` +
       'The first talk opens the show with a station ID. Make it about THIS listener: callbacks to what they wrote, ' +
       'their shift, their cat, their plans. Teasing is welcome, cruelty is not. ' +
@@ -75,8 +99,18 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
       `Return {"title":"show name","lang":"tr or en","songs":[{"title":"…","artist":"…","label":null or "Commercial" or "News",` +
       `"talk":[{"who":${names},"text":"…"}]}]} with ${SHOW_LENGTH} songs.\n\n` +
       about,
+    temperature: 1.1, // song picking wants surprise; the talks stay readable at this level
     prompt:
       `Now: ${formatDate(Date.now())}, ${shiftFor(shifts, Date.now())} shift week${city ? `, in ${city}` : ''}.\n` +
+      `Tonight's twist for the playlist: ${twist}.\n` +
+      (likedHere.length ? `Songs they hearted (you may bring back up to 2 of these): ${likedHere.map(songLine).join('; ')}\n` : '') +
+      (played.length
+        ? `Already played on the radio (do NOT pick these): ${played
+            .filter((p) => !likedHere.some((l) => l.id === p.id))
+            .slice(0, 120)
+            .map(songLine)
+            .join('; ')}\n`
+        : '') +
       (wish.trim() ? `The listener asked for: ${wish.trim()}\n` : '') +
       (taste.length ? `Their top artists lately: ${taste.join(', ')}\n` : '') +
       `\nRecent journal:\n${renderNotes(recent) || '(nothing yet)'}`,
@@ -92,6 +126,8 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
   for (const s of plan.songs ?? []) {
     const track = await findTrack(s.title, s.artist).catch(() => null);
     if (!track || slots.some((x) => x.track.id === track.id)) continue;
+    // the AI ignored the memory: skip a repeat unless it's one they hearted
+    if (played.some((p) => p.id === track.id) && !liked.some((l) => l.id === track.id)) continue;
     const talk = (s.talk ?? [])
       .filter((l) => l.text?.trim())
       .map((l) => ({ speaker: cast.includes(l.who ?? '') ? l.who! : cast[0], text: l.text!.trim() }));

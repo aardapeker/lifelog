@@ -19,8 +19,10 @@ import {
   savePlaylist,
   spotifyReport,
   wakeSpotify,
+  type Track,
 } from './spotify';
 import { stationByKey, withVoices, type Lang, type Persona, type VoiceChoices } from './stations';
+import { likedSongs, rememberPlayed, toggleLiked } from './songMemory';
 import { clearClips, playClip, speakRobot, synthesize, type Talking } from './tts';
 
 /*
@@ -149,6 +151,7 @@ function useRadioEngine() {
       if (live.current.paused || live.current.index !== i) return;
       live.current.startedAt = Date.now();
       live.current.talked = i;
+      rememberPlayed(db, s.slots[i].track).catch(() => {});
       prepare(i + 1);
       startSong(i);
     };
@@ -373,7 +376,22 @@ function useRadioEngine() {
   }, [cover]);
 
 
-  return { phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
+  // hearted songs: they may come back in later shows; the rest never repeat
+  const [hearts, setHearts] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    likedSongs(db).then((l) => setHearts(new Set(l.map((s) => s.id)))).catch(() => {});
+  }, [db]);
+  const toggleHeart = async (t: Track) => {
+    const on = await toggleLiked(db, t);
+    setHearts((h) => {
+      const next = new Set(h);
+      if (on) next.add(t.id);
+      else next.delete(t.id);
+      return next;
+    });
+  };
+
+  return { hearts, toggleHeart, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
 }
 
 export type RadioEngine = ReturnType<typeof useRadioEngine>;

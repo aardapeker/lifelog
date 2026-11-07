@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useKeepAwake } from 'expo-keep-awake';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
@@ -17,6 +18,15 @@ import { colors, fonts, inputColors, radius } from '../lib/theme';
 function KeepAwake() {
   useKeepAwake('radio');
   return null;
+}
+
+/** ♥ a song: it may come back in later shows. Everything else is replaced by new finds. */
+function Heart({ on, onPress, size }: { on: boolean; onPress: () => void; size: number }) {
+  return (
+    <PressScale onPress={onPress} scaleTo={0.8} hitSlop={10} accessibilityLabel={on ? 'Unheart this song' : 'Heart this song'}>
+      <Ionicons name={on ? 'heart' : 'heart-outline'} size={size} color={on ? '#FF5A6E' : colors.muted} />
+    </PressScale>
+  );
 }
 
 const withAlpha = (rgb: string, a: number) => rgb.replace('rgb(', 'rgba(').replace(')', `, ${a})`);
@@ -43,7 +53,7 @@ function AlbumGlow({ palette }: { palette: Palette | null }) {
 }
 export default function RadioScreen() {
   const insets = useSafeAreaInsets();
-  const { phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current } = useRadio();
+  const { hearts, toggleHeart, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current } = useRadio();
 
   return (
     <View style={styles.screen}>
@@ -163,8 +173,13 @@ export default function RadioScreen() {
             </Text>
             <FadeIn key={current.track.id}>
               {current.track.image && <Image source={{ uri: current.track.image }} style={styles.cover} />}
-              <Text style={styles.trackName}>{current.track.name}</Text>
-              <Text style={styles.trackArtist}>{current.track.artist}</Text>
+              <View style={styles.titleRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.trackName}>{current.track.name}</Text>
+                  <Text style={styles.trackArtist}>{current.track.artist}</Text>
+                </View>
+                <Heart on={hearts.has(current.track.id)} onPress={() => toggleHeart(current.track)} size={30} />
+              </View>
               {!!current.label && <Text style={styles.breakLabel}>{current.label === 'News' ? '📰 News' : '📢 Commercial break'}</Text>}
               {current.talk.map((l, k) => (
                 <Text key={k} style={[styles.intro, speaking && { color: colors.text }]}>
@@ -197,6 +212,7 @@ export default function RadioScreen() {
                     {s.track.artist}
                   </Text>
                 </View>
+                <Heart on={hearts.has(s.track.id)} onPress={() => toggleHeart(s.track)} size={20} />
               </View>
             ))}
             <View style={styles.after}>
@@ -256,6 +272,7 @@ const styles = StyleSheet.create({
   who: { fontFamily: fonts.serifBold, fontStyle: 'normal' },
   showTitle: { fontFamily: fonts.serifItalic, fontSize: 16, color: colors.muted, marginBottom: 16 },
   cover: { width: '100%', aspectRatio: 1, borderRadius: radius.md, marginBottom: 18, backgroundColor: colors.raised },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   trackName: { fontFamily: fonts.serif, fontSize: 28, lineHeight: 34, color: colors.text },
   trackArtist: { fontFamily: fonts.sans, fontSize: 15, color: colors.muted, marginTop: 4 },
   intro: { fontFamily: fonts.serifItalic, fontSize: 17, lineHeight: 26, color: colors.muted, marginTop: 12 },

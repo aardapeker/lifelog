@@ -115,6 +115,7 @@ export function completeClaude(opts: CompleteOptions): Promise<string> {
   return post(opts.apiKey, {
     model: opts.model,
     max_tokens: opts.maxTokens ?? 1500,
+    ...(opts.temperature !== undefined ? { temperature: Math.min(1, opts.temperature) } : {}),
     system: opts.json ? `${opts.system}\n\nReply with a single JSON object and nothing else.` : opts.system,
     messages: [{ role: 'user', content: opts.prompt }],
   }, true);

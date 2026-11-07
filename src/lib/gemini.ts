@@ -116,6 +116,7 @@ export function completeGemini(opts: CompleteOptions): Promise<string> {
     generationConfig: {
       maxOutputTokens: outputLimit(opts.maxTokens ?? 1500),
       ...(opts.json ? { responseMimeType: 'application/json' } : {}),
+      ...(opts.temperature !== undefined ? { temperature: opts.temperature } : {}),
     },
   });
 }
