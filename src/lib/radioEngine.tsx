@@ -95,7 +95,8 @@ function useRadioEngine() {
 
   // the engine runs on refs: timers and speech callbacks must see the latest values
   // talked: the last slot whose talk already played (so resuming starts just the song)
-  const live = useRef({ show: null as Show | null, index: 0, speaking: false, paused: false, startedAt: 0, voice: true, talked: -1 });
+  // overlapping: the hosts are talking over the end of the previous song (Spotify is ducked, not paused)
+  const live = useRef({ show: null as Show | null, index: 0, speaking: false, paused: false, startedAt: 0, voice: true, talked: -1, overlapping: false });
   const poll = useRef<(() => void) | null>(null); // stops the heartbeat that drives the show
   const talking = useRef<Talking | null>(null);
   // intros are voiced ahead of time (while the previous song plays), so the host never makes you wait
@@ -133,7 +134,7 @@ function useRadioEngine() {
   const fail = (e: unknown) => setStatus({ kind: 'err', msg: e instanceof Error ? e.message : String(e) });
 
   /** Host talks (if voice is on), then the song starts. */
-  const playSlot = useCallback((i: number) => {
+  const playSlot = useCallback((i: number, overlap = false) => {
     const s = live.current.show;
     if (!s) return;
     if (i >= s.slots.length) {
@@ -147,6 +148,7 @@ function useRadioEngine() {
     updateOnAir(s.slots[i].track.name, `${s.station.name} · ${s.slots[i].track.artist}`);
     const start = () => {
       live.current.speaking = false;
+      live.current.overlapping = false;
       setSpeaking(false);
       if (live.current.paused || live.current.index !== i) return;
       live.current.startedAt = Date.now();
@@ -158,14 +160,16 @@ function useRadioEngine() {
     const talk = s.slots[i].talk;
     if (!live.current.voice || !talk.length || live.current.talked === i) return start();
     live.current.speaking = true;
+    live.current.overlapping = overlap;
     setSpeaking(true);
     prepare(i);
     (async () => {
-      // the hosts never talk over a song: whatever Spotify is playing (e.g. after ⏭ mid-song) stops first
-      await pausePlayback().catch(() => {});
+      // the hosts only talk over a song when the show planned it (a fading outro); otherwise
+      // whatever Spotify is playing (e.g. after ⏭ mid-song) stops first
+      if (!overlap) await pausePlayback().catch(() => {});
       const uri = await clips.current.get(i);
       if (live.current.index !== i || !live.current.speaking) return; // skipped or paused while it was loading
-      const t = uri ? playClip(uri) : speakRobot(talk.map((l) => l.text).join(' '), s.lang);
+      const t = uri ? playClip(uri, overlap) : speakRobot(talk.map((l) => l.text).join(' '), s.lang);
       talking.current = t;
       if (await t.done) start();
     })();
@@ -221,9 +225,11 @@ function useRadioEngine() {
   const timing = useRef({ checkedAt: 0, endsAt: 0 }); // go easy on Spotify's API: look often only near the end
   const tick = useCallback(async () => {
     const l = live.current;
-    if (ticking.current || !l.show || l.speaking || l.paused || Date.now() - l.startedAt < 4000) return;
+    if (ticking.current || !l.show || l.paused || Date.now() - l.startedAt < 4000) return;
+    if (l.speaking && !l.overlapping) return;
     const now = Date.now();
-    if (now - timing.current.checkedAt < 4000 && now < timing.current.endsAt - 7000) return;
+    // look every few seconds, and every beat in the last ~20 s (talk-overs start up to 12 s before the end)
+    if (now - timing.current.checkedAt < 4000 && now < timing.current.endsAt - 20000) return;
     ticking.current = true;
     try {
       await follow(l);
@@ -236,6 +242,15 @@ function useRadioEngine() {
   const follow = async (l: typeof live.current) => {
     if (!l.show) return;
     const p = await playbackState().catch(() => null);
+    if (l.overlapping) {
+      // talking over the outro: when the old song runs out before the talk does, stop Spotify there
+      // (it would roll on into its own autoplay); the next song starts when the talk ends
+      const prev = l.show.slots[l.index - 1]?.track;
+      const ending = p?.track && prev && sameTrack(p.track, prev) && p.track.durationMs - p.progressMs < END_MARGIN_MS;
+      const wandered = p?.track && prev && !sameTrack(p.track, prev) && p.isPlaying;
+      if (ending || wandered) await pausePlayback().catch(() => {});
+      return;
+    }
     const slot = l.show.slots[l.index];
     timing.current = { checkedAt: Date.now(), endsAt: p?.track ? Date.now() + p.track.durationMs - p.progressMs : 0 };
     if (!p?.track) return;
@@ -253,7 +268,14 @@ function useRadioEngine() {
       return;
     }
     setProgress(p.progressMs / Math.max(1, p.track.durationMs));
-    if (p.track.durationMs - p.progressMs < END_MARGIN_MS) {
+    const remaining = p.track.durationMs - p.progressMs;
+    const next = l.show.slots[l.index + 1];
+    const talkOver = l.voice && next && next.overlap > 0 && next.talk.length ? next.overlap * 1000 : 0;
+    if (talkOver && remaining <= talkOver && remaining > END_MARGIN_MS) {
+      playSlot(l.index + 1, true); // a DJ moment: talk over the fading end, Spotify ducks under the voice
+      return;
+    }
+    if (remaining < END_MARGIN_MS) {
       const next = l.index + 1;
       if (next < l.show.slots.length) await pausePlayback().catch(() => {});
       playSlot(next);
@@ -266,7 +288,7 @@ function useRadioEngine() {
     try {
       preview.current?.stop();
       const s = await buildShow(db, station, wish);
-      live.current = { show: s, index: 0, speaking: false, paused: false, startedAt: 0, voice, talked: -1 };
+      live.current = { show: s, index: 0, speaking: false, paused: false, startedAt: 0, voice, talked: -1, overlapping: false };
       clips.current = new Map();
       if (voice) {
         prepare(0);
@@ -294,7 +316,9 @@ function useRadioEngine() {
       setPaused(true);
       setOnAirPlaying(false);
       if (l.speaking) {
+        if (l.overlapping) pausePlayback().catch(() => {}); // the old song's outro was still playing under the talk
         shush();
+        l.overlapping = false;
         l.speaking = false;
         setSpeaking(false);
       } else await pausePlayback().catch(fail);

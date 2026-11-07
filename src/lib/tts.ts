@@ -196,7 +196,8 @@ export type Talking = { done: Promise<boolean>; stop: () => void }; // done: tru
  * the player's own events, a check on every heartbeat (and a timer, in the foreground), and
  * the clip's length worked out from the file size, so a show can never hang after a talk.
  */
-export function playClip(uri: string): Talking {
+/** `duck`: ask Android to turn other audio (Spotify) down while this plays, for talking over a song's end. */
+export function playClip(uri: string, duck = false): Talking {
   const player = createAudioPlayer(uri);
   let settle: (finished: boolean) => void = () => {};
   const done = new Promise<boolean>((r) => (settle = r));
@@ -220,6 +221,7 @@ export function playClip(uri: string): Talking {
     try {
       player.remove();
     } catch {}
+    if (duck) radioAudioMode(); // give Spotify its full volume back
     settle(finished);
   };
   const check = () => {
@@ -245,7 +247,7 @@ export function playClip(uri: string): Talking {
   });
   const watch = setInterval(check, 400);
   const offBeat = onBeat(check);
-  radioAudioMode().finally(() => player.play());
+  radioAudioMode(duck).finally(() => player.play());
   return {
     done,
     stop: () => {
@@ -258,10 +260,12 @@ export function playClip(uri: string): Talking {
 }
 
 /** The audio settings for the radio voices: keep playing in the background, mix with Spotify. */
-export const radioAudioMode = () =>
-  setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: true, interruptionMode: 'mixWithOthers' }).catch(
-    () => {},
-  );
+export const radioAudioMode = (duck = false) =>
+  setAudioModeAsync({
+    playsInSilentMode: true,
+    shouldPlayInBackground: true,
+    interruptionMode: duck ? 'duckOthers' : 'mixWithOthers',
+  }).catch(() => {});
 
 /** Android's built-in voice, the fallback. */
 export function speakRobot(text: string, language: string): Talking {

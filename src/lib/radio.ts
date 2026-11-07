@@ -15,7 +15,8 @@ import type { SpokenLine } from './tts';
  * fake commercial or a news bulletin made from your own life. Voices: Gemini TTS.
  */
 
-export type Slot = { track: Track; talk: SpokenLine[]; label: string | null };
+/** overlap: seconds the talk before this song may run over the END of the previous one (0 = wait for it). */
+export type Slot = { track: Track; talk: SpokenLine[]; label: string | null; overlap: number };
 export type Show = { title: string; lang: string; station: Station; slots: Slot[] };
 
 /** Quick ideas for the "anything else?" box. */
@@ -100,12 +101,17 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
         ? ''
         : `Before songs 3 and 6, instead of a normal intro, do a break: one fake commercial (${station.ads}) or a short ` +
           'news bulletin (their weather, their week, their goals, read like breaking news), then lead into the song. ') +
+      'Like a real DJ, sometimes talk over the END of a song: for each song after the first, set "overlap" to the ' +
+      'seconds (4 to 12) the talk before it may run over the outro of the PREVIOUS song, but only when that previous ' +
+      'song fades out or ends on a long instrumental tail; use 0 when it ends abruptly, on a big final line or a ' +
+      'final chord that deserves silence. About a third of transitions at most. Overlapping talks must be short ' +
+      '(one or two quick lines) and may react to the song that is fading out. Never sing or quote lyrics. ' +
       'Lines are SPOKEN aloud by a voice engine: no emojis, no markdown, no stage directions in brackets, natural speech, ' +
       'short sentences. You may put <laugh> or <short pause> inside a line. ' +
       LANGUAGE[station.lang] +
       '\n\n' +
       `Return {"title":"show name","lang":"tr or en","songs":[{"title":"…","artist":"…","label":null or "Commercial" or "News",` +
-      `"talk":[{"who":${names},"text":"…"}]}]} with ${SHOW_LENGTH} songs.\n\n` +
+      `"overlap":0,"talk":[{"who":${names},"text":"…"}]}]} with ${SHOW_LENGTH} songs.\n\n` +
       about,
     temperature: 1.1, // song picking wants surprise; the talks stay readable at this level
     prompt:
@@ -129,7 +135,7 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
   const plan = parseJsonReply<{
     title?: string;
     lang?: string;
-    songs?: { title: string; artist: string; label?: string | null; talk?: { who?: string; text?: string }[] }[];
+    songs?: { title: string; artist: string; label?: string | null; overlap?: number; talk?: { who?: string; text?: string }[] }[];
   }>(reply);
 
   const cast = [station.host.name, station.sidekick?.name].filter(Boolean) as string[];
@@ -144,7 +150,8 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
     const talk = (s.talk ?? [])
       .filter((l) => l.text?.trim())
       .map((l) => ({ speaker: cast.includes(l.who ?? '') ? l.who! : cast[0], text: l.text!.trim() }));
-    slots.push({ track, talk, label: s.label === 'Commercial' || s.label === 'News' ? s.label : null });
+    const overlap = slots.length && !s.label ? Math.max(0, Math.min(12, Math.round(Number(s.overlap) || 0))) : 0;
+    slots.push({ track, talk, label: s.label === 'Commercial' || s.label === 'News' ? s.label : null, overlap });
   }
   if (!slots.length) throw new Error("Couldn't find those songs on Spotify. Try again?");
   return {
