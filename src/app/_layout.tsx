@@ -15,6 +15,7 @@ import { useEffect } from 'react';
 import { Alert, Image, StyleSheet, View } from 'react-native';
 import { isBackupFileName } from '../lib/backup';
 import { clearCrash, lastCrash } from '../lib/crashLog';
+import { RadioProvider } from '../lib/radioEngine';
 import { setPendingBackup, setPendingShare } from '../lib/share';
 import { useSQLiteContext } from 'expo-sqlite';
 import { syncBackgroundTask } from '../lib/autonomy';
@@ -124,6 +125,7 @@ export default function RootLayout() {
     <SQLiteProvider databaseName={DB_NAME} onInit={migrate}>
       <StatusBar style="light" />
       <LockGate>
+      <RadioProvider>
       <ShareHandler />
       <BackgroundSync />
       <Stack
@@ -149,6 +151,7 @@ export default function RootLayout() {
         <Stack.Screen name="welcome" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
       </Stack>
       <Grain />
+      </RadioProvider>
       </LockGate>
     </SQLiteProvider>
     </ShareIntentProvider>
