@@ -30,6 +30,11 @@ import { clearClips, playClip, speakRobot, synthesize, type Talking } from './tt
  * (and keeps its songs and talks) when you close the Radio screen. The screen only shows it.
  */
 
+/** Resolves with the promise's value, or undefined after `ms` (even in the background). Never throws. */
+async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | undefined> {
+  return Promise.race([p.catch(() => undefined), waitMs(ms).then(() => undefined)]);
+}
+
 const END_MARGIN_MS = 2500; // stop this close to the end, so Spotify doesn't drift into its own autoplay
 
 type Phase = 'pick' | 'building' | 'onair' | 'done';
@@ -154,7 +159,9 @@ function useRadioEngine() {
       live.current.startedAt = Date.now();
       live.current.talked = i;
       rememberPlayed(db, s.slots[i].track).catch(() => {});
+      // voice the next two talks now, so ⏭ (even twice) never waits on a fresh recording
       prepare(i + 1);
+      prepare(i + 2);
       startSong(i);
     };
     const talk = s.slots[i].talk;
@@ -166,8 +173,16 @@ function useRadioEngine() {
     (async () => {
       // the hosts only talk over a song when the show planned it (a fading outro); otherwise
       // whatever Spotify is playing (e.g. after ⏭ mid-song) stops first
-      if (!overlap) await pausePlayback().catch(() => {});
-      const uri = await clips.current.get(i);
+      if (!overlap) await withTimeout(pausePlayback(), 3000);
+      // a talk that isn't recorded yet gets 15 s (with a spinner); after that the phone's own voice reads it,
+      // so the show never stalls
+      const clip = clips.current.get(i) ?? Promise.resolve(null);
+      let uri = await withTimeout(clip, 300);
+      if (uri === undefined) {
+        setStatus({ kind: 'busy' });
+        uri = await withTimeout(clip, 15000);
+        setStatus({ kind: 'idle' });
+      }
       if (live.current.index !== i || !live.current.speaking) return; // skipped or paused while it was loading
       const t = uri ? playClip(uri, overlap) : speakRobot(talk.map((l) => l.text).join(' '), s.lang);
       talking.current = t;

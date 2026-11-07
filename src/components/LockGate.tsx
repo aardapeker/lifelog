@@ -23,8 +23,12 @@ export function LockGate({ children }: { children: ReactNode }) {
   const [locked, setLocked] = useState<boolean | null>(null); // null = still checking
   const leftAt = useRef<number | null>(null);
 
+  const opened = useRef(false); // unlocked at least once this run: from then on the app stays mounted
   const unlock = useCallback(async () => {
-    if (await authenticate()) setLocked(false);
+    if (await authenticate()) {
+      opened.current = true;
+      setLocked(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -51,13 +55,22 @@ export function LockGate({ children }: { children: ReactNode }) {
   }, [db, unlock]);
 
   if (locked === null) return <View style={styles.screen} />;
-  if (!locked) return <>{children}</>;
-  return (
-    <View style={[styles.screen, styles.center]}>
+  if (!locked) opened.current = true;
+  const lockScreen = (
+    <View style={[styles.screen, styles.center, opened.current && StyleSheet.absoluteFill]}>
       <Image source={require('../../assets/splash-icon.png')} style={styles.logo} />
       <Text style={styles.title}>Locked</Text>
       <Text style={styles.text}>Your journal is private.</Text>
       <PillButton label="Unlock" onPress={unlock} style={{ marginTop: 28, minWidth: 180 }} />
+    </View>
+  );
+  // before the first unlock nothing of the app exists yet; after that, re-locking only covers it,
+  // so whatever was running (a radio show, a half-written entry, where you were) is still there
+  if (!opened.current) return lockScreen;
+  return (
+    <View style={{ flex: 1 }}>
+      {children}
+      {locked && lockScreen}
     </View>
   );
 }

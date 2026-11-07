@@ -124,8 +124,8 @@ export default function RootLayout() {
     <ShareIntentProvider>
     <SQLiteProvider databaseName={DB_NAME} onInit={migrate}>
       <StatusBar style="light" />
-      <LockGate>
       <RadioProvider>
+      <LockGate>
       <ShareHandler />
       <BackgroundSync />
       <Stack
@@ -151,8 +151,8 @@ export default function RootLayout() {
         <Stack.Screen name="welcome" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
       </Stack>
       <Grain />
-      </RadioProvider>
       </LockGate>
+      </RadioProvider>
     </SQLiteProvider>
     </ShareIntentProvider>
   );
