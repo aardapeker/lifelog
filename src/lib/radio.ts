@@ -17,12 +17,14 @@ import type { SpokenLine } from './tts';
 
 /** overlap: seconds the talk before this song may run over the END of the previous one (0 = wait for it). */
 export type Slot = { track: Track; talk: SpokenLine[]; label: string | null; overlap: number };
-export type Show = { title: string; lang: string; station: Station; slots: Slot[] };
+/** outro: the goodbye after the last song. */
+export type Show = { title: string; lang: string; station: Station; slots: Slot[]; outro: SpokenLine[] };
 
 /** Quick ideas for the "anything else?" box. */
 export const WISHES = ['On the way to work', 'After the shift', 'Focus', 'Rainy day', 'Make me laugh'];
 
-const SHOW_LENGTH = 8;
+/** How many songs a show can have (the Radio screen offers these). */
+export const SHOW_LENGTHS = [5, 8, 12, 16] as const;
 
 /** One random flavour per show, so the same station never plays the same set twice. */
 const TWISTS = [
@@ -48,7 +50,8 @@ const LANGUAGE: Record<Station['lang'], string> = {
 
 const persona = (p: Persona, role: string) => `- ${p.name} (${role}): ${p.bio}`;
 
-export async function buildShow(db: SQLiteDatabase, station: Station, wish: string): Promise<Show> {
+export async function buildShow(db: SQLiteDatabase, station: Station, wish: string, length = 8): Promise<Show> {
+  const SHOW_LENGTH = length;
   const chat = await getChatConfig(db);
   if (!chat.apiKey) throw new Error('Add an AI key in Settings first.');
   const [about, recent, taste, shifts, city, played, liked] = await Promise.all([
@@ -82,7 +85,7 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
     apiKey: chat.apiKey,
     model: chat.model,
     json: true,
-    maxTokens: 5000,
+    maxTokens: 1500 + SHOW_LENGTH * 600,
     system:
       `You write a private radio show on "${station.name} ${station.freq}" (${station.tagline}) for ONE listener, ` +
       `in the spirit of the radio stations in classic open-world crime games: larger-than-life hosts, absurd humour, ` +
@@ -99,7 +102,7 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
       'their shift, their cat, their plans. Teasing is welcome, cruelty is not. ' +
       (station.ads.startsWith('none')
         ? ''
-        : `Before songs 3 and 6, instead of a normal intro, do a break: one fake commercial (${station.ads}) or a short ` +
+        : `Before every third song (3, 6, 9…), instead of a normal intro, do a break: one fake commercial (${station.ads}) or a short ` +
           'news bulletin (their weather, their week, their goals, read like breaking news), then lead into the song. ') +
       'Like a real DJ, sometimes talk over the END of a song: for each song after the first, set "overlap" to the ' +
       'seconds (4 to 12) the talk before it may run over the outro of the PREVIOUS song, but only when that previous ' +
@@ -111,7 +114,8 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
       LANGUAGE[station.lang] +
       '\n\n' +
       `Return {"title":"show name","lang":"tr or en","songs":[{"title":"…","artist":"…","label":null or "Commercial" or "News",` +
-      `"overlap":0,"talk":[{"who":${names},"text":"…"}]}]} with ${SHOW_LENGTH} songs.\n\n` +
+      `"overlap":0,"talk":[{"who":${names},"text":"…"}]}],"outro":[{"who":${names},"text":"…"}]} with ${SHOW_LENGTH} songs. ` +
+      '"outro" is said after the last song: wrap up the show, a callback or two, a warm goodbye (2 to 4 lines).\n\n' +
       about,
     temperature: 1.1, // song picking wants surprise; the talks stay readable at this level
     prompt:
@@ -136,9 +140,14 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
     title?: string;
     lang?: string;
     songs?: { title: string; artist: string; label?: string | null; overlap?: number; talk?: { who?: string; text?: string }[] }[];
+    outro?: { who?: string; text?: string }[];
   }>(reply);
 
   const cast = [station.host.name, station.sidekick?.name].filter(Boolean) as string[];
+  const lines = (raw?: { who?: string; text?: string }[]) =>
+    (raw ?? [])
+      .filter((l) => l.text?.trim())
+      .map((l) => ({ speaker: cast.includes(l.who ?? '') ? l.who! : cast[0], text: l.text!.trim() }));
   const slots: Slot[] = [];
   for (const s of plan.songs ?? []) {
     const track = await findTrack(s.title, s.artist).catch(() => null);
@@ -147,9 +156,7 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
     if (played.some((p) => p.id === track.id) && !liked.some((l) => l.id === track.id) && !welcome.some((w) => w.id === track.id)) {
       continue;
     }
-    const talk = (s.talk ?? [])
-      .filter((l) => l.text?.trim())
-      .map((l) => ({ speaker: cast.includes(l.who ?? '') ? l.who! : cast[0], text: l.text!.trim() }));
+    const talk = lines(s.talk);
     const overlap = slots.length && !s.label ? Math.max(0, Math.min(12, Math.round(Number(s.overlap) || 0))) : 0;
     slots.push({ track, talk, label: s.label === 'Commercial' || s.label === 'News' ? s.label : null, overlap });
   }
@@ -160,6 +167,7 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
       station.lang === 'tr' || (station.lang === 'auto' && plan.lang?.toLowerCase().startsWith('tr')) ? 'tr-TR' : 'en-US',
     station,
     slots,
+    outro: lines(plan.outro),
   };
 }
 

@@ -32,6 +32,7 @@ import {
 import { bigTitleMotion, CollapsingHeader, useCollapsingHeader } from '../../components/CollapsingHeader';
 import { Glass } from '../../components/Glass';
 import { FadeIn, PressScale, stagger } from '../../components/motion';
+import { useBottomSpace } from '../../components/MiniPlayer';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 
 const WEEKS = 12;
@@ -141,6 +142,7 @@ function MoodGrid({ moods }: { moods: Map<number, number> }) {
 export default function InsightsScreen() {
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();
+  const bottomSpace = useBottomSpace(); // the tab bar, plus the radio player when it's docked
   const { y, onScroll } = useCollapsingHeader();
   const [moods, setMoods] = useState<Map<number, number>>(new Map());
   const [words, setWords] = useState<string[]>([]);
@@ -229,7 +231,7 @@ export default function InsightsScreen() {
       onScroll={onScroll}
       scrollEventThrottle={16}
       style={styles.screen}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + 12, paddingBottom: TAB_BAR_SPACE + insets.bottom }]}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + 12, paddingBottom: bottomSpace + insets.bottom }]}
       keyboardShouldPersistTaps="handled"
     >
       <Animated.Text style={[styles.title, bigTitleMotion(y)]}>Insights</Animated.Text>

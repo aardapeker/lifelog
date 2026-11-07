@@ -89,6 +89,8 @@ function useRadioEngine() {
     }
   };
   const [wish, setWish] = useState('');
+  const [length, setLength] = useState(8); // songs per show
+  const [miniCollapsed, setMiniCollapsed] = useState(false); // the docked player, folded into a bubble
   const [voice, setVoice] = useState(true);
   const [show, setShow] = useState<Show | null>(null);
   const [index, setIndex] = useState(0);
@@ -109,10 +111,13 @@ function useRadioEngine() {
 
   const prepare = useCallback((i: number) => {
     const s = live.current.show;
-    if (!s || i >= s.slots.length || clips.current.has(i) || !s.slots[i].talk.length) return;
+    if (!s || i > s.slots.length || clips.current.has(i)) return;
+    // index slots.length is the goodbye after the last song
+    const lines = i === s.slots.length ? s.outro : s.slots[i].talk;
+    if (!lines.length) return;
     clips.current.set(
       i,
-      synthesize(s.slots[i].talk, castOf(s.station)).catch((e) => {
+      synthesize(lines, castOf(s.station)).catch((e) => {
         // say why it sounds robotic, instead of failing silently
         setStatus({ kind: 'err', msg: `${e instanceof Error ? e.message : e} Using the phone's voice for now.` });
         return null;
@@ -143,8 +148,27 @@ function useRadioEngine() {
     const s = live.current.show;
     if (!s) return;
     if (i >= s.slots.length) {
-      stopEngine();
-      setPhase('done');
+      // the end: the hosts say goodbye (if they have something to say and the voice is on), then off air
+      const finish = () => {
+        stopEngine();
+        setPhase('done');
+      };
+      if (!live.current.voice || !s.outro.length || live.current.talked === s.slots.length) return finish();
+      live.current.index = s.slots.length;
+      live.current.speaking = true;
+      setSpeaking(true);
+      prepare(s.slots.length);
+      (async () => {
+        await withTimeout(pausePlayback(), 3000);
+        const uri = await withTimeout(clips.current.get(s.slots.length) ?? Promise.resolve(null), 15000);
+        if (!live.current.speaking) return;
+        const t = uri ? playClip(uri) : speakRobot(s.outro.map((l) => l.text).join(' '), s.lang);
+        talking.current = t;
+        await t.done;
+        live.current.speaking = false;
+        setSpeaking(false);
+        finish();
+      })();
       return;
     }
     live.current.index = i;
@@ -292,7 +316,7 @@ function useRadioEngine() {
     }
     if (remaining < END_MARGIN_MS) {
       const next = l.index + 1;
-      if (next < l.show.slots.length) await pausePlayback().catch(() => {});
+      await pausePlayback().catch(() => {}); // before the next talk, or the goodbye after the last song
       playSlot(next);
     }
   };
@@ -302,7 +326,7 @@ function useRadioEngine() {
     setStatus({ kind: 'idle' });
     try {
       preview.current?.stop();
-      const s = await buildShow(db, station, wish);
+      const s = await buildShow(db, station, wish, length);
       live.current = { show: s, index: 0, speaking: false, paused: false, startedAt: 0, voice, talked: -1, overlapping: false };
       clips.current = new Map();
       if (voice) {
@@ -419,7 +443,7 @@ function useRadioEngine() {
     setPhase('pick');
   };
 
-  const current = show?.slots[index];
+  const current = show?.slots[Math.min(index, show.slots.length - 1)]; // during the goodbye: the last song
   const cover = phase === 'onair' || phase === 'done' ? (current?.track.image ?? null) : null;
   useEffect(() => {
     let alive = true;
@@ -445,7 +469,7 @@ function useRadioEngine() {
     });
   };
 
-  return { hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
+  return { miniCollapsed, setMiniCollapsed, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
 }
 
 export type RadioEngine = ReturnType<typeof useRadioEngine>;

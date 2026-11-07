@@ -60,6 +60,7 @@ import { getChatConfig, getChatModel, PROVIDERS, saveChatConfig } from '../../li
 import { getSetting, setSetting } from '../../lib/db';
 import { embed, indexPending, indexStats } from '../../lib/embeddings';
 import { getKey, maskKey, setKey, type Provider } from '../../lib/keys';
+import { useBottomSpace } from '../../components/MiniPlayer';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
@@ -730,6 +731,7 @@ function WritingSection() {
 export default function SettingsScreen() {
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();
+  const bottomSpace = useBottomSpace(); // the tab bar, plus the radio player when it's docked
   const { y, onScroll } = useCollapsingHeader();
   const [name, setName] = useState('');
   const [profile, setProfile] = useState('');
@@ -796,7 +798,7 @@ export default function SettingsScreen() {
         style={styles.screen}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 12, paddingBottom: TAB_BAR_SPACE + insets.bottom },
+          { paddingTop: insets.top + 12, paddingBottom: bottomSpace + insets.bottom },
         ]}
         keyboardShouldPersistTaps="handled"
       >

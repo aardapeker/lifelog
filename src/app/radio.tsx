@@ -1,15 +1,15 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useKeepAwake } from 'expo-keep-awake';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Image, Keyboard, ScrollView, StyleSheet, Text, TextInput, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MorphPlayButton, WavyProgress } from '../components/expressive';
 import { Glass, GlassArea } from '../components/Glass';
 import { FadeIn, Pulse, PressScale, Shimmer, ShimmerText } from '../components/motion';
 import { Chip, IconButton, PillButton, StatusLine } from '../components/ui';
 import type { Palette } from '../lib/albumColors';
-import { WISHES } from '../lib/radio';
+import { SHOW_LENGTHS, WISHES } from '../lib/radio';
 import { useRadio } from '../lib/radioEngine';
 import { LANGS, STATIONS, VOICES } from '../lib/stations';
 import { colors, fonts, inputColors, radius } from '../lib/theme';
@@ -53,7 +53,20 @@ function AlbumGlow({ palette }: { palette: Palette | null }) {
 }
 export default function RadioScreen() {
   const insets = useSafeAreaInsets();
-  const { hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current } = useRadio();
+  const scroll = useRef<ScrollViewInstance>(null);
+  const [keyboard, setKeyboard] = useState(0); // its height while it's open
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboard(e.endCoordinates.height);
+      scroll.current?.scrollToEnd({ animated: true });
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboard(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+  const { length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current } = useRadio();
 
   return (
     <View style={styles.screen}>
@@ -71,8 +84,9 @@ export default function RadioScreen() {
 
       <Glass blur radius={28} style={styles.sheet}>
       <ScrollView
+        ref={scroll}
         style={{ flex: 1 }}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 70 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 70 + keyboard }]}
         keyboardShouldPersistTaps="handled"
       >
         {phase === 'pick' && (
@@ -111,6 +125,13 @@ export default function RadioScreen() {
                 );
               })}
             </View>
+            <Text style={styles.label}>How long?</Text>
+            <View style={styles.chips}>
+              {SHOW_LENGTHS.map((n) => (
+                <Chip key={n} label={`${n} songs`} active={length === n} onPress={() => setLength(n)} />
+              ))}
+            </View>
+
             <Text style={styles.label}>Language</Text>
             <View style={styles.chips}>
               {LANGS.map((l) => (
@@ -150,6 +171,8 @@ export default function RadioScreen() {
               onChangeText={setWish}
               placeholder="No sad songs, something Turkish…"
               placeholderTextColor={colors.muted}
+              // the keyboard would cover the box: make room under it and scroll it into view
+              onFocus={() => setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 250)}
               {...inputColors}
             />
             <PillButton label="Go on air" onPress={start} full style={{ marginTop: 24 }} />

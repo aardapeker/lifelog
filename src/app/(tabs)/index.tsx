@@ -26,6 +26,7 @@ import {
 import { hybridSearch } from '../../lib/search';
 import { bigTitleMotion, CollapsingHeader, useCollapsingHeader } from '../../components/CollapsingHeader';
 import { FadeIn, PressScale, Shimmer, ShimmerText, stagger } from '../../components/motion';
+import { useBottomSpace } from '../../components/MiniPlayer';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 
 type Range = 'all' | 'week' | 'month';
@@ -84,6 +85,7 @@ function Day({ section, photos }: { section: DaySection; photos: Map<number, str
 export default function JournalScreen() {
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();
+  const bottomSpace = useBottomSpace(); // the tab bar, plus the radio player when it's docked
   const { y, onScroll } = useCollapsingHeader();
   const [notes, setNotes] = useState<Note[]>([]);
   const [name, setName] = useState('');
@@ -307,7 +309,7 @@ export default function JournalScreen() {
     </View>
   );
 
-  const contentStyle = [styles.list, { paddingTop: insets.top + 12, paddingBottom: TAB_BAR_SPACE + insets.bottom }];
+  const contentStyle = [styles.list, { paddingTop: insets.top + 12, paddingBottom: bottomSpace + insets.bottom }];
 
   const scrolling = { onScroll, scrollEventThrottle: 16 };
 
