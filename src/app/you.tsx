@@ -25,7 +25,8 @@ export default function YouScreen() {
   useFocusEffect(
     useCallback(() => {
       getSetting(db, 'profile.photo').then((p) => setPhoto(p || null));
-      Promise.all([
+      // the numbers read every entry: after the page has slid in, so opening it stays smooth
+      const t = setTimeout(() => Promise.all([
         db.getFirstAsync<{ n: number; since: number | null; body: string }>(
           "SELECT COUNT(*) AS n, MIN(created_at) AS since, group_concat(body, ' ') AS body FROM notes",
         ),
@@ -39,7 +40,8 @@ export default function YouScreen() {
             milestones: m?.n ?? 0,
           }),
         )
-        .catch(() => {});
+        .catch(() => {}), 300);
+      return () => clearTimeout(t);
     }, [db]),
   );
 

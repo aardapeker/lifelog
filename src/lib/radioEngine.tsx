@@ -2,7 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { notify } from './notify';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState } from 'react-native';
 import type { Status } from '../components/ui';
 import { albumColors, type Palette } from './albumColors';
@@ -539,11 +539,22 @@ function useRadioEngine() {
 
 export type RadioEngine = ReturnType<typeof useRadioEngine>;
 const Ctx = createContext<RadioEngine | null>(null);
+// just "is the player docked?", for screens that only need room for it (Journal, Life): they don't
+// re-render every time the song's progress or the talking changes, only when the dock appears/folds
+type Dock = { phase: RadioEngine['phase']; miniCollapsed: boolean };
+const DockCtx = createContext<Dock>({ phase: 'pick', miniCollapsed: false });
 
 export function RadioProvider({ children }: { children: ReactNode }) {
   const engine = useRadioEngine();
-  return <Ctx.Provider value={engine}>{children}</Ctx.Provider>;
+  const dock = useMemo(() => ({ phase: engine.phase, miniCollapsed: engine.miniCollapsed }), [engine.phase, engine.miniCollapsed]);
+  return (
+    <Ctx.Provider value={engine}>
+      <DockCtx.Provider value={dock}>{children}</DockCtx.Provider>
+    </Ctx.Provider>
+  );
 }
+
+export const useRadioDock = () => useContext(DockCtx);
 
 export function useRadio(): RadioEngine {
   const r = useContext(Ctx);

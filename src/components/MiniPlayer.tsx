@@ -2,7 +2,7 @@ import Ionicons from './Icon';
 import { router } from 'expo-router';
 import { useRef } from 'react';
 import { Image, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useRadio } from '../lib/radioEngine';
+import { useRadio, useRadioDock } from '../lib/radioEngine';
 import { colors, fonts, radius, TAB_BAR_SPACE } from '../lib/theme';
 import { FadeIn, PressScale } from './motion';
 import { Glass } from './Glass';
@@ -11,7 +11,7 @@ const MINI_HEIGHT = 70;
 
 /** Bottom padding for a tab screen's list: room for the tab bar, plus the docked radio when it's showing. */
 export function useBottomSpace(): number {
-  const { phase, miniCollapsed } = useRadio();
+  const { phase, miniCollapsed } = useRadioDock();
   return TAB_BAR_SPACE + (phase === 'onair' && !miniCollapsed ? MINI_HEIGHT : 0);
 }
 

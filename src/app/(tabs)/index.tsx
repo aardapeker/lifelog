@@ -120,6 +120,13 @@ export default function JournalScreen() {
   const [learned, setLearned] = useState(0); // bumps when the background jobs finish // Spotify connected: the Radio button shows
   useFocusEffect(
     useCallback(() => {
+      // let the tab switch finish first, then refresh (the switch stays smooth)
+      const t = setTimeout(refresh, 250);
+      return () => clearTimeout(t);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [load, db]),
+  );
+  const refresh = () => {
       load();
       getSetting(db, 'name').then(setName);
       photoMap(db).then(setPhotos);
@@ -128,14 +135,13 @@ export default function JournalScreen() {
       upcomingDayOff(db).then(setDayOff);
       unopenedRead(db).then(setNewRead);
       // captions, embeddings, facts, the weekly letter, check-ins
-      runBackgroundJobs(db).then(async () => {
+      runBackgroundJobs(db, { soft: true }).then(async () => {
         const r = await latestRecap(db);
         setRecap(r && Date.now() - r.created_at < 7 * 86_400_000 ? r : null);
         photoMap(db).then(setPhotos);
         setLearned((n) => n + 1); // new entries were read: maybe a milestone to suggest
       });
-    }, [load, db]),
-  );
+  };
 
   // first launch → welcome screen
   useEffect(() => {

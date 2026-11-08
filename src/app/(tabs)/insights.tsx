@@ -183,7 +183,8 @@ export default function InsightsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      load();
+      const t = setTimeout(load, 250); // after the tab switch, so it stays smooth
+      return () => clearTimeout(t);
     }, [load]),
   );
 

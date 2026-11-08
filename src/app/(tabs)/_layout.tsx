@@ -57,7 +57,12 @@ function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
   // each name's width, measured once from hidden copies (a guess until then)
   const [labelW, setLabelW] = useState(() => SLOTS.map((s) => s.label.length * 8.5));
   const current = state.routes[state.index]?.name;
-  const active = Math.max(0, SLOTS.findIndex((s) => s.route === current));
+  const routeActive = Math.max(0, SLOTS.findIndex((s) => s.route === current));
+  // the pill moves the moment you tap (native animation), and the page switches a frame later:
+  // building the next page can take a moment, but the tap never feels ignored
+  const [tapped, setTapped] = useState<number | null>(null);
+  useEffect(() => setTapped(null), [routeActive]);
+  const active = tapped ?? routeActive;
   const layout = useMemo(() => (width ? slotLayout(width, active, labelW) : null), [width, active, labelW]);
 
   // animated values: per slot the icon's x and how "open" it is; the pill's two ends and middle
@@ -162,7 +167,11 @@ function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
                     </Animated.Text>
                     {/* the touch area: the slot as it will be */}
                     <Pressable
-                      onPress={() => route && !focused && navigateToTab(route.key)}
+                      onPress={() => {
+                        if (!route || focused) return;
+                        setTapped(i);
+                        setTimeout(() => navigateToTab(route.key), 16);
+                      }}
                       accessibilityRole="tab"
                       accessibilityLabel={s.label}
                       accessibilityState={{ selected: focused }}
