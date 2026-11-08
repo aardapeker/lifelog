@@ -5,6 +5,7 @@ import * as Speech from 'expo-speech';
 import { jsonHeaders } from './gemini';
 import { onBeat, waitMs } from './heartbeat';
 import { getKey } from './keys';
+import { recordUsage, textTokens } from './usage';
 
 /*
  * A voice that sounds like a person: Gemini's text-to-speech (same Gemini key as everything else).
@@ -105,6 +106,18 @@ const ROUTES: Route[] = MODELS.flatMap((model) => [
   { model, call: viaGenerate },
 ]);
 let working: Route | null = null; // the route that worked last time
+export const VOICE_MODELS = [
+  { id: 'gemini-3.8-flash-tts', label: '3.8 Flash TTS' },
+  { id: 'gemini-3.8-flash-lite-tts', label: '3.8 Flash-Lite TTS' },
+];
+let preferred = MODELS[0];
+/** Settings → AI Models: which voice model goes first (the others stay as backups). */
+export function preferVoiceModel(model: string): void {
+  if (!MODELS.includes(model) || model === preferred) return;
+  preferred = model;
+  working = null;
+}
+const routesInOrder = () => [...ROUTES.filter((r) => r.model === preferred), ...ROUTES.filter((r) => r.model !== preferred)];
 let failure: { at: number; message: string } | null = null; // everything failed: don't hammer the API
 // models whose DAILY quota ran out (each model has its own): skipped until tomorrow, no waiting on them
 const spent = new Map<string, string>();
@@ -132,10 +145,20 @@ async function withRetry<T>(call: () => Promise<T>): Promise<T> {
 async function voiceBytes(apiKey: string, lines: SpokenLine[], cast: Cast): Promise<Uint8Array> {
   if (failure && Date.now() - failure.at < 20_000) throw new Error(failure.message);
   const errors: string[] = [];
-  for (const route of working ? [working, ...ROUTES.filter((r) => r !== working)] : ROUTES) {
+  const order = routesInOrder();
+  for (const route of working ? [working, ...order.filter((r) => r !== working)] : order) {
     if (spent.get(route.model) === today()) continue;
     try {
       const bytes = await withRetry(() => route.call(apiKey, route.model, lines, cast));
+      // audio is billed at 25 tokens a second: count the seconds in the WAV (16-bit mono)
+      const rate = new DataView(bytes.buffer, bytes.byteOffset).getUint32(24, true) || 24000;
+      recordUsage({
+        provider: 'gemini',
+        model: route.model,
+        feature: 'voice',
+        input: textTokens(lines.map((l) => l.text).join(' ') + cast.map((c) => c.style).join(' ')),
+        output: (Math.max(0, bytes.length - 44) / (rate * 2)) * 25,
+      });
       working = route;
       failure = null;
       return bytes;

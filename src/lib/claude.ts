@@ -1,6 +1,7 @@
 import { fetch } from 'expo/fetch';
 import type { CompleteOptions, StreamOptions } from './chat';
 import { readSSE } from './sse';
+import { recordUsage, type Feature } from './usage';
 
 const API_URL = 'https://api.anthropic.com/v1/messages';
 const MAX_TOOL_ROUNDS = 3;
@@ -54,7 +55,10 @@ export async function streamClaude(opts: StreamOptions): Promise<string> {
 
     const blocks: Block[] = [];
     const roundStart = full;
+    const used = { input: 0, output: 0 };
     await readSSE(res.body, (data) => {
+      if (data.type === 'message_start') used.input = data.message?.usage?.input_tokens ?? 0;
+      if (data.type === 'message_delta') used.output = data.usage?.output_tokens ?? used.output;
       if (data.type === 'content_block_start') {
         const b = data.content_block;
         blocks[data.index] =
@@ -73,6 +77,7 @@ export async function streamClaude(opts: StreamOptions): Promise<string> {
       }
     });
 
+    recordUsage({ provider: 'anthropic', model: opts.model, feature: 'chat', ...used });
     const calls = blocks.filter((b): b is Extract<Block, { type: 'tool_use' }> => b?.type === 'tool_use');
     if (!calls.length) return full;
 
@@ -99,10 +104,15 @@ export async function streamClaude(opts: StreamOptions): Promise<string> {
   return full;
 }
 
-async function post(apiKey: string, body: object, whole = false): Promise<string> {
+async function post(apiKey: string, body: { model: string } & Record<string, unknown>, feature: Feature, whole = false): Promise<string> {
   const res = await fetch(API_URL, { method: 'POST', headers: headers(apiKey), body: JSON.stringify(body) });
   if (!res.ok) throw new Error(await readError(res));
-  const json = (await res.json()) as { content: { type: string; text?: string }[]; stop_reason?: string };
+  const json = (await res.json()) as {
+    content: { type: string; text?: string }[];
+    stop_reason?: string;
+    usage?: { input_tokens?: number; output_tokens?: number };
+  };
+  recordUsage({ provider: 'anthropic', model: body.model, feature, input: json.usage?.input_tokens, output: json.usage?.output_tokens });
   // a reply cut off mid-sentence is worse than none: fail, and the job tries again next time
   if (whole && json.stop_reason === 'max_tokens') throw new Error('Claude ran out of room mid-reply.');
   return json.content
@@ -118,7 +128,7 @@ export function completeClaude(opts: CompleteOptions): Promise<string> {
     ...(opts.temperature !== undefined ? { temperature: Math.min(1, opts.temperature) } : {}),
     system: opts.json ? `${opts.system}\n\nReply with a single JSON object and nothing else.` : opts.system,
     messages: [{ role: 'user', content: opts.prompt }],
-  }, true);
+  }, opts.feature ?? 'background', true);
 }
 
 export function describeImageClaude(
@@ -140,10 +150,10 @@ export function describeImageClaude(
         ],
       },
     ],
-  });
+  }, 'photos');
 }
 
 /** Cheap one-token call used by the "Test" button in Settings. */
 export async function testClaude(apiKey: string, model: string): Promise<void> {
-  await post(apiKey, { model, max_tokens: 1, messages: [{ role: 'user', content: 'hi' }] });
+  await post(apiKey, { model, max_tokens: 1, messages: [{ role: 'user', content: 'hi' }] }, 'other');
 }

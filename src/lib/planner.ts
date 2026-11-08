@@ -231,6 +231,7 @@ async function searchEvents(
       'Include both social ones (meeting people) and solo ones. Only list events you actually found for that date. ' +
       'Output one per line, exactly: TITLE | TIME | PLACE | social or solo | URL. Up to 6 lines. ' +
       'If you find nothing for that date, output NONE.',
+    'daysoff',
   );
   return { events: linkEvents(found, parseEventLines(found.text), place), sources: found.sources, queries: found.queries };
 }
@@ -317,6 +318,7 @@ export async function makePlan(db: SQLiteDatabase, dayMs: number): Promise<Plan>
   else if (!found.events.length) note = 'No events found for this day, so the plan uses ideas instead.';
 
   const reply = await PROVIDERS[chat.provider].complete({
+    feature: 'daysoff',
     apiKey: chat.apiKey,
     model: chat.model,
     json: true,
@@ -376,6 +378,7 @@ export async function draftEntryFromPlan(db: SQLiteDatabase, plan: Plan): Promis
   if (!chat.apiKey) throw new Error('Add an API key in Settings first.');
   const recent = await recentNotes(db, 14, 3);
   const text = await PROVIDERS[chat.provider].complete({
+    feature: 'daysoff',
     apiKey: chat.apiKey,
     model: chat.model,
     maxTokens: 500,

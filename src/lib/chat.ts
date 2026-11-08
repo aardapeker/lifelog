@@ -1,4 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
+import type { Feature } from './usage';
 import { completeClaude, describeImageClaude, streamClaude, testClaude } from './claude';
 import { getSetting, setSetting } from './db';
 import { completeGemini, describeImageGemini, streamGemini, testGemini } from './gemini';
@@ -33,6 +34,7 @@ export type CompleteOptions = {
   maxTokens?: number;
   temperature?: number; // 0 = predictable … 1+ = adventurous (left to the model when unset)
   lightThinking?: boolean; // creative writing, not puzzles: think a little (thinking is billed as output)
+  feature?: Feature; // what it's for, on the Usage page (default: background)
 };
 
 type Adapter = {
@@ -97,12 +99,35 @@ export async function saveChatConfig(db: SQLiteDatabase, provider: Provider, mod
   await setSetting(db, `chatModel.${provider}`, model.trim() || PROVIDERS[provider].defaultModel);
 }
 
+/** Models offered in Settings → AI Models (any other model name can still be typed for the chat). */
+export const MODEL_CHOICES: Record<Provider, { id: string; label: string }[]> = {
+  gemini: [
+    { id: 'gemini-3.8-flash', label: '3.8 Flash' },
+    { id: 'gemini-3.5-flash-lite', label: '3.5 Flash-Lite' },
+  ],
+  anthropic: [
+    { id: 'claude-opus-5-5', label: 'Opus 5.5' },
+    { id: 'claude-sonnet-5-5', label: 'Sonnet 5.5' },
+    { id: 'claude-haiku-5-5', label: 'Haiku 5.5' },
+  ],
+};
+
+/** The cheap model for background jobs (facts, captions, recaps, check-ins): yours, or the default. */
+export async function getBackgroundModel(db: SQLiteDatabase, provider: Provider): Promise<string> {
+  return getSetting(db, `backgroundModel.${provider}`, PROVIDERS[provider].backgroundModel);
+}
+
+/** The model that writes radio shows: '' means the same as the chat. */
+export async function getRadioModel(db: SQLiteDatabase, provider: Provider): Promise<string> {
+  return getSetting(db, `radioModel.${provider}`, '');
+}
+
 /** Same provider as the chat, but its cheap model. Null when no key is saved. */
 export async function getBackgroundConfig(db: SQLiteDatabase) {
   const { provider, apiKey } = await getChatConfig(db);
   if (!apiKey) return null;
   const adapter = PROVIDERS[provider];
-  return { provider, apiKey, model: adapter.backgroundModel, adapter };
+  return { provider, apiKey, model: await getBackgroundModel(db, provider), adapter };
 }
 
 /** Parses a JSON object out of a model reply, tolerating ```json fences or chatter around it. */

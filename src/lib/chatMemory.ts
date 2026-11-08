@@ -13,6 +13,7 @@ export async function titleChat(db: SQLiteDatabase, chatId: number): Promise<voi
   if (!ai) return;
   const msgs = (await chatMessages(db, chatId)).slice(0, 4);
   const title = await ai.adapter.complete({
+    feature: 'chat',
     apiKey: ai.apiKey,
     model: ai.model,
     maxTokens: 30,
@@ -54,6 +55,7 @@ export async function learnFromChats(db: SQLiteDatabase): Promise<number> {
         .join('\n\n');
       try {
         const reply = await ai.adapter.complete({
+    feature: 'chat',
           apiKey: ai.apiKey,
           model: ai.model,
           json: true,

@@ -24,7 +24,7 @@ import {
 import { stationByKey, withVoices, type Lang, type Persona, type VoiceChoices } from './stations';
 import { banSong, bannedSongs, likedSongs, rememberPlayed, toggleLiked } from './songMemory';
 import { onRadioCommand, publishToWidget } from '../widget/radioBridge';
-import { clearClips, playClip, speakRobot, synthesize, type Talking } from './tts';
+import { clearClips, playClip, preferVoiceModel, speakRobot, synthesize, type Talking } from './tts';
 
 /*
  * The radio's engine lives here, mounted once at the root of the app, so a show keeps running
@@ -335,6 +335,7 @@ function useRadioEngine() {
     setPhase('building');
     setStatus({ kind: 'idle' });
     bannedSongs(db).then((b) => setBanned(new Set(b.map((x) => x.id)))).catch(() => {}); // Settings may have let some back
+    getSetting(db, 'voiceModel', '').then(preferVoiceModel).catch(() => {}); // Settings → AI Models
     try {
       preview.current?.stop();
       const s = await buildShow(db, station, wish, length);

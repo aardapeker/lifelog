@@ -20,7 +20,7 @@ import {
   likedAccess,
 } from '../../lib/spotify';
 import { bannedSongs, clearBanned, getRadioPrefs, saveRadioPrefs, type RadioPrefs } from '../../lib/songMemory';
-import { PillButton, SectionTitle, StatusLine, type Status } from '../../components/ui';
+import { Chip, PillButton, SectionTitle, StatusLine, type Status } from '../../components/ui';
 import { backupNow, getPassphrase, lastBackupAt, restoreFromFile, setPassphrase } from '../../lib/backup';
 import {
   getCheckinSettings,
@@ -58,7 +58,9 @@ import {
   type PlannerSettings,
 } from '../../lib/planner';
 import { weekStart } from '../../lib/recap';
-import { getChatConfig, getChatModel, PROVIDERS, saveChatConfig } from '../../lib/chat';
+import { getBackgroundModel, getChatConfig, getChatModel, getRadioModel, MODEL_CHOICES, PROVIDERS, saveChatConfig } from '../../lib/chat';
+import { VOICE_MODELS } from '../../lib/tts';
+import { priceHint } from '../../lib/usage';
 import { getSetting, setSetting } from '../../lib/db';
 import { embed, indexPending, indexStats } from '../../lib/embeddings';
 import { getKey, maskKey, setKey, type Provider } from '../../lib/keys';
@@ -776,6 +778,65 @@ function RadioSection() {
   );
 }
 
+/** A row of model chips for one provider; the current model shows even if it's a custom one. */
+function ModelChips({ provider, value, onPick, extra }: { provider: Provider; value: string; onPick: (m: string) => void; extra?: { id: string; label: string } }) {
+  const choices = MODEL_CHOICES[provider];
+  const all = [...(extra ? [extra] : []), ...choices, ...(value && !choices.some((c) => c.id === value) && value !== extra?.id ? [{ id: value, label: value }] : [])];
+  return (
+    <View style={styles.chips}>
+      {all.map((c) => (
+        <Chip key={c.id} label={c.label} active={c.id === value} onPress={() => onPick(c.id)} />
+      ))}
+    </View>
+  );
+}
+
+/** The other jobs: who writes the radio, who does the chores, which voice reads the radio. Saved on tap. */
+function JobModels({ provider }: { provider: Provider }) {
+  const db = useSQLiteContext();
+  const [radio, setRadio] = useState('');
+  const [background, setBackground] = useState('');
+  const [voice, setVoice] = useState(VOICE_MODELS[0].id);
+
+  useFocusEffect(
+    useCallback(() => {
+      getRadioModel(db, provider).then(setRadio);
+      getBackgroundModel(db, provider).then(setBackground);
+      getSetting(db, 'voiceModel', VOICE_MODELS[0].id).then(setVoice);
+    }, [db, provider]),
+  );
+
+  const save = (key: string, value: string, set: (v: string) => void) => {
+    set(value);
+    setSetting(db, key, value);
+  };
+
+  return (
+    <>
+      <Text style={styles.label}>📻 Radio writer</Text>
+      <ModelChips
+        provider={provider}
+        value={radio}
+        extra={{ id: '', label: 'Same as chat' }}
+        onPick={(m) => save(`radioModel.${provider}`, m, setRadio)}
+      />
+      <Text style={styles.hint}>{radio ? priceHint(radio) : 'Writes the shows with your chat model.'} The cheaper one is a bit less funny.</Text>
+
+      <Text style={styles.label}>⚙️ Background jobs</Text>
+      <ModelChips provider={provider} value={background} onPick={(m) => save(`backgroundModel.${provider}`, m, setBackground)} />
+      <Text style={styles.hint}>Facts, photo captions, recaps, check-ins. {priceHint(background)}.</Text>
+
+      <Text style={styles.label}>🗣️ Radio voice (Gemini)</Text>
+      <View style={styles.chips}>
+        {VOICE_MODELS.map((v) => (
+          <Chip key={v.id} label={v.label} active={v.id === voice} onPress={() => save('voiceModel', v.id, setVoice)} />
+        ))}
+      </View>
+      <Text style={styles.hint}>{priceHint(voice)}. The other voice models stay as backups when a limit runs out.</Text>
+    </>
+  );
+}
+
 /** Silent proofreading of entries, no lessons. */
 function WritingSection() {
   const db = useSQLiteContext();
@@ -918,13 +979,14 @@ export default function SettingsScreen() {
 
         <LearnedSection />
 
-        <Section title="Chat" hint="Which AI your friend runs on.">
+        <Section title="AI Models" hint="Which AI does each job. Prices are per 1M tokens; Insights → Usage shows what it adds up to.">
           <Segment
             options={(Object.keys(PROVIDERS) as Provider[]).map((p) => ({ key: p, label: PROVIDERS[p].label }))}
             value={provider}
             onChange={pickProvider}
           />
-          <Text style={styles.label}>Model</Text>
+          <Text style={styles.label}>💬 Chat friend</Text>
+          <ModelChips provider={provider} value={model} onPick={setModel} />
           <TextInput
             style={styles.input}
             value={model}
@@ -933,11 +995,13 @@ export default function SettingsScreen() {
             autoCorrect={false}
             {...inputColors}
           />
+          <Text style={styles.hint}>{priceHint(model)}. Or type any model name above.</Text>
           <View style={styles.row}>
             <PillButton label="Save" onPress={saveChat} />
             <PillButton label="Test" onPress={testChat} ghost />
           </View>
           <StatusLine status={chatStatus} />
+          <JobModels provider={provider} />
         </Section>
 
         <CheckinSection />
@@ -988,6 +1052,7 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 6 },
   screen: { flex: 1, backgroundColor: colors.bg },
   content: { paddingHorizontal: 20, gap: 30 },
   title: { fontFamily: fonts.serif, fontSize: 34, color: colors.text },

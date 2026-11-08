@@ -1,6 +1,7 @@
 import { fetch } from 'expo/fetch';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getKey } from './keys';
+import { recordUsage, textTokens } from './usage';
 
 export const EMBED_MODEL = 'gemini-embedding-001';
 export const EMBED_DIMS = 768;
@@ -30,6 +31,7 @@ export async function embed(text: string, taskType: TaskType, apiKey: string): P
   );
   if (!res.ok) throw new Error(`Gemini ${res.status}: ${(await res.text()).slice(0, 300)}`);
   const json = (await res.json()) as { embedding: { values: number[] } };
+  recordUsage({ provider: 'gemini', model: EMBED_MODEL, feature: 'index', input: textTokens(text) });
   return normalize(Float32Array.from(json.embedding.values));
 }
 

@@ -79,6 +79,7 @@ async function writeAhead(
 
   const [about, recent] = await Promise.all([aboutUser(db), recentNotes(db, 7, 10)]);
   const reply = await ai.adapter.complete({
+    feature: 'checkins',
     apiKey: ai.apiKey,
     model: ai.model,
     json: true,

@@ -141,6 +141,7 @@ async function findActivities(db: SQLiteDatabase, apiKey: string): Promise<Found
       'free things. Prefer ones that help them meet people. Only list things you actually found for those dates and ' +
       'that clearly fit them. Output one per line, exactly: TITLE | WHEN | PLACE | social or solo | URL. ' +
       'At most 3 lines. If nothing is really worth it, output NONE.',
+    'daysoff',
   );
   return linkEvents(found, parseEventLines(found.text).slice(0, 3), place);
 }
@@ -211,6 +212,7 @@ export async function maybeSendDigest(db: SQLiteDatabase, force = false): Promis
 
     const body = (
       await PROVIDERS[chat.provider].complete({
+        feature: 'checkins',
         apiKey: chat.apiKey,
         model: chat.model,
         maxTokens: 900,

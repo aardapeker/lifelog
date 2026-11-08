@@ -1,5 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { getChatConfig, parseJsonReply, PROVIDERS } from './chat';
+import { getChatConfig, getRadioModel, parseJsonReply, PROVIDERS } from './chat';
 import { getCheckinSettings, shiftFor } from './checkins';
 import { aboutUser, renderNotes } from './context';
 import { getSetting } from './db';
@@ -115,9 +115,11 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
   const duo = !!station.sidekick;
   const names = duo ? `"${station.host.name}" or "${station.sidekick!.name}"` : `"${station.host.name}"`;
 
+  const writer = (await getRadioModel(db, chat.provider)) || chat.model; // Settings → AI Models
   const reply = await PROVIDERS[chat.provider].complete({
+    feature: 'radio',
     apiKey: chat.apiKey,
-    model: chat.model,
+    model: writer,
     json: true,
     maxTokens: 1500 + SHOW_LENGTH * TALK[prefs.talk].tokens,
     system:

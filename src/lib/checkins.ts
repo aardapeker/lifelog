@@ -121,6 +121,7 @@ export async function planCheckins(db: SQLiteDatabase): Promise<number> {
       ),
     ]);
     const reply = await ai.adapter.complete({
+    feature: 'checkins',
       apiKey: ai.apiKey,
       model: ai.model,
       json: true,

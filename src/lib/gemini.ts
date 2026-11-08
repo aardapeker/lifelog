@@ -1,6 +1,7 @@
 import { fetch } from 'expo/fetch';
 import type { ChatMessage, CompleteOptions, StreamOptions } from './chat';
 import { readSSE } from './sse';
+import { geminiTokens, recordUsage, type Feature } from './usage';
 
 const BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const MAX_TOOL_ROUNDS = 3;
@@ -61,8 +62,10 @@ export async function streamGemini(opts: StreamOptions): Promise<string> {
 
     const parts: Part[] = [];
     const roundStart = full;
+    let usage: Parameters<typeof geminiTokens>[0];
     await readSSE(res.body, (data) => {
       if (data.error) throw new Error(`Gemini: ${data.error.message ?? 'stream error'}`);
+      if (data.usageMetadata) usage = data.usageMetadata; // the last chunk has the totals
       for (const p of (data.candidates?.[0]?.content?.parts ?? []) as Part[]) {
         parts.push(p);
         if (p.text && !p.thought) {
@@ -72,6 +75,7 @@ export async function streamGemini(opts: StreamOptions): Promise<string> {
       }
     });
 
+    recordUsage({ provider: 'gemini', model: opts.model, feature: 'chat', ...geminiTokens(usage) });
     const calls = parts.filter((p) => p.functionCall);
     if (!calls.length) break;
     if (full !== roundStart && !full.endsWith('\n')) full += '\n\n';
@@ -91,14 +95,18 @@ export async function streamGemini(opts: StreamOptions): Promise<string> {
   return full;
 }
 
-async function generate(apiKey: string, model: string, body: object): Promise<string> {
+async function generate(apiKey: string, model: string, body: object, feature: Feature): Promise<string> {
   const res = await fetch(`${BASE}/${model}:generateContent`, {
     method: 'POST',
     headers: jsonHeaders(apiKey),
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(await readError(res));
-  const json = (await res.json()) as { candidates?: { content?: { parts?: Part[] }; finishReason?: string }[] };
+  const json = (await res.json()) as {
+    candidates?: { content?: { parts?: Part[] }; finishReason?: string }[];
+    usageMetadata?: Parameters<typeof geminiTokens>[0];
+  };
+  recordUsage({ provider: 'gemini', model, feature, ...geminiTokens(json.usageMetadata) });
   // a reply cut off mid-sentence is worse than none: fail, and the job tries again next time
   if (json.candidates?.[0]?.finishReason === 'MAX_TOKENS') throw new Error('Gemini ran out of room mid-reply.');
   const text = (json.candidates?.[0]?.content?.parts ?? [])
@@ -119,7 +127,7 @@ export function completeGemini(opts: CompleteOptions): Promise<string> {
       ...(opts.temperature !== undefined ? { temperature: opts.temperature } : {}),
       ...(opts.lightThinking && /^gemini-3/.test(opts.model) ? { thinkingConfig: { thinkingLevel: 'low' } } : {}),
     },
-  });
+  }, opts.feature ?? 'background');
 }
 
 export function describeImageGemini(
@@ -131,7 +139,7 @@ export function describeImageGemini(
 ): Promise<string> {
   return generate(apiKey, model, {
     contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: base64 } }, { text: prompt }] }],
-  });
+  }, 'photos');
 }
 
 export type Source = { title: string; uri: string };
@@ -148,7 +156,7 @@ export type GroundedResult = {
  * Asks Gemini with Google Search turned on. Returns the answer plus the pages it used,
  * the searches it ran (Google asks apps to show those), and which page backs which sentence.
  */
-export async function groundedSearch(apiKey: string, model: string, prompt: string): Promise<GroundedResult> {
+export async function groundedSearch(apiKey: string, model: string, prompt: string, feature: Feature = 'research'): Promise<GroundedResult> {
   const res = await fetch(`${BASE}/${model}:generateContent`, {
     method: 'POST',
     headers: jsonHeaders(apiKey),
@@ -164,7 +172,15 @@ export async function groundedSearch(apiKey: string, model: string, prompt: stri
         groundingSupports?: { segment?: { text?: string }; groundingChunkIndices?: number[] }[];
       };
     }[];
+    usageMetadata?: Parameters<typeof geminiTokens>[0];
   };
+  recordUsage({
+    provider: 'gemini',
+    model,
+    feature,
+    ...geminiTokens(json.usageMetadata),
+    searches: json.candidates?.[0]?.groundingMetadata?.webSearchQueries?.length ?? 0, // billed per search
+  });
   const c = json.candidates?.[0];
   const chunks = (c?.groundingMetadata?.groundingChunks ?? []).map((g) => (g.web?.uri ? g.web : null));
   const supports = (c?.groundingMetadata?.groundingSupports ?? []).flatMap((s) => {
@@ -225,10 +241,10 @@ export function transcribeGemini(apiKey: string, model: string, base64: string, 
         ],
       },
     ],
-  });
+  }, 'voicenotes');
 }
 
 /** Cheap call used by the "Test" button in Settings. */
 export async function testGemini(apiKey: string, model: string): Promise<void> {
-  await generate(apiKey, model, { contents: [{ role: 'user', parts: [{ text: 'hi' }] }] });
+  await generate(apiKey, model, { contents: [{ role: 'user', parts: [{ text: 'hi' }] }] }, 'other');
 }

@@ -183,6 +183,20 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE notes ADD COLUMN song TEXT;
   `,
+  // v8: what every AI call used (tokens, searches), for the Usage page in Insights
+  `
+  CREATE TABLE usage (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    at       INTEGER NOT NULL,
+    provider TEXT    NOT NULL,          -- gemini | anthropic
+    model    TEXT    NOT NULL,
+    feature  TEXT    NOT NULL,          -- chat, radio, voice, reads, …
+    input    INTEGER NOT NULL DEFAULT 0, -- tokens in
+    output   INTEGER NOT NULL DEFAULT 0, -- tokens out, thinking and audio included
+    searches INTEGER NOT NULL DEFAULT 0  -- Google searches (billed per search)
+  );
+  CREATE INDEX usage_at ON usage(at);
+  `,
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<void> {

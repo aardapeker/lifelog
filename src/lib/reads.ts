@@ -92,6 +92,7 @@ export async function writeRead(db: SQLiteDatabase, read: Read): Promise<Article
       `Research notes for a short article about "${read.topic}". This part: ${angle}. ` +
         'Give the key facts with specifics (names, numbers, dates, versions, prices) from current sources, ' +
         'in 6 to 10 plain sentences. Say clearly when something is uncertain or disputed.',
+      'reads',
     );
     if (found.text) notes.push(`## ${angle}\n${found.text}`);
     sources = sources.concat(found.sources);
@@ -100,6 +101,7 @@ export async function writeRead(db: SQLiteDatabase, read: Read): Promise<Article
   if (!notes.length) throw new Error('The search came back empty.');
 
   const reply = await PROVIDERS[chat.provider].complete({
+    feature: 'reads',
     apiKey: chat.apiKey,
     model: chat.model,
     json: true,
