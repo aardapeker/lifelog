@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
   readTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   readMeta: { fontFamily: fonts.sansRegular, fontSize: 12, color: colors.muted },
   newDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: UNREAD },
-  readTitle: { fontFamily: fonts.serif, fontSize: 22, lineHeight: 28, color: colors.text, marginTop: 6 },
+  readTitle: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 22, lineHeight: 28, color: colors.text, marginTop: 6 },
   readHook: { fontFamily: fonts.serifItalic, fontSize: 15, lineHeight: 22, color: colors.muted, marginTop: 6 },
   research: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.line, gap: 4 },
   researchText: { fontFamily: fonts.sansRegular, fontSize: 14, lineHeight: 21, color: colors.text, marginTop: 2 },

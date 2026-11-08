@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   hero: { alignItems: 'center', marginTop: 4, marginBottom: 28 },
   photo: { width: 112, height: 112, borderRadius: 56, backgroundColor: colors.raised },
   letter: { alignItems: 'center', justifyContent: 'center' },
-  letterText: { fontFamily: fonts.serif, fontSize: 46, color: colors.text },
+  letterText: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 46, color: colors.text },
   camera: {
     position: 'absolute',
     right: 2,
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: colors.bg,
   },
-  name: { fontFamily: fonts.serif, fontSize: 30, color: colors.text, marginTop: 14 },
+  name: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 30, color: colors.text, marginTop: 14 },
   stats: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.muted, marginTop: 6, textAlign: 'center' },
   list: { gap: 10 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 18, borderRadius: radius.md, backgroundColor: colors.surface },

@@ -75,7 +75,6 @@
         "react-native-android-widget",
         {
           "fonts": [
-            "./node_modules/@expo-google-fonts/libre-caslon-text/400Regular/LibreCaslonText_400Regular.ttf",
             "./node_modules/@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf",
             "./node_modules/@expo-google-fonts/inter/500Medium/Inter_500Medium.ttf"
           ],

@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
   tiles: { flexDirection: 'row', gap: 10, marginBottom: 10 },
   tile: { flex: 1, padding: 14, minHeight: 86 },
   tileLabel: { fontFamily: fonts.serif, fontSize: 13, color: colors.muted },
-  tileValue: { fontFamily: fonts.serif, fontSize: 24, lineHeight: 32, color: colors.text, marginTop: 4 },
+  tileValue: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 24, lineHeight: 32, color: colors.text, marginTop: 4 },
   panel: { backgroundColor: colors.surface, borderRadius: radius.md, padding: 18, marginBottom: 10 },
   panelTitle: { fontFamily: fonts.serif, fontSize: 16, color: colors.text, marginBottom: 12 },
   chart: { flexDirection: 'row', alignItems: 'flex-end', height: 116, gap: 3 },

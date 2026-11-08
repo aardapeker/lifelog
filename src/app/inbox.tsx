@@ -98,7 +98,7 @@ export default function InboxScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 },
-  barTitle: { fontFamily: fonts.serif, fontSize: 20, color: colors.text },
+  barTitle: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 20, color: colors.text },
   empty: { fontFamily: fonts.sansRegular, fontSize: 14, lineHeight: 21, color: colors.muted, textAlign: 'center', marginTop: 40 },
   item: { flexDirection: 'row', gap: 12, padding: 16, borderRadius: radius.md, backgroundColor: colors.surface, alignItems: 'flex-start' },
   itemNew: { backgroundColor: colors.raised },

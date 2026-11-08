@@ -64,12 +64,12 @@ export const articleStyles = StyleSheet.create({
   sheet: { flex: 1, backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg },
   content: { paddingHorizontal: 24, paddingTop: 28 },
 
-  title: { fontFamily: fonts.serif, fontSize: 38, lineHeight: 44, color: colors.text, letterSpacing: -0.5 },
+  title: { fontFamily: fonts.display, fontSize: 38, lineHeight: 44, color: colors.text, letterSpacing: -0.5 },
   hook: { fontFamily: fonts.serifItalic, fontSize: 19, lineHeight: 29, color: colors.muted, marginTop: 14 },
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 22, marginBottom: 10 },
 
   section: { marginTop: 26 },
-  heading: { fontFamily: fonts.serif, fontSize: 23, lineHeight: 30, color: colors.text, marginBottom: 10 },
+  heading: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 23, lineHeight: 30, color: colors.text, marginBottom: 10 },
   body: { fontFamily: fonts.serif, fontSize: 17, lineHeight: 29, color: '#E8E6E3', marginBottom: 14 },
 
   news: { marginTop: 18, backgroundColor: colors.raised, borderRadius: radius.md, padding: 18, gap: 10 },

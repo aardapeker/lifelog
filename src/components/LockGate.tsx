@@ -114,6 +114,6 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   center: { alignItems: 'center', justifyContent: 'center', padding: 32 },
   logo: { width: 96, height: 96, marginBottom: 28 },
-  title: { fontFamily: fonts.serif, fontSize: 34, color: colors.text },
+  title: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 34, color: colors.text },
   text: { fontFamily: fonts.sansRegular, fontSize: 15, color: colors.muted, marginTop: 8 },
 });

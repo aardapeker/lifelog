@@ -1181,7 +1181,7 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 6 },
   screen: { flex: 1, backgroundColor: colors.bg },
   content: { paddingHorizontal: 20, gap: 30 },
-  title: { fontFamily: fonts.serif, fontSize: 34, color: colors.text },
+  title: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 34, color: colors.text },
 
   section: { gap: 6 },
   sectionHint: { fontFamily: fonts.sansRegular, fontSize: 13, lineHeight: 19, color: colors.muted, marginBottom: 8 },

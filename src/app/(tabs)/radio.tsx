@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   goOnAir: { position: 'absolute', left: 24, right: 24, elevation: 12 },
   content: { padding: 24 },
   center: { paddingVertical: 80, alignItems: 'center' },
-  title: { fontFamily: fonts.serif, fontSize: 40, lineHeight: 46, color: colors.text, marginBottom: 14 },
+  title: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 40, lineHeight: 46, color: colors.text, marginBottom: 14 },
   text: { fontFamily: fonts.sansRegular, fontSize: 15, lineHeight: 22, color: colors.muted },
   label: { fontFamily: fonts.serif, fontSize: 14, color: colors.muted, marginTop: 26, marginBottom: 10 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
   halo: { bottom: 18, borderRadius: radius.md }, // the same box as the cover (its margin excluded)
   backdrop: { transform: [{ scale: 1.25 }], opacity: 0.85 }, // a little bigger: no hard blur edges at the screen's sides
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  trackName: { fontFamily: fonts.serif, fontSize: 28, lineHeight: 34, color: colors.text },
+  trackName: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 28, lineHeight: 34, color: colors.text },
   trackArtist: { fontFamily: fonts.sans, fontSize: 15, color: colors.muted, marginTop: 4 },
   intro: { fontFamily: fonts.serifItalic, fontSize: 17, lineHeight: 26, color: colors.muted, marginTop: 12 },
   controls: { flexDirection: 'row', alignItems: 'center', gap: 18, marginTop: 22 },

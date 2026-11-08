@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   hint: { fontFamily: fonts.sansRegular, fontSize: 13, lineHeight: 19, color: colors.muted, marginBottom: 12 },
   buttons: { flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' },
   year: { marginBottom: 6 },
-  yearText: { fontFamily: fonts.serif, fontSize: 22, color: colors.text, marginTop: 10, marginBottom: 4 },
+  yearText: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 22, color: colors.text, marginTop: 10, marginBottom: 4 },
   row: { flexDirection: 'row', gap: 14, paddingVertical: 9, alignItems: 'flex-start' },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.muted, marginTop: 8 },
   dotBig: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.text, marginTop: 6, marginLeft: -2 },

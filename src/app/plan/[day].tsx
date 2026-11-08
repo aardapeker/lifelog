@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
   barTitle: { fontFamily: fonts.serif, fontSize: 18, color: colors.text },
   sheet: { flex: 1, backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg },
   content: { padding: 22 },
-  title: { fontFamily: fonts.serif, fontSize: 32, lineHeight: 38, color: colors.text, marginBottom: 16 },
+  title: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 32, lineHeight: 38, color: colors.text, marginBottom: 16 },
   making: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 20 },
   makingText: { flex: 1, fontFamily: fonts.sansRegular, fontSize: 14, lineHeight: 20, color: colors.muted },
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 18 },

@@ -12,10 +12,13 @@ export const colors = {
   ok: '#9AD8AE',
 };
 
+// One family, Inter, everywhere (the mini player's look). The "serif" names stay as the roles
+// they always had (reading text, its italic, its bold) so nothing else had to change.
 export const fonts = {
-  serif: 'LibreCaslonText_400Regular',
-  serifItalic: 'LibreCaslonText_400Regular_Italic',
-  serifBold: 'LibreCaslonText_700Bold',
+  display: 'Inter_600SemiBold', // big titles, set a little tighter
+  serif: 'Inter_400Regular',
+  serifItalic: 'Inter_400Regular_Italic',
+  serifBold: 'Inter_700Bold',
   sans: 'Inter_500Medium',
   sansRegular: 'Inter_400Regular',
   sansBold: 'Inter_600SemiBold',

@@ -136,7 +136,7 @@ function RadioWidget({ radio, tall }: { radio: WidgetRadio; tall: boolean }) {
         {cover(56)}
         <FlexWidget style={{ flex: 1, flexDirection: 'column' }}>
           <TextWidget text={`${radio.station} · ${radio.position}`} maxLines={1} truncate="END" style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: MUTED }} />
-          <TextWidget text={radio.song} maxLines={1} truncate="END" style={{ fontSize: 18, fontFamily: 'LibreCaslonText_400Regular', color: WHITE }} />
+          <TextWidget text={radio.song} maxLines={1} truncate="END" style={{ fontSize: 18, fontFamily: 'Inter_500Medium', color: WHITE }} />
           <TextWidget text={sub} maxLines={1} truncate="END" style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: MUTED }} />
         </FlexWidget>
       </FlexWidget>
@@ -193,7 +193,7 @@ export function LifelogWidget({ width, height, radio }: { width: number; height:
         {wide && (
           <TextWidget
             text="Lifelog"
-            style={{ fontSize: 19, fontFamily: 'LibreCaslonText_400Regular', color: WHITE, marginLeft: 8, marginRight: 4 }}
+            style={{ fontSize: 19, fontFamily: 'Inter_500Medium', color: WHITE, marginLeft: 8, marginRight: 4 }}
           />
         )}
         <Button label="Talk" uri="lifelog://write?voice=1" primary height={40} />
@@ -217,7 +217,7 @@ export function LifelogWidget({ width, height, radio }: { width: number; height:
       }}
     >
       <FlexWidget style={{ flexDirection: 'column' }}>
-        <TextWidget text="Lifelog" style={{ fontSize: 22, fontFamily: 'LibreCaslonText_400Regular', color: WHITE }} />
+        <TextWidget text="Lifelog" style={{ fontSize: 22, fontFamily: 'Inter_500Medium', color: WHITE }} />
         <TextWidget text="How was the shift?" style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: MUTED }} />
       </FlexWidget>
       <FlexWidget style={{ flexDirection: 'row', width: 'match_parent', flexGap: 10 }}>

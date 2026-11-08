@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
   letter: { backgroundColor: colors.raised, alignItems: 'center', justifyContent: 'center' },
   letterText: { fontFamily: fonts.serif, color: colors.text },
   kicker: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.muted },
-  title: { fontFamily: fonts.serif, fontSize: 26, color: colors.text, marginTop: 1 },
+  title: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 26, color: colors.text, marginTop: 1 },
   dot: {
     position: 'absolute',
     top: 2,

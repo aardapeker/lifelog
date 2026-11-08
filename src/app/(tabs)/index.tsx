@@ -370,9 +370,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { fontFamily: fonts.serif, fontSize: 20, color: colors.text },
+  avatarText: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 20, color: colors.text },
   hello: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.muted },
-  name: { fontFamily: fonts.serif, fontSize: 26, color: colors.text, marginTop: 1 },
+  name: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 26, color: colors.text, marginTop: 1 },
 
   search: {
     flexDirection: 'row',
@@ -420,13 +420,13 @@ const styles = StyleSheet.create({
   bannerText: { fontFamily: fonts.sansRegular, fontSize: 13, lineHeight: 18, color: colors.muted, marginTop: 3 },
   letter: { backgroundColor: colors.accent, borderRadius: radius.md, padding: 20 },
   letterLabel: { fontFamily: fonts.sansRegular, fontSize: 12, color: '#6B6A6A' },
-  letterTitle: { fontFamily: fonts.serif, fontSize: 24, color: colors.accentText, marginTop: 4, marginBottom: 8 },
+  letterTitle: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 24, color: colors.accentText, marginTop: 4, marginBottom: 8 },
   letterBody: { fontFamily: fonts.serif, fontSize: 15, lineHeight: 23, color: colors.accentText },
   memory: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: 16 },
   memoryLabel: { fontFamily: fonts.serif, fontSize: 15, color: colors.muted, marginBottom: 6 },
   memoryBody: { fontFamily: fonts.sansRegular, fontSize: 14, lineHeight: 21, color: colors.text },
 
   empty: { marginTop: 30 },
-  emptyTitle: { fontFamily: fonts.serif, fontSize: 30, lineHeight: 36, color: colors.text, marginBottom: 10 },
+  emptyTitle: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 30, lineHeight: 36, color: colors.text, marginBottom: 10 },
   emptyText: { fontFamily: fonts.sansRegular, fontSize: 15, lineHeight: 22, color: colors.muted },
 });

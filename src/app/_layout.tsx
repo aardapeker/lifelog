@@ -1,10 +1,11 @@
-import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
-import { openWrite } from '../lib/write';
 import {
-  LibreCaslonText_400Regular,
-  LibreCaslonText_400Regular_Italic,
-  LibreCaslonText_700Bold,
-} from '@expo-google-fonts/libre-caslon-text';
+  Inter_400Regular,
+  Inter_400Regular_Italic,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
+import { openWrite } from '../lib/write';
 import { useFonts } from 'expo-font';
 import * as Notifications from 'expo-notifications';
 import { openNotification } from '../lib/notify';
@@ -67,10 +68,9 @@ function BackgroundSync() {
 
 export default function RootLayout() {
   const [loaded] = useFonts({
-    LibreCaslonText_400Regular,
-    LibreCaslonText_400Regular_Italic,
-    LibreCaslonText_700Bold,
     Inter_400Regular,
+    Inter_400Regular_Italic,
+    Inter_700Bold,
     Inter_500Medium,
     Inter_600SemiBold,
   });

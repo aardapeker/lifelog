@@ -12,8 +12,11 @@ const INLINE = /(\*\*[^*\n]+?\*\*|\*[^*\s][^*\n]*?\*|`[^`\n]+`)/g;
 const label = (url: string) => {
   if (url.startsWith('lifelog://read/')) return '📖 Open the read';
   if (url.startsWith('lifelog://play/')) return '▶ Play on Spotify';
+  // Google Search's redirect links say nothing useful ("vertexaisearch.cloud.google.com/groundin…")
+  if (/vertexaisearch\.cloud\.google\.com/.test(url)) return '🔗 source';
   const bare = url.replace(/^https?:\/\/(www\.)?/, '');
-  return bare.length > 40 ? `${bare.slice(0, 40)}…` : bare;
+  const host = bare.split('/')[0];
+  return bare.length > 40 ? `🔗 ${host}` : bare;
 };
 
 /** Line-level markdown the models like to use: bullets and headings. */
@@ -35,10 +38,8 @@ function open(url: string) {
 
 /** The bold / italic version of whatever font the message is set in. */
 function variants(style: StyleProp<TextStyle>): { bold: TextStyle; italic: TextStyle } {
-  const family = StyleSheet.flatten(style)?.fontFamily ?? fonts.serif;
-  return family.startsWith('LibreCaslon')
-    ? { bold: { fontFamily: fonts.serifBold }, italic: { fontFamily: fonts.serifItalic } }
-    : { bold: { fontFamily: fonts.sansBold }, italic: { fontStyle: 'italic' } };
+  void style; // one family (Inter) everywhere now: its real bold and italic files
+  return { bold: { fontFamily: fonts.serifBold }, italic: { fontFamily: fonts.serifItalic } };
 }
 
 function inline(text: string, key: string, v: ReturnType<typeof variants>): ReactNode[] {

@@ -209,7 +209,11 @@ export default function ChatScreen() {
           <Text style={styles.title} numberOfLines={1}>
             {tab === 'foryou' ? 'For you' : chatId === null ? 'New chat' : chatTitle({ title })}
           </Text>
-          {tab === 'chat' && !!label && <Text style={styles.model}>{label}</Text>}
+          {tab === 'chat' && !!label && (
+            <Text style={styles.model} numberOfLines={1}>
+              {label}
+            </Text>
+          )}
         </View>
         {tab === 'chat' && <IconButton icon="time-outline" label="Chat history" onPress={() => router.push('/chats')} />}
         {tab === 'chat' && !isEmptyNew && <IconButton icon="create-outline" label="New chat" onPress={startNew} />}
@@ -305,7 +309,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   center: { justifyContent: 'center', paddingHorizontal: 28 },
   top: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, marginBottom: 10 },
-  title: { fontFamily: fonts.serif, fontSize: 24, color: colors.text },
+  title: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 24, color: colors.text },
   switch: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 6, backgroundColor: colors.raised, borderRadius: 999, padding: 4 },
   switchItem: { flex: 1, paddingVertical: 9, borderRadius: 999, alignItems: 'center' },
   switchOn: { backgroundColor: colors.accent },
@@ -315,7 +319,7 @@ const styles = StyleSheet.create({
 
   thread: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16, gap: 18 },
   intro: { marginTop: 24 },
-  bigTitle: { fontFamily: fonts.serif, fontSize: 46, lineHeight: 50, color: colors.text, marginBottom: 14 },
+  bigTitle: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 46, lineHeight: 50, color: colors.text, marginBottom: 14 },
   muted: { fontFamily: fonts.sansRegular, fontSize: 15, lineHeight: 22, color: colors.muted, maxWidth: 320 },
   starters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 24 },
 

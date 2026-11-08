@@ -38,7 +38,7 @@ export default function WelcomeScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, paddingHorizontal: 24 },
-  title: { fontFamily: fonts.serif, fontSize: 62, lineHeight: 66, color: colors.accentText, letterSpacing: -1 },
+  title: { fontFamily: fonts.display, fontSize: 62, lineHeight: 66, color: colors.accentText, letterSpacing: -1 },
   subtitle: {
     fontFamily: fonts.sansRegular,
     fontSize: 15,

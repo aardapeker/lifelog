@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   barTitle: { fontFamily: fonts.serif, fontSize: 18, color: colors.text },
   sheet: { flex: 1, backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg },
   content: { padding: 24 },
-  title: { fontFamily: fonts.serif, fontSize: 36, lineHeight: 42, color: colors.text, marginBottom: 20 },
+  title: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 36, lineHeight: 42, color: colors.text, marginBottom: 20 },
   file: { backgroundColor: colors.raised, borderRadius: radius.sm, padding: 14, marginBottom: 16 },
   fileLabel: { fontFamily: fonts.serif, fontSize: 14, color: colors.muted, marginBottom: 4 },
   fileName: { fontFamily: fonts.sansRegular, fontSize: 15, color: colors.text },

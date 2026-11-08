@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 14,
   },
-  barTitle: { fontFamily: fonts.serif, fontSize: 20, color: colors.text },
+  barTitle: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 20, color: colors.text },
   editing: { fontFamily: fonts.sans, fontSize: 11, color: colors.muted, letterSpacing: 1, textTransform: 'uppercase' },
   sheet: {
     flex: 1,
@@ -511,7 +511,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radius.lg,
   },
   sheetContent: { padding: 22, paddingBottom: 40 },
-  title: { fontFamily: fonts.serif, fontSize: 32, lineHeight: 38, color: colors.text },
+  title: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 32, lineHeight: 38, color: colors.text },
   tiles: { flexDirection: 'row', gap: 8, marginTop: 16, marginBottom: 22 },
   photos: { gap: 10, paddingBottom: 20 },
   photo: { width: 132, height: 132, borderRadius: radius.sm, backgroundColor: colors.raised },

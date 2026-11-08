@@ -62,6 +62,6 @@ const styles = StyleSheet.create({
   barTitle: { fontFamily: fonts.serif, fontSize: 18, color: colors.text },
   sheet: { flex: 1, backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg },
   content: { padding: 24 },
-  title: { fontFamily: fonts.serif, fontSize: 38, lineHeight: 44, color: colors.text, marginBottom: 22 },
+  title: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 38, lineHeight: 44, color: colors.text, marginBottom: 22 },
   body: { fontFamily: fonts.serif, fontSize: 18, lineHeight: 30, color: colors.text },
 });
