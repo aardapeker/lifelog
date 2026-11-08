@@ -1,3 +1,4 @@
+import { milestonesForContext } from './milestones';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import type { Tool } from './chat';
 import { getSetting } from './db';
@@ -21,15 +22,17 @@ export function renderNotes(notes: Note[]): string {
 
 /** What the friend always knows: their name, the profile, learned facts. */
 export async function aboutUser(db: SQLiteDatabase): Promise<string> {
-  const [name, profile, facts] = await Promise.all([
+  const [name, profile, facts, milestones] = await Promise.all([
     getSetting(db, 'name'),
     getSetting(db, 'profile'),
     listFacts(db, 80),
+    milestonesForContext(db).catch(() => ''),
   ]);
   const parts: string[] = [];
   if (name.trim()) parts.push(`Their name is ${name.trim()}.`);
   if (profile.trim()) parts.push(`## About them (written by them)\n${profile.trim()}`);
   if (facts.length) parts.push(`## Things you've learned from their journal\n${facts.map((f) => `- ${f.text}`).join('\n')}`);
+  if (milestones) parts.push(milestones); // their life story, and today's anniversaries
   return parts.join('\n\n');
 }
 

@@ -28,6 +28,7 @@ import { bigTitleMotion, CollapsingHeader, useCollapsingHeader } from '../../com
 import { FadeIn, PressScale, Shimmer, ShimmerText, stagger } from '../../components/motion';
 import { useBottomSpace } from '../../components/MiniPlayer';
 import { spotifyConnected } from '../../lib/spotify';
+import { MilestoneSuggestions } from '../../components/Milestones';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 
 type Range = 'all' | 'week' | 'month';
@@ -115,7 +116,8 @@ export default function JournalScreen() {
     }
   }, [db, query]);
 
-  const [radio, setRadio] = useState(false); // Spotify connected: the Radio button shows
+  const [radio, setRadio] = useState(false);
+  const [learned, setLearned] = useState(0); // bumps when the background jobs finish // Spotify connected: the Radio button shows
   useFocusEffect(
     useCallback(() => {
       spotifyConnected().then(setRadio);
@@ -135,6 +137,7 @@ export default function JournalScreen() {
         const r = await latestRecap(db);
         setRecap(r && Date.now() - r.created_at < 7 * 86_400_000 ? r : null);
         photoMap(db).then(setPhotos);
+        setLearned((n) => n + 1); // new entries were read: maybe a milestone to suggest
       });
     }, [load, db]),
   );
@@ -269,6 +272,8 @@ export default function JournalScreen() {
           <Ionicons name={isSearch ? 'close' : 'search'} size={18} color={colors.text} />
         </Pressable>
       </View>
+
+      {!isSearch && <MilestoneSuggestions refresh={learned} />}
 
       {!isSearch && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>

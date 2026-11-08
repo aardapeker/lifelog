@@ -85,6 +85,15 @@ export function getNotesByIds(db: SQLiteDatabase, ids: number[]): Promise<Note[]
   return db.getAllAsync<Note>(`SELECT * FROM notes WHERE id IN (${placeholders})`, ...ids);
 }
 
+/** A few random entries older than `days`: throwbacks for the radio ("remember that day in September?"). */
+export function olderNotes(db: SQLiteDatabase, days: number, count: number): Promise<Note[]> {
+  return db.getAllAsync<Note>(
+    "SELECT * FROM notes WHERE created_at < ? AND trim(body) != '' ORDER BY RANDOM() LIMIT ?",
+    Date.now() - days * 86_400_000,
+    count,
+  );
+}
+
 export function recentNotes(db: SQLiteDatabase, days: number, limit = 30): Promise<Note[]> {
   const since = Date.now() - days * 24 * 60 * 60 * 1000;
   return db.getAllAsync<Note>(

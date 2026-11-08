@@ -2,6 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { getBackgroundConfig, parseJsonReply } from './chat';
 import { getAutonomySettings, isNeverResearch } from './autonomySettings';
 import { formatDate } from './notes';
+import { MILESTONE_RULE, suggestMilestone, type FoundMilestone } from './milestones';
 
 export type Fact = {
   id: number;
@@ -28,10 +29,11 @@ type Analysis = {
   goals?: number[];
   ideas?: string[];
   research?: { topic?: string; query?: string; why?: string }[];
+  milestone?: FoundMilestone | null;
 };
 
 const SYSTEM = (goals: string, never: string) =>
-  `You read one entry from someone's personal journal and return JSON with five things:
+  `You read one entry from someone's personal journal and return JSON with six things:
 1. "mood": {"score": 1-5, "label": one lowercase word}. 1 = awful, 3 = neutral, 5 = great.
 2. "facts": durable facts about the writer worth remembering in a month: people in their life, pets, places,
    goals, plans, habits, preferences, notable events, recurring feelings. Each: {"kind", "subject", "text"}.
@@ -45,6 +47,7 @@ const SYSTEM = (goals: string, never: string) =>
    Each: {"topic": "short title", "query": "a web search query", "why": "what they wrote that made it worth it"}.
    Only when the web would really help; usually []. Never research private details about other people.
    Never research these topics: ${never || '(nothing excluded)'}.
+6. ${MILESTONE_RULE}
 Write facts and ideas in the language of the entry.
 The writer's goals: ${goals || '(none yet)'}`;
 
@@ -76,7 +79,10 @@ export async function learnFacts(db: SQLiteDatabase): Promise<number> {
           system: SYSTEM(goalList, never.join(', ')),
           prompt: `Entry written ${formatDate(note.created_at)}:\n\n${note.body || '(only photos)'}`,
         });
-        await saveAnalysis(db, note, parseJsonReply<Analysis>(reply), new Set(goals.map((g) => g.id)), never);
+        const analysis = parseJsonReply<Analysis>(reply);
+        await saveAnalysis(db, note, analysis, new Set(goals.map((g) => g.id)), never);
+        // a life event: suggested on the Journal page, saved only when you say so
+        if (analysis.milestone) await suggestMilestone(db, analysis.milestone, note.id, note.created_at).catch(() => {});
         analyzed++;
       } catch (e) {
         console.warn('entry analysis failed', e);

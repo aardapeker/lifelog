@@ -105,7 +105,13 @@ const ROUTES: Route[] = MODELS.flatMap((model) => [
   { model, call: viaInteractions },
   { model, call: viaGenerate },
 ]);
-let working: Route | null = null; // the route that worked last time
+// which way of calling (interactions or generate) worked last, per model. Only the WAY is
+// remembered, never the model: the preferred voice is always tried first again (a backup that
+// stepped in once used to stick for the rest of the session)
+const worksVia = new Map<string, Route['call']>();
+// a model that just failed sits out for 2 minutes, so each talk doesn't wait on it again
+const resting = new Map<string, number>();
+const REST_MS = 2 * 60_000;
 export const VOICE_MODELS = [
   { id: 'gemini-3.8-flash-tts', label: '3.8 Flash TTS' },
   { id: 'gemini-3.8-flash-lite-tts', label: '3.8 Flash-Lite TTS' },
@@ -115,9 +121,12 @@ let preferred = MODELS[0];
 export function preferVoiceModel(model: string): void {
   if (!MODELS.includes(model) || model === preferred) return;
   preferred = model;
-  working = null;
 }
-const routesInOrder = () => [...ROUTES.filter((r) => r.model === preferred), ...ROUTES.filter((r) => r.model !== preferred)];
+/** Preferred model first, then the others; within a model, the call that worked last time first. */
+const routesInOrder = () =>
+  [preferred, ...MODELS.filter((m) => m !== preferred)].flatMap((model) =>
+    ROUTES.filter((r) => r.model === model).sort((a, b) => Number(worksVia.get(model) === b.call) - Number(worksVia.get(model) === a.call)),
+  );
 let failure: { at: number; message: string } | null = null; // everything failed: don't hammer the API
 // models whose DAILY quota ran out (each model has its own): skipped until tomorrow, no waiting on them
 const spent = new Map<string, string>();
@@ -146,8 +155,12 @@ async function voiceBytes(apiKey: string, lines: SpokenLine[], cast: Cast): Prom
   if (failure && Date.now() - failure.at < 20_000) throw new Error(failure.message);
   const errors: string[] = [];
   const order = routesInOrder();
-  for (const route of working ? [working, ...order.filter((r) => r !== working)] : order) {
+  // if every model is resting, try anyway rather than going robotic
+  const allResting = MODELS.every((m) => Date.now() - (resting.get(m) ?? 0) < REST_MS);
+  const failedHere = new Map<string, number>();
+  for (const route of order) {
     if (spent.get(route.model) === today()) continue;
+    if (!allResting && !failedHere.has(route.model) && Date.now() - (resting.get(route.model) ?? 0) < REST_MS) continue;
     try {
       const bytes = await withRetry(() => route.call(apiKey, route.model, lines, cast));
       // audio is billed at 25 tokens a second: count the seconds in the WAV (16-bit mono)
@@ -159,11 +172,15 @@ async function voiceBytes(apiKey: string, lines: SpokenLine[], cast: Cast): Prom
         input: textTokens(lines.map((l) => l.text).join(' ') + cast.map((c) => c.style).join(' ')),
         output: (Math.max(0, bytes.length - 44) / (rate * 2)) * 25,
       });
-      working = route;
+      worksVia.set(route.model, route.call);
+      resting.delete(route.model);
       failure = null;
       return bytes;
     } catch (e) {
       if (dailyLimit(e)) spent.set(route.model, today());
+      failedHere.set(route.model, (failedHere.get(route.model) ?? 0) + 1);
+      // both ways failed for this model: let it rest a little, then it's first in line again
+      if (failedHere.get(route.model) === 2) resting.set(route.model, Date.now());
       errors.push(`${route.model} (${route.call === viaInteractions ? 'interactions' : 'generate'}): ${e instanceof Error ? e.message : e}`);
       if (/\b(401|403)\b/.test(String(e)) && /API key/i.test(String(e))) break; // a bad key fails everywhere
     }

@@ -34,6 +34,7 @@ import { Glass } from '../../components/Glass';
 import { FadeIn, PressScale, stagger } from '../../components/motion';
 import { useBottomSpace } from '../../components/MiniPlayer';
 import { UsageSection } from '../../components/UsageSection';
+import { LifeTimeline } from '../../components/Milestones';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 
 const WEEKS = 12;
@@ -479,6 +480,11 @@ export default function InsightsScreen() {
           </View>
           {ideas.length > 0 && <Text style={[styles.rowMeta, { marginTop: 10 }]}>Tap to tick off, hold to delete.</Text>}
         </View>
+      </FadeIn>
+
+      {/* ── your life in milestones ── */}
+      <FadeIn style={styles.section} delay={stagger(6, 60)}>
+        <LifeTimeline />
       </FadeIn>
 
       {/* ── what the AI costs ── */}

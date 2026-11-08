@@ -197,6 +197,22 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX usage_at ON usage(at);
   `,
+  // v9: the big moments of your life (a new job, a move, a graduation), suggested by the AI and approved by you
+  `
+  CREATE TABLE milestones (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    date       INTEGER NOT NULL,          -- when it happened (ms)
+    precision  TEXT    NOT NULL DEFAULT 'day', -- day | month | year: how exactly the date is known
+    title      TEXT    NOT NULL,
+    story      TEXT,
+    emoji      TEXT,
+    big        INTEGER NOT NULL DEFAULT 0, -- 1 = a life chapter, 0 = a notable moment
+    status     TEXT    NOT NULL DEFAULT 'pending', -- pending (a suggestion) | saved
+    note_id    INTEGER,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX milestones_date ON milestones(date);
+  `,
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<void> {

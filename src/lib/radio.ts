@@ -3,7 +3,7 @@ import { getChatConfig, getRadioModel, parseJsonReply, PROVIDERS } from './chat'
 import { getCheckinSettings, shiftFor } from './checkins';
 import { aboutUser, renderNotes } from './context';
 import { getSetting } from './db';
-import { formatDate, noteSong, recentNotes } from './notes';
+import { formatDate, noteSong, olderNotes, recentNotes } from './notes';
 import { bannedSongs, FAVOURITES_PER_SHOW, getRadioPrefs, likedSongs, playedSongs, playsThisMonth, songLine } from './songMemory';
 import { findTrack, musicTaste, spotifyLikedSongs, type Track } from './spotify';
 import type { Persona, Station } from './stations';
@@ -129,7 +129,7 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
     playedSongs(db),
     likedSongs(db),
   ]);
-  const [prefs, banned] = await Promise.all([getRadioPrefs(db), bannedSongs(db)]);
+  const [prefs, banned, throwbacks] = await Promise.all([getRadioPrefs(db), bannedSongs(db), olderNotes(db, 14, 3).catch(() => [])]);
   // favourites take turns: one that played in the last few shows sits this one out
   const resting = new Set(played.slice(0, REST).map((p) => p.id));
   const ok = (t: { id: string }) => !banned.some((b) => b.id === t.id);
@@ -207,7 +207,11 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
       (banned.length ? `NEVER play these, the listener banned them: ${banned.slice(0, 60).map(songLine).join('; ')}\n` : '') +
       (wish.trim() ? `The listener asked for: ${wish.trim()}\n` : '') +
       (taste.length ? `Their top artists lately: ${taste.join(', ')}\n` : '') +
-      `\nRecent journal:\n${renderNotes(recent) || '(nothing yet)'}`,
+      `\nRecent journal:\n${renderNotes(recent) || '(nothing yet)'}` +
+      (throwbacks.length
+        ? `\n\nThrowbacks: a few random OLDER entries. Use one or two for a callback ("remember that day in September when…"), ` +
+          `always saying roughly when it was:\n${renderNotes(throwbacks)}`
+        : ''),
   });
   const plan = parseJsonReply<{
     title?: string;
