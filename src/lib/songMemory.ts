@@ -26,11 +26,36 @@ async function list(db: SQLiteDatabase, key: string): Promise<SongRef[]> {
 export const playedSongs = (db: SQLiteDatabase) => list(db, PLAYED);
 export const likedSongs = (db: SQLiteDatabase) => list(db, LIKED);
 
-/** Remembers a song as played (newest first, no duplicates, capped). */
+/** Remembers a song as played (newest first, no duplicates, capped), and counts the play. */
 export async function rememberPlayed(db: SQLiteDatabase, t: Track): Promise<void> {
   const old = await playedSongs(db);
   const next = [ref(t), ...old.filter((s) => s.id !== t.id)].slice(0, KEEP);
   await setSetting(db, PLAYED, JSON.stringify(next));
+  const plays = await playTimes(db);
+  plays[t.id] = [Date.now(), ...(plays[t.id] ?? [])].slice(0, 10);
+  await setSetting(db, PLAYS, JSON.stringify(plays));
+}
+
+// when each song was played (newest 10 per song), so favourites that keep coming back get rarer
+const PLAYS = 'radio.plays';
+const MONTH = 30 * 86_400_000;
+
+async function playTimes(db: SQLiteDatabase): Promise<Record<string, number[]>> {
+  try {
+    const all = JSON.parse(await getSetting(db, PLAYS, '{}')) as Record<string, number[]>;
+    for (const id of Object.keys(all)) {
+      all[id] = all[id].filter((at) => Date.now() - at < MONTH);
+      if (!all[id].length) delete all[id];
+    }
+    return all;
+  } catch {
+    return {};
+  }
+}
+
+/** How many times each song played on the radio in the last 30 days. */
+export async function playsThisMonth(db: SQLiteDatabase): Promise<Map<string, number>> {
+  return new Map(Object.entries(await playTimes(db)).map(([id, at]) => [id, at.length]));
 }
 
 /** Hearts or un-hearts a song. Returns whether it's hearted now. */

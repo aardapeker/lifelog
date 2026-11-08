@@ -4,7 +4,7 @@ import { getCheckinSettings, shiftFor } from './checkins';
 import { aboutUser, renderNotes } from './context';
 import { getSetting } from './db';
 import { formatDate, noteSong, recentNotes } from './notes';
-import { bannedSongs, FAVOURITES_PER_SHOW, getRadioPrefs, likedSongs, playedSongs, songLine } from './songMemory';
+import { bannedSongs, FAVOURITES_PER_SHOW, getRadioPrefs, likedSongs, playedSongs, playsThisMonth, songLine } from './songMemory';
 import { findTrack, musicTaste, spotifyLikedSongs, type Track } from './spotify';
 import type { Persona, Station } from './stations';
 import type { SpokenLine } from './tts';
@@ -22,6 +22,36 @@ export type Show = { title: string; lang: string; station: Station; slots: Slot[
 
 /** Quick ideas for the "anything else?" box. */
 export const WISHES = ['On the way to work', 'After the shift', 'Focus', 'Rainy day', 'Make me laugh'];
+
+/**
+ * Draws the favourites for one show. Every list a song is on is one more ticket in the bag (in your
+ * journal + Spotify Liked + hearted here = 3 tickets), and every play in the last 30 days halves its
+ * chances, so a song you love comes back often but can't take over every show.
+ */
+export function drawFavourites<T extends { id: string }>(
+  lists: T[][],
+  plays: Map<string, number>,
+  count: number,
+  allowed: (t: T) => boolean,
+): T[] {
+  const tickets = new Map<string, { song: T; weight: number }>();
+  for (const list of lists) {
+    const seen = new Set<string>(); // one ticket per list, even if a list repeats a song
+    for (const song of list) {
+      if (seen.has(song.id) || !allowed(song)) continue;
+      seen.add(song.id);
+      const t = tickets.get(song.id) ?? { song, weight: 0 };
+      t.weight++;
+      tickets.set(song.id, t);
+    }
+  }
+  // weighted draw without repeats: each song gets random^(1/weight), the highest keys win
+  return [...tickets.values()]
+    .map((t) => ({ song: t.song, key: Math.random() ** (1 / (t.weight / 2 ** (plays.get(t.song.id) ?? 0))) }))
+    .sort((a, b) => b.key - a.key)
+    .slice(0, count)
+    .map((x) => x.song);
+}
 
 /** A favourite among the last this-many played songs (about 3 or 4 shows) waits for a later show. */
 const REST = 40;
@@ -107,17 +137,13 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
   const favs = FAVOURITES_PER_SHOW[prefs.favourites];
   const spotifyFavs = favs && prefs.spotifyLiked ? (await spotifyLikedSongs(db).catch(() => [])).filter(ok) : [];
   const twist = prefs.twists ? TWISTS[Math.floor(Math.random() * TWISTS.length)] : null;
-  const shuffle = <T,>(a: T[]) => a.map((x) => [Math.random(), x] as const).sort((x, y) => x[0] - y[0]).map((x) => x[1]);
   // ONE pool of favourites: songs from this week's entries, hearted songs and Spotify Liked Songs.
   // The app draws a random few (Settings → Radio: 2 sometimes, 4 often) and the show plays exactly those.
   const journalSongs = recent
     .map((n) => noteSong(n))
     .filter((x): x is NonNullable<typeof x> => !!x)
     .map((x) => ({ id: x.id, uri: `spotify:track:${x.id}`, name: x.name, artist: x.artist }));
-  const pool = [...journalSongs, ...liked, ...spotifyFavs]
-    .filter((x, i, all) => all.findIndex((o) => o.id === x.id) === i)
-    .filter(fresh);
-  const welcome = favs ? shuffle(pool).slice(0, favs) : [];
+  const welcome = favs ? drawFavourites([journalSongs, liked, spotifyFavs], await playsThisMonth(db), favs, fresh) : [];
   const duo = !!station.sidekick;
   const names = duo ? `"${station.host.name}" or "${station.sidekick!.name}"` : `"${station.host.name}"`;
 
