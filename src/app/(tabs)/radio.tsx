@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useKeepAwake } from 'expo-keep-awake';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Image, Keyboard, ScrollView, StyleSheet, Text, TextInput, View, type ScrollViewInstance } from 'react-native';
+import { Alert, Animated, Easing, Image, Keyboard, ScrollView, StyleSheet, Text, TextInput, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MorphPlayButton, WavyProgress } from '../../components/expressive';
 import { Glass, GlassArea } from '../../components/Glass';
@@ -51,23 +51,78 @@ function Ban({ name, onBan, size }: { name: string; onBan: () => void; size: num
 const withAlpha = (rgb: string, a: number) => rgb.replace('rgb(', 'rgba(').replace(')', `, ${a})`);
 
 /** A soft glow in the album cover's colours behind the glass; fades over when the song changes. */
-function AlbumGlow({ palette }: { palette: Palette | null }) {
-  const [layers, setLayers] = useState<{ key: number; p: Palette }[]>([]);
+/**
+ * The page's light: the album cover itself, blurred into a soft cloud of its colours, filling the
+ * whole screen behind the glass (fixed while you scroll). Each new cover cross-fades in. A dark veil
+ * keeps the text readable. No cover (or before it loads): the cover's two colours as a gradient.
+ */
+function AlbumGlow({ palette, image }: { palette: Palette | null; image: string | null }) {
+  const [layers, setLayers] = useState<{ key: string; image: string | null; p: Palette | null }[]>([]);
   useEffect(() => {
-    if (palette) setLayers((l) => [...l.slice(-1), { key: Date.now(), p: palette }]);
-  }, [palette]);
+    if (!image && !palette) return;
+    setLayers((l) => (l[l.length - 1]?.key === `${image}|${palette?.glow}` ? l : [...l.slice(-1), { key: `${image}|${palette?.glow}`, image, p: palette }]));
+  }, [image, palette]);
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      {layers.map(({ key, p }) => (
+      {layers.map(({ key, image: img, p }) => (
         <FadeIn key={key} from={0} style={StyleSheet.absoluteFill}>
-          {/* the album's colours all the way down: bright at the top, softer in the middle, its deep tone at the bottom */}
-          <LinearGradient
-            colors={[withAlpha(p.glow, 0.65), withAlpha(p.glow, 0.38), withAlpha(p.deep, 0.95)]}
-            locations={[0, 0.45, 1]}
-            style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }]}
-          />
+          {img ? (
+            <>
+              <Image source={{ uri: img }} blurRadius={40} resizeMode="cover" style={[StyleSheet.absoluteFill, styles.backdrop]} />
+              <LinearGradient
+                colors={['rgba(29, 28, 28, 0.15)', 'rgba(29, 28, 28, 0.45)', 'rgba(29, 28, 28, 0.7)']}
+                locations={[0, 0.5, 1]}
+                style={StyleSheet.absoluteFill}
+              />
+            </>
+          ) : p ? (
+            <LinearGradient
+              colors={[withAlpha(p.glow, 0.65), withAlpha(p.glow, 0.38), withAlpha(p.deep, 0.95)]}
+              locations={[0, 0.45, 1]}
+              style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }]}
+            />
+          ) : null}
         </FadeIn>
       ))}
+    </View>
+  );
+}
+
+/**
+ * The cover with a halo: a soft light in the cover's brightest colour glowing out from behind it,
+ * like a lamp (a real blurred shadow, not a hard edge). While on air it breathes slowly (a little
+ * faster while the hosts talk); paused, it rests.
+ */
+function GlowingCover({ uri, glow, live, talking }: { uri: string; glow: string | null; live: boolean; talking: boolean }) {
+  const breath = useRef(new Animated.Value(0.75)).current;
+  useEffect(() => {
+    if (!live) {
+      Animated.timing(breath, { toValue: 0.55, duration: 600, useNativeDriver: true }).start();
+      return;
+    }
+    const half = talking ? 1100 : 2200;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(breath, { toValue: 1, duration: half, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(breath, { toValue: 0.6, duration: half, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [live, talking, breath]);
+  const scale = breath.interpolate({ inputRange: [0.5, 1], outputRange: [0.97, 1.02] });
+  return (
+    <View style={styles.coverWrap}>
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFill,
+          styles.halo,
+          { backgroundColor: glow ?? 'rgb(255, 255, 255)', boxShadow: `0 0 70px 18px ${withAlpha(glow ?? 'rgb(255, 255, 255)', 0.75)}` },
+          { opacity: breath, transform: [{ scale }] },
+        ]}
+      />
+      <Image source={{ uri }} style={styles.cover} />
     </View>
   );
 }
@@ -91,7 +146,7 @@ export default function RadioScreen() {
   return (
     <View style={styles.screen}>
     <GlassArea style={{ paddingTop: insets.top + 8 }}>
-      <AlbumGlow palette={palette} />
+      <AlbumGlow palette={palette} image={phase === 'onair' || phase === 'done' ? (current?.track.image ?? null) : null} />
       {phase === 'onair' && <KeepAwake />}
       <View style={styles.bar}>
         <Avatar size={44} />
@@ -222,7 +277,7 @@ export default function RadioScreen() {
               {show.station.emoji} {show.station.name} {show.station.freq} · {showName(show)}
             </Text>
             <FadeIn key={current.track.id}>
-              {current.track.image && <Image source={{ uri: current.track.image }} style={styles.cover} />}
+              {current.track.image && <GlowingCover uri={current.track.image} glow={palette?.glow ?? null} live={phase === 'onair' && !paused} talking={speaking} />}
               <View style={styles.titleRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.trackName}>{current.track.name}</Text>
@@ -348,6 +403,9 @@ const styles = StyleSheet.create({
   who: { fontFamily: fonts.serifBold, fontStyle: 'normal' },
   showTitle: { fontFamily: fonts.serifItalic, fontSize: 16, color: colors.muted, marginBottom: 16 },
   cover: { width: '100%', aspectRatio: 1, borderRadius: radius.md, marginBottom: 18, backgroundColor: colors.raised },
+  coverWrap: { marginBottom: 0 },
+  halo: { bottom: 18, borderRadius: radius.md }, // the same box as the cover (its margin excluded)
+  backdrop: { transform: [{ scale: 1.25 }], opacity: 0.85 }, // a little bigger: no hard blur edges at the screen's sides
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   trackName: { fontFamily: fonts.serif, fontSize: 28, lineHeight: 34, color: colors.text },
   trackArtist: { fontFamily: fonts.sans, fontSize: 15, color: colors.muted, marginTop: 4 },
