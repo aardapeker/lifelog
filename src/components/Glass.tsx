@@ -38,6 +38,7 @@ export function Glass({
   radius = 28,
   intensity = 60,
   blur = false,
+  fill,
 }: {
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -46,6 +47,7 @@ export function Glass({
   // real blur is opt-in, ONE panel per GlassArea: several blur views capturing the same area
   // capture each other, and that crashed the app when switching tabs
   blur?: boolean;
+  fill?: string; // a lighter or tinted glass (the radio lets the album's colours through)
 }) {
   const area = useContext(Area);
   const target = blur ? area : null;
@@ -60,7 +62,7 @@ export function Glass({
           style={StyleSheet.absoluteFill}
         />
       ) : null}
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: target ? glass.fill : glass.solid }]} />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: fill ?? (target ? glass.fill : glass.solid) }]} />
       <LinearGradient colors={glass.shine} style={[StyleSheet.absoluteFill, { height: '55%' }]} pointerEvents="none" />
       <View style={[StyleSheet.absoluteFill, styles.edge, { borderRadius: radius }]} pointerEvents="none" />
       {children}

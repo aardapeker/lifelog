@@ -60,10 +60,11 @@ function AlbumGlow({ palette }: { palette: Palette | null }) {
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       {layers.map(({ key, p }) => (
         <FadeIn key={key} from={0} style={StyleSheet.absoluteFill}>
+          {/* the album's colours all the way down: bright at the top, softer in the middle, its deep tone at the bottom */}
           <LinearGradient
-            colors={[withAlpha(p.glow, 0.55), withAlpha(p.deep, 0.9), colors.bg]}
-            locations={[0, 0.45, 0.9]}
-            style={StyleSheet.absoluteFill}
+            colors={[withAlpha(p.glow, 0.65), withAlpha(p.glow, 0.38), withAlpha(p.deep, 0.95)]}
+            locations={[0, 0.45, 1]}
+            style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }]}
           />
         </FadeIn>
       ))}
@@ -104,7 +105,8 @@ export default function RadioScreen() {
         </View>
       </View>
 
-      <Glass blur radius={28} style={styles.sheet}>
+      {/* a lighter glass, so the cover's colours glow through the whole page */}
+      <Glass blur radius={28} style={styles.sheet} fill={palette ? 'rgba(29, 28, 28, 0.3)' : undefined}>
       <ScrollView
         ref={scroll}
         style={{ flex: 1 }}
