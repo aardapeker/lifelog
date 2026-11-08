@@ -65,9 +65,13 @@ function useRadioEngine() {
   const chooseLang = (lang: Lang) => remember({ lang });
 
   /** Picks a voice for the host or sidekick, remembers it, and lets you hear it. */
+  // each tap gets a number: a sample that finishes making after a newer tap is thrown away, so two never overlap
+  const previewTurn = useRef(0);
   const chooseVoice = async (role: 'host' | 'sidekick', p: Persona, voice: string) => {
     remember({ [role]: voice });
+    const turn = ++previewTurn.current;
     preview.current?.stop();
+    preview.current = null;
     setTrying(voice);
     try {
       const uri = await synthesize(
@@ -82,10 +86,11 @@ function useRadioEngine() {
         ],
         [{ name: p.name, voice, style: p.style }],
       );
+      if (turn !== previewTurn.current) return; // you already tapped another voice
       preview.current = playClip(uri);
       await preview.current.done;
     } catch (e) {
-      fail(e);
+      if (turn === previewTurn.current) fail(e);
     } finally {
       setTrying((t) => (t === voice ? null : t));
     }
