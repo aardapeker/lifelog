@@ -20,6 +20,10 @@ function KeepAwake() {
   return null;
 }
 
+/** The show's own name, without the station repeated in front ("Neon FM 98.3: Pazar Sabahı…" → "Pazar Sabahı…"). */
+const showName = (s: { title: string; station: { name: string; freq: string } }) =>
+  s.title.replace(new RegExp(`^\\s*${s.station.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s*${s.station.freq.replace('.', '\\.')})?\\s*[:·\\-–—]?\\s*`, 'i'), '') || s.title;
+
 /** ♥ a song: it may come back in later shows. Everything else is replaced by new finds. */
 function Heart({ on, onPress, size }: { on: boolean; onPress: () => void; size: number }) {
   return (
@@ -192,7 +196,7 @@ export default function RadioScreen() {
         {(phase === 'onair' || phase === 'done') && show && current && (
           <>
             <Text style={styles.showTitle}>
-              {show.station.emoji} {show.station.name} {show.station.freq} · {show.title}
+              {show.station.emoji} {show.station.name} {show.station.freq} · {showName(show)}
             </Text>
             <FadeIn key={current.track.id}>
               {current.track.image && <Image source={{ uri: current.track.image }} style={styles.cover} />}
