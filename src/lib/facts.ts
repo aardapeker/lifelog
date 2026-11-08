@@ -1,4 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
+import { tooManyTries } from './db';
 import { getBackgroundConfig, parseJsonReply } from './chat';
 import { getAutonomySettings, isNeverResearch } from './autonomySettings';
 import { formatDate } from './notes';
@@ -86,6 +87,8 @@ export async function learnFacts(db: SQLiteDatabase): Promise<number> {
         analyzed++;
       } catch (e) {
         console.warn('entry analysis failed', e);
+        // an entry that keeps failing is marked done without facts, not re-sent on every app open
+        if (await tooManyTries(db, `facts.${note.id}`, e)) await db.runAsync("UPDATE notes SET facts_status = 'done' WHERE id = ?", note.id);
         break; // offline or quota: try again next time
       }
     }

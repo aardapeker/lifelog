@@ -6,7 +6,7 @@ import { digestTimeOn, getAutonomySettings, isNeverResearch } from './autonomySe
 import { getChatConfig, PROVIDERS } from './chat';
 import { cancelPending, ensureNotificationPermission } from './checkins';
 import { aboutUser } from './context';
-import { getSetting, setSetting } from './db';
+import { getSetting, setSetting, tooManyTries } from './db';
 import { groundedSearch } from './gemini';
 import { getKey } from './keys';
 import { articleOf, type Read } from './reads';
@@ -117,6 +117,7 @@ export async function runResearch(db: SQLiteDatabase): Promise<number> {
         done++;
       } catch (e) {
         console.warn('research failed', e);
+        if (await tooManyTries(db, `research.${r.id}`, e)) await db.runAsync("UPDATE research SET status = 'failed' WHERE id = ?", r.id);
         break; // offline or quota: the rest waits for the next run
       }
     }

@@ -1,4 +1,5 @@
 import { Directory, File, Paths } from 'expo-file-system';
+import { tooManyTries } from './db';
 import * as ImagePicker from 'expo-image-picker';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getBackgroundConfig } from './chat';
@@ -109,6 +110,8 @@ export async function captionPending(db: SQLiteDatabase): Promise<number> {
         done++;
       } catch (e) {
         console.warn('caption failed', e);
+        // a photo the AI keeps refusing gets an empty caption instead of being retried forever
+        if (await tooManyTries(db, `caption.${p.id}`, e)) await db.runAsync("UPDATE photos SET caption = '' WHERE id = ?", p.id);
         break;
       }
     }

@@ -1,4 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
+import { tooManyTries } from './db';
 import { getAutonomySettings, isNeverResearch } from './autonomySettings';
 import { getBackgroundConfig, parseJsonReply } from './chat';
 import { chatMessages, getChat, quietChatsToLearn, renameChat } from './chats';
@@ -111,6 +112,7 @@ export async function learnFromChats(db: SQLiteDatabase): Promise<number> {
         learned++;
       } catch (e) {
         console.warn('learning from chat failed', e);
+        if (await tooManyTries(db, `chat.${chat.id}`, e)) await db.runAsync('UPDATE chats SET learned_at = ? WHERE id = ?', Date.now(), chat.id);
         break;
       }
     }

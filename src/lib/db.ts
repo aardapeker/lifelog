@@ -245,3 +245,15 @@ export async function setSetting(db: SQLiteDatabase, key: string, value: string)
     value,
   );
 }
+
+/**
+ * A background job failed on one item: counts the try and says whether to give up on it, so one
+ * broken photo or entry can't be sent to the AI (and billed) on every app open forever.
+ * Being offline doesn't count: that's not the item's fault.
+ */
+export async function tooManyTries(db: SQLiteDatabase, key: string, error: unknown, max = 3): Promise<boolean> {
+  if (/network request failed|failed to fetch|timeout|offline/i.test(String(error))) return false;
+  const tries = Number(await getSetting(db, `tries.${key}`, '0')) + 1;
+  await setSetting(db, `tries.${key}`, String(tries));
+  return tries >= max;
+}

@@ -2,7 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { getAutonomySettings, isNeverResearch } from './autonomySettings';
 import { getChatConfig, parseJsonReply, PROVIDERS } from './chat';
 import { aboutUser } from './context';
-import { getSetting, setSetting } from './db';
+import { getSetting, setSetting, tooManyTries } from './db';
 import { groundedSearch } from './gemini';
 import { getKey } from './keys';
 
@@ -171,10 +171,7 @@ export async function writePendingReads(db: SQLiteDatabase, force = false): Prom
   } catch (e) {
     console.warn('read failed', e);
     // offline or a hiccup: try again later, but give up after 3 attempts so it can't eat searches forever
-    const key = `reads.tries.${read.id}`;
-    const tries = Number(await getSetting(db, key, '0')) + 1;
-    await setSetting(db, key, String(tries));
-    if (tries >= 3) await db.runAsync("UPDATE reads SET status = 'failed' WHERE id = ?", read.id);
+    if (await tooManyTries(db, `read.${read.id}`, e)) await db.runAsync("UPDATE reads SET status = 'failed' WHERE id = ?", read.id);
     return 0;
   } finally {
     running = false;
