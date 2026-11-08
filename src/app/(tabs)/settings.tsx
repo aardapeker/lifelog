@@ -745,7 +745,7 @@ function RadioSection() {
       <Text style={styles.hint}>The rest are deep cuts: album tracks, B-sides, forgotten gems.</Text>
       <Text style={styles.label}>Your favourites coming back</Text>
       <Segment options={FAVS} value={p.favourites} onChange={(favourites) => update({ favourites })} />
-      <Text style={styles.hint}>Hearted songs, songs you wrote entries to, and your Spotify Liked Songs. They take turns: one that just played waits a few shows.</Text>
+      <Text style={styles.hint}>Songs from your entries, hearted songs and your Spotify Liked Songs go in one pool; each show draws 2 at random (4 on Often). One that just played waits a few shows.</Text>
       <Toggle
         label="Use my Spotify Liked Songs"
         hint={access ? undefined : 'Disconnect and connect Spotify again above to allow this.'}

@@ -108,16 +108,16 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
   const spotifyFavs = favs && prefs.spotifyLiked ? (await spotifyLikedSongs(db).catch(() => [])).filter(ok) : [];
   const twist = prefs.twists ? TWISTS[Math.floor(Math.random() * TWISTS.length)] : null;
   const shuffle = <T,>(a: T[]) => a.map((x) => [Math.random(), x] as const).sort((x, y) => x[0] - y[0]).map((x) => x[1]);
-  // a few hearted ones plus a few from Spotify Liked Songs, different each time
-  const likedHere = favs ? [...shuffle(liked.filter(fresh)).slice(0, 3), ...shuffle(spotifyFavs.filter(fresh)).slice(0, 4)] : [];
-  // songs that were playing while they wrote this week's entries: they're welcome back, like hearted ones
+  // ONE pool of favourites: songs from this week's entries, hearted songs and Spotify Liked Songs.
+  // The app draws a random few (Settings → Radio: 2 sometimes, 4 often) and the show plays exactly those.
   const journalSongs = recent
     .map((n) => noteSong(n))
     .filter((x): x is NonNullable<typeof x> => !!x)
+    .map((x) => ({ id: x.id, uri: `spotify:track:${x.id}`, name: x.name, artist: x.artist }));
+  const pool = [...journalSongs, ...liked, ...spotifyFavs]
     .filter((x, i, all) => all.findIndex((o) => o.id === x.id) === i)
-    .map((x) => ({ id: x.id, uri: `spotify:track:${x.id}`, name: x.name, artist: x.artist }))
     .filter(fresh);
-  const welcome = [...likedHere, ...journalSongs.filter((j) => !likedHere.some((l) => l.id === j.id))];
+  const welcome = favs ? shuffle(pool).slice(0, favs) : [];
   const duo = !!station.sidekick;
   const names = duo ? `"${station.host.name}" or "${station.sidekick!.name}"` : `"${station.host.name}"`;
 
@@ -136,7 +136,7 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
       `Music: ${station.music}. Pick ${SHOW_LENGTH} REAL songs that exist on Spotify, in an order that flows. ` +
       (station.key === 'friend' ? 'Use their taste and their day. ' : 'Stay true to the station\'s style. ') +
       (prefs.hits ? `DEEP CUTS: at most ${prefs.hits} song${prefs.hits > 1 ? 's' : ''} per show may be big, obvious hits` : 'DEEP CUTS: no big, obvious hits at all') +
-      (favs ? `; the listener's favourites (hearted, Spotify Liked, or playing while they wrote their journal) are welcome on top of that (up to ${favs})` : '') +
+      (welcome.length ? "; the listener's favourites listed below come on top of that" : '') +
       '. Every other ' +
       'song must be a lesser-known track, album cut, B-side or forgotten gem that still fits perfectly. Never repeat ' +
       'a song from the "already played" list. Surprise them. ' +
@@ -168,9 +168,8 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
     prompt:
       `Now: ${formatDate(Date.now())}, ${shiftFor(shifts, Date.now())} shift week${city ? `, in ${city}` : ''}.\n` +
       (twist ? `Tonight's twist for the playlist: ${twist}.\n` : '') +
-      (likedHere.length ? `Their favourites (you may bring back up to ${favs} of these): ${likedHere.map(songLine).join('; ')}\n` : '') +
-      (favs && journalSongs.length
-        ? `Songs they were listening to while writing this week (they like these, play 1 or 2): ${journalSongs.map(songLine).join('; ')}\n`
+      (welcome.length
+        ? `Their favourites for tonight (play ALL of these, spread through the show, and greet them like old friends): ${welcome.map(songLine).join('; ')}\n`
         : '') +
       (played.length
         ? `Already played on the radio (do NOT pick these): ${played
