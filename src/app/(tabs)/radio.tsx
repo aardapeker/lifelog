@@ -11,7 +11,7 @@ import { Chip, IconButton, PillButton, StatusLine } from '../../components/ui';
 import type { Palette } from '../../lib/albumColors';
 import { SHOW_LENGTHS, WISHES } from '../../lib/radio';
 import { useRadio } from '../../lib/radioEngine';
-import { LANGS, STATIONS, VOICES } from '../../lib/stations';
+import { LANGS, STATIONS, voicesFor } from '../../lib/stations';
 import { colors, fonts, inputColors, radius, TAB_BAR_SPACE } from '../../lib/theme';
 import { Avatar, Bell } from '../../components/TopBar';
 
@@ -230,10 +230,10 @@ export default function RadioScreen() {
               <View key={role} style={{ marginBottom: 12 }}>
                 <Text style={styles.voiceFor}>{p.name}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.voiceRow}>
-                  {VOICES.map((v) => (
+                  {voicesFor(p).map((v) => (
                     <Chip
                       key={v.name}
-                      label={`${trying === v.name && p.voice === v.name ? '🔊 ' : ''}${v.name} · ${v.vibe}`}
+                      label={`${trying === v.name && p.voice === v.name ? '🔊 ' : ''}${v.name} · ${v.vibe}${p.gender ? '' : v.gender === 'male' ? ' ♂' : ' ♀'}`}
                       active={p.voice === v.name}
                       onPress={() => chooseVoice(role, p, v.name)}
                     />

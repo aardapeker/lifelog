@@ -4,7 +4,9 @@
  * Voices are Gemini TTS prebuilt voices (two per show is the limit), styles are plain English.
  */
 
-export type Persona = { name: string; voice: string; style: string; bio: string };
+export type Gender = 'male' | 'female';
+/** gender: only voices of it are offered for this persona (left out = any voice fits, like Deniz). */
+export type Persona = { name: string; voice: string; style: string; bio: string; gender?: Gender };
 
 export type Station = {
   key: string;
@@ -53,12 +55,14 @@ export const STATIONS: Station[] = [
     music: '80s pop hits only: synth-pop, new wave, big radio singles from 1980–1989, the kind you sing in a convertible',
     host: {
       name: 'Candy Starr',
+      gender: 'female',
       voice: 'Laomedeia',
       style: 'a hyper-cheerful 1980s pop radio DJ, bubbly, fast, over the top, like she drank six espressos',
       bio: "an 80s pop DJ who thinks everything is AMAZING, calls the listener 'sugar', lives for gossip",
     },
     sidekick: {
       name: 'Rico',
+      gender: 'male',
       voice: 'Fenrir',
       style: 'a sarcastic, deadpan comedian sidekick, dry and unimpressed, mumbling the punchlines',
       bio: "Candy's co-host, a broke comedian who mocks everything, especially the listener's life choices",
@@ -75,6 +79,7 @@ export const STATIONS: Station[] = [
     music: 'dark synthwave, retro synth soundtracks, 80s night-drive rock and moody electronic, cinematic and driving',
     host: {
       name: 'Max Volt',
+      gender: 'male',
       voice: 'Algenib',
       style: 'a deep, gravelly, overly dramatic movie-trailer narrator, slow and intense, every sentence epic',
       bio: 'treats the listener\'s warehouse job like a Miami action movie; boxes are "the enemy", breaks are "extraction"',
@@ -97,12 +102,14 @@ export const STATIONS: Station[] = [
     music: 'classic rock, hard rock and alternative anthems from the 70s to the 2000s, guitar-driven',
     host: {
       name: 'Kaan "Riff" Demir',
+      gender: 'male',
       voice: 'Orus',
       style: 'a burned-out, grumpy old rock DJ, raspy, lazy, hates mornings, comes alive only for guitar solos',
       bio: 'a washed-up rocker who claims he almost toured with famous bands, hates pop music and alarm clocks',
     },
     sidekick: {
       name: 'Selin',
+      gender: 'female',
       voice: 'Kore',
       style: 'a sharp, energetic producer, firm and witty, fact-checking him',
       bio: "the station's producer who exposes Riff's fake stories",
@@ -119,12 +126,14 @@ export const STATIONS: Station[] = [
     music: 'lo-fi, chill indie, soft acoustic, downtempo and calm songs for winding down',
     host: {
       name: 'Ece',
+      gender: 'female',
       voice: 'Aoede',
       style: 'a calm, breezy, soft-spoken late-night host, gentle and cosy, almost whispering',
       bio: 'a calm host who wants the listener to rest',
     },
     sidekick: {
       name: 'Şemistan',
+      gender: 'male',
       voice: 'Puck',
       style: 'a dramatic, entitled house cat who can talk, demanding and theatrical, sometimes meowing',
       bio: "the listener's actual cat, demanding food and attention, judging the music and the owner",
@@ -143,12 +152,14 @@ export const STATIONS: Station[] = [
       'the great voices of the genre, plus a few modern arabesk-influenced songs',
     host: {
       name: 'Kederli Kemal',
+      gender: 'male',
       voice: 'Algenib',
       style: 'a dramatic, heartbroken Turkish arabesk radio host, slow, sighing, every sentence a tragedy, deep and gravelly',
       bio: 'an arabesk DJ who has suffered more than anyone alive, turns every small thing into a sad destiny, says "of" and "ah" a lot',
     },
     sidekick: {
       name: 'Çaycı Cengiz',
+      gender: 'male',
       voice: 'Achird',
       style: 'a cheerful, chatty Istanbul tea seller, fast, friendly, totally unbothered, a bit of street humour',
       bio: 'brings Kemal tea, never understands why everyone is so sad, has a practical (and funny) answer for every tragedy',
@@ -161,38 +172,42 @@ export const STATIONS: Station[] = [
 export const stationByKey = (key: string) => STATIONS.find((s) => s.key === key) ?? STATIONS[0];
 
 /** Gemini's prebuilt voices, with Google's own one-word description of each. */
-export const VOICES: { name: string; vibe: string }[] = [
-  { name: 'Puck', vibe: 'Upbeat' },
-  { name: 'Fenrir', vibe: 'Excitable' },
-  { name: 'Laomedeia', vibe: 'Upbeat' },
-  { name: 'Sadachbia', vibe: 'Lively' },
-  { name: 'Zephyr', vibe: 'Bright' },
-  { name: 'Autonoe', vibe: 'Bright' },
-  { name: 'Leda', vibe: 'Youthful' },
-  { name: 'Achird', vibe: 'Friendly' },
-  { name: 'Sulafat', vibe: 'Warm' },
-  { name: 'Aoede', vibe: 'Breezy' },
-  { name: 'Callirrhoe', vibe: 'Easy-going' },
-  { name: 'Umbriel', vibe: 'Easy-going' },
-  { name: 'Zubenelgenubi', vibe: 'Casual' },
-  { name: 'Algieba', vibe: 'Smooth' },
-  { name: 'Despina', vibe: 'Smooth' },
-  { name: 'Achernar', vibe: 'Soft' },
-  { name: 'Vindemiatrix', vibe: 'Gentle' },
-  { name: 'Enceladus', vibe: 'Breathy' },
-  { name: 'Algenib', vibe: 'Gravelly' },
-  { name: 'Gacrux', vibe: 'Mature' },
-  { name: 'Kore', vibe: 'Firm' },
-  { name: 'Orus', vibe: 'Firm' },
-  { name: 'Alnilam', vibe: 'Firm' },
-  { name: 'Charon', vibe: 'Informative' },
-  { name: 'Rasalgethi', vibe: 'Informative' },
-  { name: 'Sadaltager', vibe: 'Knowledgeable' },
-  { name: 'Iapetus', vibe: 'Clear' },
-  { name: 'Erinome', vibe: 'Clear' },
-  { name: 'Schedar', vibe: 'Even' },
-  { name: 'Pulcherrima', vibe: 'Forward' },
+// gender as Google lists it for these voices (Cloud Text-to-Speech, Chirp 3 HD: the same 30)
+export const VOICES: { name: string; vibe: string; gender: Gender }[] = [
+  { name: 'Puck', vibe: 'Upbeat', gender: 'male' },
+  { name: 'Fenrir', vibe: 'Excitable', gender: 'male' },
+  { name: 'Laomedeia', vibe: 'Upbeat', gender: 'female' },
+  { name: 'Sadachbia', vibe: 'Lively', gender: 'male' },
+  { name: 'Zephyr', vibe: 'Bright', gender: 'female' },
+  { name: 'Autonoe', vibe: 'Bright', gender: 'female' },
+  { name: 'Leda', vibe: 'Youthful', gender: 'female' },
+  { name: 'Achird', vibe: 'Friendly', gender: 'male' },
+  { name: 'Sulafat', vibe: 'Warm', gender: 'female' },
+  { name: 'Aoede', vibe: 'Breezy', gender: 'female' },
+  { name: 'Callirrhoe', vibe: 'Easy-going', gender: 'female' },
+  { name: 'Umbriel', vibe: 'Easy-going', gender: 'male' },
+  { name: 'Zubenelgenubi', vibe: 'Casual', gender: 'male' },
+  { name: 'Algieba', vibe: 'Smooth', gender: 'male' },
+  { name: 'Despina', vibe: 'Smooth', gender: 'female' },
+  { name: 'Achernar', vibe: 'Soft', gender: 'female' },
+  { name: 'Vindemiatrix', vibe: 'Gentle', gender: 'female' },
+  { name: 'Enceladus', vibe: 'Breathy', gender: 'male' },
+  { name: 'Algenib', vibe: 'Gravelly', gender: 'male' },
+  { name: 'Gacrux', vibe: 'Mature', gender: 'female' },
+  { name: 'Kore', vibe: 'Firm', gender: 'female' },
+  { name: 'Orus', vibe: 'Firm', gender: 'male' },
+  { name: 'Alnilam', vibe: 'Firm', gender: 'male' },
+  { name: 'Charon', vibe: 'Informative', gender: 'male' },
+  { name: 'Rasalgethi', vibe: 'Informative', gender: 'male' },
+  { name: 'Sadaltager', vibe: 'Knowledgeable', gender: 'male' },
+  { name: 'Iapetus', vibe: 'Clear', gender: 'male' },
+  { name: 'Erinome', vibe: 'Clear', gender: 'female' },
+  { name: 'Schedar', vibe: 'Even', gender: 'male' },
+  { name: 'Pulcherrima', vibe: 'Forward', gender: 'female' },
 ];
+
+/** The voices to offer a persona: its gender's (plus whatever it uses now, so a past choice never vanishes). */
+export const voicesFor = (p: Persona) => VOICES.filter((v) => !p.gender || v.gender === p.gender || v.name === p.voice);
 
 /** Your own choices per station: { neon: { host: 'Kore', sidekick: 'Charon', lang: 'en' } }. */
 export type VoiceChoices = Record<string, { host?: string; sidekick?: string; lang?: Lang }>;
