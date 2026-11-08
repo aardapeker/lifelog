@@ -26,10 +26,13 @@ const listeners = new Set<(c: RadioCommand) => void>();
 export const widgetRadio = () => now;
 
 /** The engine tells the widget what's on (null = off air) and the widget redraws. */
+let drawn = false; // redraw once per app start, so a widget placed before an update gets the new look
+
 export function publishToWidget(state: WidgetRadio | null): void {
   const same = JSON.stringify(state) === JSON.stringify(now);
   now = state;
-  if (same) return;
+  if (same && drawn) return;
+  drawn = true;
   // imported lazily: the widget file imports this one
   const { LifelogWidget } = require('./LifelogWidget') as typeof import('./LifelogWidget');
   requestWidgetUpdate({

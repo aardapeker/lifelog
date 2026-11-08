@@ -38,7 +38,24 @@ const ICON = {
   next: 'M16 5h2v14h-2zM5 5l9.5 7L5 19z',
   play: 'M8 5v14l11-7z',
   pause: 'M7 5h3.5v14H7zm6.5 0H17v14h-3.5z',
+  // an old radio: body, speaker grille, dial and antenna
+  radio:
+    'M20 6H8.3l8.26-3.34L15.88 1 3.24 6.15C2.51 6.43 2 7.17 2 8v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2zM7 20a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm13-8h-2v-2h-2v2H4V8h16v4z',
 };
+
+/** Off air: a round radio button that opens Lifelog Radio (the player shows here once a show is on). */
+function RadioButton({ size }: { size: number }) {
+  return (
+    <FlexWidget
+      clickAction="OPEN_URI"
+      clickActionData={{ uri: 'lifelog://radio' }}
+      accessibilityLabel="Lifelog Radio"
+      style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: RAISED, alignItems: 'center', justifyContent: 'center' }}
+    >
+      <SvgWidget svg={svg(ICON.radio, Math.round(size * 0.45))} style={{ width: Math.round(size * 0.45), height: Math.round(size * 0.45) }} />
+    </FlexWidget>
+  );
+}
 
 function Control({ action, icon, size, primary }: { action: string; icon: keyof typeof ICON; size: number; primary?: boolean }) {
   const box = size + 18;
@@ -147,7 +164,7 @@ function SmallLink({ label, uri }: { label: string; uri: string }) {
 }
 
 /**
- * Home screen widget: one tap to talk, one tap to write. While Lifelog Radio is on air,
+ * Home screen widget: one tap to talk, one tap to write, one to the radio. While Lifelog Radio is on air,
  * it turns into the show's player.
  * It adapts to its size: a slim row of buttons when it's one cell tall,
  * the full card with title when there's room.
@@ -181,6 +198,7 @@ export function LifelogWidget({ width, height, radio }: { width: number; height:
         )}
         <Button label="Talk" uri="lifelog://note/new?voice=1" primary height={40} />
         <Button label="Write" uri="lifelog://note/new" height={40} />
+        <RadioButton size={40} />
       </FlexWidget>
     );
   }
@@ -205,6 +223,7 @@ export function LifelogWidget({ width, height, radio }: { width: number; height:
       <FlexWidget style={{ flexDirection: 'row', width: 'match_parent', flexGap: 10 }}>
         <Button label="Talk" uri="lifelog://note/new?voice=1" primary height={48} />
         <Button label="Write" uri="lifelog://note/new" height={48} />
+        <RadioButton size={48} />
       </FlexWidget>
     </FlexWidget>
   );
