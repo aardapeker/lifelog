@@ -29,6 +29,7 @@ const SCOPES = [
   'user-read-recently-played',
   'user-top-read',
   'playlist-modify-private',
+  'user-library-read', // your Liked Songs, as favourites for the radio
 ];
 const CLIENT_KEY = 'spotify.clientId';
 const TOKENS_KEY = 'spotify.tokens';
@@ -382,6 +383,34 @@ export async function musicTaste(db: SQLiteDatabase): Promise<string[]> {
     return [];
   }
 }
+
+/**
+ * Your Spotify Liked Songs (newest 200), refreshed once a day. Empty if Spotify isn't connected,
+ * or if it was connected before Liked Songs access existed (connect again in Settings).
+ */
+export async function spotifyLikedSongs(db: SQLiteDatabase): Promise<{ id: string; uri: string; name: string; artist: string }[]> {
+  if (!(await spotifyConnected())) return [];
+  const today = new Date().toDateString();
+  try {
+    const cached = JSON.parse(await getSetting(db, 'spotify.liked', '{}')) as { day?: string; songs?: Track[] };
+    if (cached.day === today && cached.songs) return cached.songs;
+    const songs: Track[] = [];
+    for (let offset = 0; offset < 200; offset += 50) {
+      const page = await api<{ items: { track: ApiTrack | null }[]; next: string | null }>(`/me/tracks?limit=50&offset=${offset}`);
+      for (const it of page?.items ?? []) if (it.track?.uri?.startsWith('spotify:track:')) songs.push(toTrack(it.track));
+      if (!page?.next) break;
+    }
+    await setSetting(db, 'spotify.liked', JSON.stringify({ day: today, songs }));
+    await setSetting(db, 'spotify.likedAccess', '1');
+    return songs;
+  } catch (e) {
+    if (e instanceof SpotifyError && (e.status === 401 || e.status === 403)) await setSetting(db, 'spotify.likedAccess', '0');
+    return [];
+  }
+}
+
+/** False when the saved Spotify login predates Liked Songs access (connect again to grant it). */
+export const likedAccess = async (db: SQLiteDatabase) => (await getSetting(db, 'spotify.likedAccess', '1')) === '1';
 
 /** Parses "Title - Artist" lines (what the AI writes) into search pairs. */
 export function parseSongLines(text: string): { title: string; artist: string }[] {

@@ -42,3 +42,42 @@ export async function toggleLiked(db: SQLiteDatabase, t: Track | SongRef): Promi
 }
 
 export const songLine = (s: SongRef) => `${s.name} - ${s.artist}`;
+
+// ── songs you never want to hear on the radio ──
+
+const BANNED = 'radio.banned';
+export const bannedSongs = (db: SQLiteDatabase) => list(db, BANNED);
+
+/** Bans a song from the radio for good (and un-hearts it). */
+export async function banSong(db: SQLiteDatabase, t: Track | SongRef): Promise<void> {
+  const old = await bannedSongs(db);
+  if (!old.some((s) => s.id === t.id)) await setSetting(db, BANNED, JSON.stringify([ref(t), ...old]));
+  const liked = await likedSongs(db);
+  if (liked.some((s) => s.id === t.id)) await setSetting(db, LIKED, JSON.stringify(liked.filter((s) => s.id !== t.id)));
+}
+
+export const clearBanned = (db: SQLiteDatabase) => setSetting(db, BANNED, '[]');
+
+// ── how the radio picks songs (Settings → Radio) ──
+
+export type RadioPrefs = {
+  hits: number; // big, well-known hits per show (0-4)
+  favourites: 'never' | 'sometimes' | 'often'; // hearted, journal and Spotify Liked songs coming back
+  spotifyLiked: boolean; // use your Spotify Liked Songs as favourites
+  twists: boolean; // a random theme per show
+};
+
+const PREFS_DEFAULT: RadioPrefs = { hits: 2, favourites: 'sometimes', spotifyLiked: true, twists: true };
+
+export async function getRadioPrefs(db: SQLiteDatabase): Promise<RadioPrefs> {
+  try {
+    return { ...PREFS_DEFAULT, ...JSON.parse(await getSetting(db, 'radio.prefs', '{}')) };
+  } catch {
+    return PREFS_DEFAULT;
+  }
+}
+
+export const saveRadioPrefs = (db: SQLiteDatabase, p: RadioPrefs) => setSetting(db, 'radio.prefs', JSON.stringify(p));
+
+/** How many favourites a show may bring back, per setting. */
+export const FAVOURITES_PER_SHOW = { never: 0, sometimes: 2, often: 4 } as const;

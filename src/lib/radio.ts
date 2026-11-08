@@ -4,8 +4,8 @@ import { getCheckinSettings, shiftFor } from './checkins';
 import { aboutUser, renderNotes } from './context';
 import { getSetting } from './db';
 import { formatDate, noteSong, recentNotes } from './notes';
-import { likedSongs, playedSongs, songLine } from './songMemory';
-import { findTrack, musicTaste, type Track } from './spotify';
+import { bannedSongs, FAVOURITES_PER_SHOW, getRadioPrefs, likedSongs, playedSongs, songLine } from './songMemory';
+import { findTrack, musicTaste, spotifyLikedSongs, type Track } from './spotify';
 import type { Persona, Station } from './stations';
 import type { SpokenLine } from './tts';
 
@@ -69,14 +69,21 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
     playedSongs(db),
     likedSongs(db),
   ]);
-  const twist = TWISTS[Math.floor(Math.random() * TWISTS.length)];
-  const likedHere = liked.filter(() => Math.random() < 0.5).slice(0, 3); // a few of the hearted ones, different each time
+  const [prefs, banned] = await Promise.all([getRadioPrefs(db), bannedSongs(db)]);
+  const ok = (t: { id: string }) => !banned.some((b) => b.id === t.id);
+  const favs = FAVOURITES_PER_SHOW[prefs.favourites];
+  const spotifyFavs = favs && prefs.spotifyLiked ? (await spotifyLikedSongs(db).catch(() => [])).filter(ok) : [];
+  const twist = prefs.twists ? TWISTS[Math.floor(Math.random() * TWISTS.length)] : null;
+  const shuffle = <T,>(a: T[]) => a.map((x) => [Math.random(), x] as const).sort((x, y) => x[0] - y[0]).map((x) => x[1]);
+  // a few hearted ones plus a few from Spotify Liked Songs, different each time
+  const likedHere = favs ? [...shuffle(liked.filter(ok)).slice(0, 3), ...shuffle(spotifyFavs).slice(0, 4)] : [];
   // songs that were playing while they wrote this week's entries: they're welcome back, like hearted ones
   const journalSongs = recent
     .map((n) => noteSong(n))
     .filter((x): x is NonNullable<typeof x> => !!x)
     .filter((x, i, all) => all.findIndex((o) => o.id === x.id) === i)
-    .map((x) => ({ id: x.id, uri: `spotify:track:${x.id}`, name: x.name, artist: x.artist }));
+    .map((x) => ({ id: x.id, uri: `spotify:track:${x.id}`, name: x.name, artist: x.artist }))
+    .filter(ok);
   const welcome = [...likedHere, ...journalSongs.filter((j) => !likedHere.some((l) => l.id === j.id))];
   const duo = !!station.sidekick;
   const names = duo ? `"${station.host.name}" or "${station.sidekick!.name}"` : `"${station.host.name}"`;
@@ -93,8 +100,9 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
       `Hosts:\n${persona(station.host, 'host')}\n${duo ? persona(station.sidekick!, 'sidekick, the comedian') : ''}\n\n` +
       `Music: ${station.music}. Pick ${SHOW_LENGTH} REAL songs that exist on Spotify, in an order that flows. ` +
       (station.key === 'friend' ? 'Use their taste and their day. ' : 'Stay true to the station\'s style. ') +
-      'DEEP CUTS: at most 2 songs per show may be big, obvious hits; songs the listener hearted or was listening to ' +
-      'while writing their journal are welcome on top of that (up to 2). Every other ' +
+      (prefs.hits ? `DEEP CUTS: at most ${prefs.hits} song${prefs.hits > 1 ? 's' : ''} per show may be big, obvious hits` : 'DEEP CUTS: no big, obvious hits at all') +
+      (favs ? `; the listener's favourites (hearted, Spotify Liked, or playing while they wrote their journal) are welcome on top of that (up to ${favs})` : '') +
+      '. Every other ' +
       'song must be a lesser-known track, album cut, B-side or forgotten gem that still fits perfectly. Never repeat ' +
       'a song from the "already played" list. Surprise them. ' +
       `\n\nBefore every song the hosts talk${duo ? ' as a quick back-and-forth (2 to 5 lines; the sidekick gets the punchlines)' : ' (1 to 3 sentences)'}. ` +
@@ -120,9 +128,9 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
     temperature: 1.1, // song picking wants surprise; the talks stay readable at this level
     prompt:
       `Now: ${formatDate(Date.now())}, ${shiftFor(shifts, Date.now())} shift week${city ? `, in ${city}` : ''}.\n` +
-      `Tonight's twist for the playlist: ${twist}.\n` +
-      (likedHere.length ? `Songs they hearted (you may bring back up to 2 of these): ${likedHere.map(songLine).join('; ')}\n` : '') +
-      (journalSongs.length
+      (twist ? `Tonight's twist for the playlist: ${twist}.\n` : '') +
+      (likedHere.length ? `Their favourites (you may bring back up to ${favs} of these): ${likedHere.map(songLine).join('; ')}\n` : '') +
+      (favs && journalSongs.length
         ? `Songs they were listening to while writing this week (they like these, play 1 or 2): ${journalSongs.map(songLine).join('; ')}\n`
         : '') +
       (played.length
@@ -132,6 +140,7 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
             .map(songLine)
             .join('; ')}\n`
         : '') +
+      (banned.length ? `NEVER play these, the listener banned them: ${banned.slice(0, 60).map(songLine).join('; ')}\n` : '') +
       (wish.trim() ? `The listener asked for: ${wish.trim()}\n` : '') +
       (taste.length ? `Their top artists lately: ${taste.join(', ')}\n` : '') +
       `\nRecent journal:\n${renderNotes(recent) || '(nothing yet)'}`,
@@ -151,7 +160,7 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
   const slots: Slot[] = [];
   for (const s of plan.songs ?? []) {
     const track = await findTrack(s.title, s.artist).catch(() => null);
-    if (!track || slots.some((x) => x.track.id === track.id)) continue;
+    if (!track || !ok(track) || slots.some((x) => x.track.id === track.id)) continue;
     // the AI ignored the memory: skip a repeat unless it's one they hearted
     if (played.some((p) => p.id === track.id) && !liked.some((l) => l.id === track.id) && !welcome.some((w) => w.id === track.id)) {
       continue;

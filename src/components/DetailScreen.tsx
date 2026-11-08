@@ -29,7 +29,7 @@ export function DetailScreen(props: {
         <Text style={styles.section}>Entries</Text>
         {props.notes.length === 0 && <Text style={styles.empty}>{props.emptyText}</Text>}
         {props.notes.map((n) => (
-          <Pressable key={n.id} style={styles.card} onPress={() => router.push(`/note/${n.id}`)}>
+          <Pressable key={n.id} style={styles.card} onPress={() => router.push(`/entry/${n.id}`)}>
             <Text style={styles.cardDate}>{formatDate(n.created_at)}</Text>
             <Text style={styles.cardBody} numberOfLines={4}>
               {n.body}

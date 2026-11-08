@@ -17,7 +17,9 @@ import {
   remoteReady,
   spotifyName,
   testPlayback,
+  likedAccess,
 } from '../../lib/spotify';
+import { bannedSongs, clearBanned, getRadioPrefs, saveRadioPrefs, type RadioPrefs } from '../../lib/songMemory';
 import { PillButton, SectionTitle, StatusLine, type Status } from '../../components/ui';
 import { backupNow, getPassphrase, lastBackupAt, restoreFromFile, setPassphrase } from '../../lib/backup';
 import {
@@ -617,6 +619,7 @@ function LearnedSection() {
 
 /** Your own Spotify app (Client ID), the login, and what it unlocks. */
 function SpotifySection() {
+  const db = useSQLiteContext();
   const [clientId, setClientId] = useState('');
   const [who, setWho] = useState<string | null>(null);
   const [status, run] = useStatus();
@@ -634,9 +637,11 @@ function SpotifySection() {
       if (!(await connectSpotify())) return 'Cancelled.';
       const name = await spotifyName();
       setWho(name);
+      await setSetting(db, 'spotify.likedAccess', '1'); // a fresh login includes Liked Songs
+      await setSetting(db, 'spotify.liked', '{}');
       // also open the direct line to the Spotify app now (Spotify asks once to allow it)
       const direct = await remoteReady(true);
-      return `Connected as ${name}.${direct ? ' Direct line to the Spotify app: on.' : ''} Ask your friend for a song, or open Radio from the chat.`;
+      return `Connected as ${name}.${direct ? ' Direct line to the Spotify app: on.' : ''} Ask your friend for a song, or open Radio from the Journal.`;
     });
 
   const disconnect = () =>
@@ -687,6 +692,76 @@ function SpotifySection() {
             <PillButton label="Connect Spotify" onPress={connect} />
           </View>
         </>
+      )}
+      <StatusLine status={status} />
+    </Section>
+  );
+}
+
+const HITS = [0, 1, 2, 3, 4].map((n) => ({ key: String(n), label: n ? String(n) : 'None' }));
+const FAVS: { key: RadioPrefs['favourites']; label: string }[] = [
+  { key: 'never', label: 'Never' },
+  { key: 'sometimes', label: 'Sometimes' },
+  { key: 'often', label: 'Often' },
+];
+
+/** How Lifelog Radio picks songs: hits vs deep cuts, favourites coming back, banned songs. */
+function RadioSection() {
+  const db = useSQLiteContext();
+  const [p, setP] = useState<RadioPrefs | null>(null);
+  const [bans, setBans] = useState(0);
+  const [access, setAccess] = useState(true);
+  const [status, run] = useStatus();
+
+  useFocusEffect(
+    useCallback(() => {
+      getRadioPrefs(db).then(setP);
+      bannedSongs(db).then((b) => setBans(b.length));
+      likedAccess(db).then(setAccess);
+    }, [db]),
+  );
+  if (!p) return null;
+
+  const update = (patch: Partial<RadioPrefs>) => {
+    const next = { ...p, ...patch };
+    setP(next);
+    saveRadioPrefs(db, next);
+  };
+
+  return (
+    <Section title="Radio" hint="How Lifelog Radio picks songs. Every show still digs for songs you haven't heard on it yet.">
+      <Text style={styles.label}>Big hits per show</Text>
+      <Segment options={HITS} value={String(p.hits)} onChange={(v) => update({ hits: Number(v) })} />
+      <Text style={styles.hint}>The rest are deep cuts: album tracks, B-sides, forgotten gems.</Text>
+      <Text style={styles.label}>Your favourites coming back</Text>
+      <Segment options={FAVS} value={p.favourites} onChange={(favourites) => update({ favourites })} />
+      <Text style={styles.hint}>Hearted songs, songs you wrote entries to, and your Spotify Liked Songs.</Text>
+      <Toggle
+        label="Use my Spotify Liked Songs"
+        hint={access ? undefined : 'Disconnect and connect Spotify again above to allow this.'}
+        value={p.spotifyLiked}
+        onChange={(spotifyLiked) => update({ spotifyLiked })}
+      />
+      <Toggle
+        label="Surprise themes"
+        hint="Each show gets a random twist: one-hit wonders, duets, one year of the era…"
+        value={p.twists}
+        onChange={(twists) => update({ twists })}
+      />
+      {bans > 0 && (
+        <View style={styles.row}>
+          <PillButton
+            label={`Let ${bans} banned song${bans > 1 ? 's' : ''} back`}
+            ghost
+            onPress={() =>
+              run(async () => {
+                await clearBanned(db);
+                setBans(0);
+                return 'Banned songs can play again.';
+              })
+            }
+          />
+        </View>
       )}
       <StatusLine status={status} />
     </Section>
@@ -864,6 +939,8 @@ export default function SettingsScreen() {
         <AutonomySection />
 
         <SpotifySection />
+
+        <RadioSection />
 
         <PrivacySection />
 

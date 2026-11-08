@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { haptic, Pulse } from '../../components/motion';
+import { PhotoViewer } from '../../components/PhotoViewer';
 import { IconButton, InfoTile, PillButton } from '../../components/ui';
 import { runBackgroundJobs } from '../../lib/background';
 import { getSetting, setSetting } from '../../lib/db';
@@ -42,6 +43,7 @@ export default function NoteScreen() {
   const noteId = id === 'new' ? null : Number(id);
   const [body, setBody] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
+  const [viewing, setViewing] = useState<number | null>(null); // a photo open full screen
   const [captions, setCaptions] = useState<Record<string, string | null>>({});
   const [createdAt, setCreatedAt] = useState<number>(Date.now());
   const [mic, setMic] = useState<Mic>('idle');
@@ -344,7 +346,9 @@ export default function NoteScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photos}>
             {photos.map((f) => (
               <View key={f}>
-                <Image source={{ uri: photoUri(f) }} style={styles.photo} />
+                <Pressable onPress={() => setViewing(photos.indexOf(f))} accessibilityLabel="Open photo">
+                  <Image source={{ uri: photoUri(f) }} style={styles.photo} />
+                </Pressable>
                 <Pressable style={styles.photoRemove} onPress={() => removePhoto(f)} accessibilityLabel="Remove photo">
                   <Ionicons name="close" size={14} color={colors.accentText} />
                 </Pressable>
@@ -405,6 +409,7 @@ export default function NoteScreen() {
           </View>
         )}
       </View>
+      <PhotoViewer uris={photos.map(photoUri)} captions={photos.map((f) => captions[f] ?? null)} start={viewing} onClose={() => setViewing(null)} />
     </KeyboardAvoidingView>
   );
 }

@@ -56,7 +56,6 @@ export default function ChatScreen() {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [hasKey, setHasKey] = useState(true);
-  const [radio, setRadio] = useState(false); // Spotify connected: the Radio button shows
   const [label, setLabel] = useState('');
   const scrollRef = useRef<ScrollViewInstance>(null);
   const keyboardOpen = useKeyboardVisible();
@@ -101,7 +100,6 @@ export default function ChatScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      spotifyConnected().then(setRadio);
       getChatConfig(db).then((c) => {
         setHasKey(!!c.apiKey);
         setLabel(`${PROVIDERS[c.provider].label}, ${c.model}`);
@@ -204,7 +202,6 @@ export default function ChatScreen() {
           </Text>
           {!!label && <Text style={styles.model}>{label}</Text>}
         </View>
-        {radio && <IconButton icon="radio-outline" label="Lifelog Radio" onPress={() => router.push('/radio')} />}
         <IconButton icon="time-outline" label="Chat history" onPress={() => router.push('/chats')} />
         {!isEmptyNew && <IconButton icon="create-outline" label="New chat" onPress={startNew} />}
       </View>

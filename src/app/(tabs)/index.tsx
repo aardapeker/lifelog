@@ -27,6 +27,7 @@ import { hybridSearch } from '../../lib/search';
 import { bigTitleMotion, CollapsingHeader, useCollapsingHeader } from '../../components/CollapsingHeader';
 import { FadeIn, PressScale, Shimmer, ShimmerText, stagger } from '../../components/motion';
 import { useBottomSpace } from '../../components/MiniPlayer';
+import { spotifyConnected } from '../../lib/spotify';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 
 type Range = 'all' | 'week' | 'month';
@@ -38,7 +39,7 @@ const RANGES: { key: Range; label: string; days: number }[] = [
 
 function EntryCard({ note, label, photos }: { note: Note; label: string; photos?: string[] }) {
   return (
-    <PressScale style={styles.card} scaleTo={0.97} onPress={() => router.push(`/note/${note.id}`)}>
+    <PressScale style={styles.card} scaleTo={0.97} onPress={() => router.push(`/entry/${note.id}`)}>
       <Text style={styles.cardTime}>
         {label}
         {noteSong(note) ? `  ·  ♪ ${noteSong(note)!.name}` : ''}
@@ -114,6 +115,12 @@ export default function JournalScreen() {
     }
   }, [db, query]);
 
+  const [radio, setRadio] = useState(false); // Spotify connected: the Radio button shows
+  useFocusEffect(
+    useCallback(() => {
+      spotifyConnected().then(setRadio);
+    }, []),
+  );
   useFocusEffect(
     useCallback(() => {
       load();
@@ -221,7 +228,7 @@ export default function JournalScreen() {
         </PressScale>
       )}
       {memories.map((m) => (
-        <PressScale key={m.note.id} scaleTo={0.97} style={styles.memory} onPress={() => router.push(`/note/${m.note.id}`)}>
+        <PressScale key={m.note.id} scaleTo={0.97} style={styles.memory} onPress={() => router.push(`/entry/${m.note.id}`)}>
           <Text style={styles.memoryLabel}>{m.label}</Text>
           <Text style={styles.memoryBody} numberOfLines={3}>
             {m.note.body}
@@ -243,6 +250,8 @@ export default function JournalScreen() {
             {name.trim() || 'Your journal'}
           </Animated.Text>
         </View>
+        {/* the radio lives on the home page: it's about your days, not the chat */}
+        {radio && <IconButton icon="radio-outline" label="Lifelog Radio" onPress={() => router.push('/radio')} />}
         <IconButton icon="add" label="Write a new entry" variant="light" onPress={() => router.push('/note/new')} />
       </View>
 

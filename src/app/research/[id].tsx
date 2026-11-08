@@ -73,7 +73,7 @@ export default function ResearchScreen() {
             )}
 
             {r.note_id !== null && (
-              <Pressable onPress={() => router.push(`/note/${r.note_id}`)} hitSlop={6}>
+              <Pressable onPress={() => router.push(`/entry/${r.note_id}`)} hitSlop={6}>
                 <Text style={styles.small}>Open the entry it came from →</Text>
               </Pressable>
             )}

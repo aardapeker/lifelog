@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useKeepAwake } from 'expo-keep-awake';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
-import { Image, Keyboard, ScrollView, StyleSheet, Text, TextInput, View, type ScrollViewInstance } from 'react-native';
+import { Alert, Image, Keyboard, ScrollView, StyleSheet, Text, TextInput, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MorphPlayButton, WavyProgress } from '../components/expressive';
 import { Glass, GlassArea } from '../components/Glass';
@@ -29,6 +29,20 @@ function Heart({ on, onPress, size }: { on: boolean; onPress: () => void; size: 
   return (
     <PressScale onPress={onPress} scaleTo={0.8} hitSlop={10} accessibilityLabel={on ? 'Unheart this song' : 'Heart this song'}>
       <Ionicons name={on ? 'heart' : 'heart-outline'} size={size} color={on ? '#FF5A6E' : colors.muted} />
+    </PressScale>
+  );
+}
+
+/** 🚫 "Don't play this song": asks once, then the song never comes back on the radio. */
+function Ban({ name, onBan, size }: { name: string; onBan: () => void; size: number }) {
+  const ask = () =>
+    Alert.alert(`Never play "${name}"?`, "It won't come back on Lifelog Radio. If it's playing now, we skip it.", [
+      { text: 'Cancel', style: 'cancel' },
+      { text: "Don't play it", style: 'destructive', onPress: onBan },
+    ]);
+  return (
+    <PressScale onPress={ask} scaleTo={0.8} hitSlop={10} accessibilityLabel={`Don't play ${name}`}>
+      <Ionicons name="ban-outline" size={size} color={colors.muted} />
     </PressScale>
   );
 }
@@ -70,7 +84,7 @@ export default function RadioScreen() {
       hide.remove();
     };
   }, []);
-  const { length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current } = useRadio();
+  const { banned, ban, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current } = useRadio();
 
   return (
     <View style={styles.screen}>
@@ -205,7 +219,10 @@ export default function RadioScreen() {
                   <Text style={styles.trackName}>{current.track.name}</Text>
                   <Text style={styles.trackArtist}>{current.track.artist}</Text>
                 </View>
-                <Heart on={hearts.has(current.track.id)} onPress={() => toggleHeart(current.track)} size={30} />
+                <View style={styles.songActions}>
+                  <Ban name={current.track.name} onBan={() => ban(current.track)} size={24} />
+                  <Heart on={hearts.has(current.track.id)} onPress={() => toggleHeart(current.track)} size={30} />
+                </View>
               </View>
               {!!current.label && <Text style={styles.breakLabel}>{current.label === 'News' ? '📰 News' : '📢 Commercial break'}</Text>}
               {current.talk.map((l, k) => (
@@ -239,13 +256,21 @@ export default function RadioScreen() {
               >
                 <Text style={styles.rowNum}>{i + 1}</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.rowName, i < index && { color: colors.muted }]} numberOfLines={1}>
+                  <Text
+                    style={[
+                      styles.rowName,
+                      i < index && { color: colors.muted },
+                      banned.has(s.track.id) && { color: colors.muted, textDecorationLine: 'line-through' },
+                    ]}
+                    numberOfLines={1}
+                  >
                     {s.track.name}
                   </Text>
                   <Text style={styles.rowArtist} numberOfLines={1}>
                     {s.track.artist}
                   </Text>
                 </View>
+                {!banned.has(s.track.id) && <Ban name={s.track.name} onBan={() => ban(s.track)} size={17} />}
                 <Heart on={hearts.has(s.track.id)} onPress={() => toggleHeart(s.track)} size={20} />
               </PressScale>
             ))}
@@ -264,6 +289,7 @@ export default function RadioScreen() {
 }
 
 const styles = StyleSheet.create({
+  songActions: { flexDirection: 'row', alignItems: 'center', gap: 18 },
   screen: { flex: 1, backgroundColor: colors.bg },
   bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 14 },
   onAir: { flexDirection: 'row', alignItems: 'center', gap: 8 },

@@ -22,7 +22,7 @@ import {
   type Track,
 } from './spotify';
 import { stationByKey, withVoices, type Lang, type Persona, type VoiceChoices } from './stations';
-import { likedSongs, rememberPlayed, toggleLiked } from './songMemory';
+import { banSong, bannedSongs, likedSongs, rememberPlayed, toggleLiked } from './songMemory';
 import { onRadioCommand, publishToWidget } from '../widget/radioBridge';
 import { clearClips, playClip, speakRobot, synthesize, type Talking } from './tts';
 
@@ -105,6 +105,7 @@ function useRadioEngine() {
   // talked: the last slot whose talk already played (so resuming starts just the song)
   // overlapping: the hosts are talking over the end of the previous song (Spotify is ducked, not paused)
   const live = useRef({ show: null as Show | null, index: 0, speaking: false, paused: false, startedAt: 0, voice: true, talked: -1, overlapping: false });
+  const bannedRef = useRef<Set<string>>(new Set()); // songs never to play (read inside the timers)
   const poll = useRef<(() => void) | null>(null); // stops the heartbeat that drives the show
   const talking = useRef<Talking | null>(null);
   // intros are voiced ahead of time (while the previous song plays), so the host never makes you wait
@@ -148,6 +149,8 @@ function useRadioEngine() {
   const playSlot = useCallback((i: number, overlap = false) => {
     const s = live.current.show;
     if (!s) return;
+    // banned during the show: hop over it (and over the talk that leads into it)
+    while (i < s.slots.length && bannedRef.current.has(s.slots[i].track.id)) i++;
     if (i >= s.slots.length) {
       // the end: the hosts say goodbye (if they have something to say and the voice is on), then off air
       const finish = () => {
@@ -325,6 +328,7 @@ function useRadioEngine() {
   const start = async () => {
     setPhase('building');
     setStatus({ kind: 'idle' });
+    bannedSongs(db).then((b) => setBanned(new Set(b.map((x) => x.id)))).catch(() => {}); // Settings may have let some back
     try {
       preview.current?.stop();
       const s = await buildShow(db, station, wish, length);
@@ -457,6 +461,27 @@ function useRadioEngine() {
 
   // hearted songs: they may come back in later shows; the rest never repeat
   const [hearts, setHearts] = useState<Set<string>>(new Set());
+  const [banned, setBanned] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    bannedRef.current = banned;
+  }, [banned]);
+  useEffect(() => {
+    bannedSongs(db).then((b) => setBanned(new Set(b.map((s) => s.id)))).catch(() => {});
+  }, [db]);
+  /** "Don't play this song": never again on the radio; if it's the one playing, move on now. */
+  const ban = async (t: Track) => {
+    await banSong(db, t);
+    const next = new Set(bannedRef.current).add(t.id);
+    bannedRef.current = next;
+    setBanned(next);
+    setHearts((h) => {
+      const n = new Set(h);
+      n.delete(t.id);
+      return n;
+    });
+    const s = live.current.show;
+    if (s && s.slots[live.current.index]?.track.id === t.id) controls.current.skip();
+  };
   useEffect(() => {
     likedSongs(db).then((l) => setHearts(new Set(l.map((s) => s.id)))).catch(() => {});
   }, [db]);
@@ -497,7 +522,7 @@ function useRadioEngine() {
     [],
   );
 
-  return { miniCollapsed, setMiniCollapsed, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
+  return { banned, ban, miniCollapsed, setMiniCollapsed, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
 }
 
 export type RadioEngine = ReturnType<typeof useRadioEngine>;

@@ -128,6 +128,7 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="entry/[id]" options={{ animation: 'fade_from_bottom' }} />
         <Stack.Screen name="note/[id]" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="recap/[id]" />
         <Stack.Screen name="goal/[id]" />
