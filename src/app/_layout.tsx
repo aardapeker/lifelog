@@ -6,6 +6,7 @@ import {
 } from '@expo-google-fonts/libre-caslon-text';
 import { useFonts } from 'expo-font';
 import * as Notifications from 'expo-notifications';
+import { openNotification } from '../lib/notify';
 import { router, Stack } from 'expo-router';
 import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent';
 import * as SplashScreen from 'expo-splash-screen';
@@ -98,13 +99,8 @@ export default function RootLayout() {
   // tapping a check-in opens the chat, a day-off reminder the plan, a Read the article
   useEffect(() => {
     if (!loaded) return;
-    const handle = (data: Record<string, unknown> | undefined) => {
-      if (data?.kind === 'checkin') setTimeout(() => router.navigate('/chat'), 300);
-      if (data?.kind === 'planner' && typeof data.day === 'string') setTimeout(() => router.push(`/plan/${data.day}`), 300);
-      if (data?.kind === 'read' && data.id !== undefined) setTimeout(() => router.push(`/read/${data.id}`), 300);
-      if (data?.kind === 'radio') setTimeout(() => router.navigate('/radio'), 300); // back to the running show
-      if (data?.kind === 'usage') setTimeout(() => router.navigate('/insights'), 300); // the budget warning
-    };
+    // the same place the 🔔 inbox opens (see notify.ts)
+    const handle = (data: Record<string, unknown> | undefined) => setTimeout(() => openNotification(data), 300);
     handle(Notifications.getLastNotificationResponse()?.notification.request.content.data);
     const sub = Notifications.addNotificationResponseReceivedListener((r) => handle(r.notification.request.content.data));
     return () => sub.remove();
@@ -141,7 +137,9 @@ export default function RootLayout() {
         <Stack.Screen name="research/[id]" options={{ animation: 'fade_from_bottom' }} />
         <Stack.Screen name="restore" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="spotify-auth" options={{ animation: 'none' }} />
-        <Stack.Screen name="radio" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="you" />
+        <Stack.Screen name="settings/[section]" />
+        <Stack.Screen name="inbox" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="welcome" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
       </Stack>
       </LockGate>

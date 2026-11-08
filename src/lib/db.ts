@@ -213,6 +213,20 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX milestones_date ON milestones(date);
   `,
+  // v10: every notification the app sends, for the 🔔 inbox (scheduled ones show once their time comes)
+  `
+  CREATE TABLE inbox (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    notification_id TEXT,
+    kind            TEXT    NOT NULL,
+    title           TEXT    NOT NULL,
+    body            TEXT    NOT NULL,
+    data            TEXT,               -- JSON: where tapping it goes
+    at              INTEGER NOT NULL,   -- when it shows up
+    read            INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX inbox_at ON inbox(at);
+  `,
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<void> {

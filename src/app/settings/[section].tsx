@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState, type ReactNode } from 'react';
 import { Alert, Animated, KeyboardAvoidingView, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
@@ -21,7 +21,11 @@ import {
   likedAccess,
 } from '../../lib/spotify';
 import { bannedSongs, getRadioPrefs, likedSongs, saveRadioPrefs, toggleLiked, unbanSong, type RadioPrefs, type SongRef } from '../../lib/songMemory';
-import { Chip, PillButton, SectionTitle, StatusLine, type Status } from '../../components/ui';
+import { Chip, IconButton, PillButton, SectionTitle, StatusLine, type Status } from '../../components/ui';
+import { UsageSection } from '../../components/UsageSection';
+import { requestPinWidget } from 'react-native-android-widget';
+import { exportJson } from '../../lib/insights';
+import { SETTINGS_PAGES, type SettingsPage } from '../../lib/settingsPages';
 import { backupNow, getPassphrase, lastBackupAt, restoreFromFile, setPassphrase } from '../../lib/backup';
 import {
   getCheckinSettings,
@@ -922,10 +926,52 @@ function WritingSection() {
   );
 }
 
+
+/** Home screen widget and the JSON export (Privacy & Data). */
+function WidgetAndExport() {
+  const db = useSQLiteContext();
+  const pinWidget = async () => {
+    try {
+      const ok = await requestPinWidget({ widgetName: 'Lifelog' });
+      if (!ok) throw new Error('not supported');
+    } catch {
+      Alert.alert(
+        "Your launcher didn't allow it",
+        'On Xiaomi: Settings → Apps → Manage apps → Lifelog → Other permissions → turn on "Home screen shortcuts", then try again. ' +
+          'Or long-press the home screen → Widgets → Lifelog.',
+      );
+    }
+  };
+  const exportAll = async () => {
+    try {
+      await exportJson(db);
+    } catch (e) {
+      Alert.alert("Couldn't export", e instanceof Error ? e.message : String(e));
+    }
+  };
+  return (
+    <>
+      <Section title="Home Screen" hint="A widget with Talk, Write and the radio, so a break is enough for an entry.">
+        <PillButton label="Add widget to home screen" onPress={pinWidget} full />
+        <Text style={[styles.hint, { marginTop: 10 }]}>
+          Nothing happens on Xiaomi? Turn on "Home screen shortcuts" for Lifelog in its app permissions first.
+        </Text>
+      </Section>
+      <Section
+        title="Export"
+        hint="Your whole journal as one JSON file, ready to move to your own server one day. Not encrypted, so keep it private."
+      >
+        <PillButton label="Export everything" onPress={exportAll} ghost full />
+      </Section>
+    </>
+  );
+}
+
 export default function SettingsScreen() {
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();
-  const bottomSpace = useBottomSpace(); // the tab bar, plus the radio player when it's docked
+  const { section } = useLocalSearchParams<{ section: string }>();
+  const page: SettingsPage = section in SETTINGS_PAGES ? (section as SettingsPage) : 'me';
   const { y, onScroll } = useCollapsingHeader();
   const [name, setName] = useState('');
   const [profile, setProfile] = useState('');
@@ -992,12 +1038,19 @@ export default function SettingsScreen() {
         style={styles.screen}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 12, paddingBottom: bottomSpace + insets.bottom },
+          { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 60 },
         ]}
         keyboardShouldPersistTaps="handled"
       >
-        <Animated.Text style={[styles.title, bigTitleMotion(y)]}>Settings</Animated.Text>
+        <View style={styles.pageTop}>
+          <IconButton icon="arrow-back" label="Back" onPress={() => router.back()} />
+        </View>
+        <Animated.Text style={[styles.title, bigTitleMotion(y)]}>
+          {SETTINGS_PAGES[page].emoji} {SETTINGS_PAGES[page].title}
+        </Animated.Text>
 
+        {page === 'me' && (
+        <>
         <Section title="About You" hint="Your friend reads this before every reply.">
           <Text style={styles.label}>Name</Text>
           <TextInput
@@ -1028,8 +1081,13 @@ export default function SettingsScreen() {
         <WritingSection />
 
         <LearnedSection />
+        </>
+        )}
 
-        <Section title="AI Models" hint="Which AI does each job. Prices are per 1M tokens; Insights → Usage shows what it adds up to.">
+        {page === 'ai' && (
+        <>
+
+        <Section title="AI Models" hint="Which AI does each job. Prices are per 1M tokens; AI Usage below shows what it adds up to.">
           <Segment
             options={(Object.keys(PROVIDERS) as Provider[]).map((p) => ({ key: p, label: PROVIDERS[p].label }))}
             value={provider}
@@ -1054,18 +1112,6 @@ export default function SettingsScreen() {
           <JobModels provider={provider} />
         </Section>
 
-        <CheckinSection />
-
-        <DaysOffSection />
-
-        <AutonomySection />
-
-        <SpotifySection />
-
-        <RadioSection />
-
-        <PrivacySection />
-
         <Section title="API Keys" hint="Kept in your phone's encrypted keystore. Only sent to the AI you call.">
           <KeyBlock
             provider="gemini"
@@ -1084,6 +1130,28 @@ export default function SettingsScreen() {
           />
         </Section>
 
+        <UsageSection />
+        </>
+        )}
+
+        {page === 'friend' && (
+          <>
+            <CheckinSection />
+            <DaysOffSection />
+            <AutonomySection />
+          </>
+        )}
+
+        {page === 'music' && (
+          <>
+            <SpotifySection />
+            <RadioSection />
+          </>
+        )}
+
+        {page === 'privacy' && (
+        <>
+        <PrivacySection />
         <Section title="Memory">
           <Text style={styles.stat}>
             {stats.done} {stats.done === 1 ? 'piece' : 'pieces'} of your journal can be found by meaning
@@ -1095,13 +1163,17 @@ export default function SettingsScreen() {
           </View>
           <StatusLine status={indexStatus} />
         </Section>
+        <WidgetAndExport />
+        </>
+        )}
       </Animated.ScrollView>
-      <CollapsingHeader title="Settings" y={y} />
+      <CollapsingHeader title={SETTINGS_PAGES[page].title} y={y} />
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  pageTop: { flexDirection: 'row', marginBottom: -10 },
   songList: { marginTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, paddingTop: 6 },
   songListHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   songRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },

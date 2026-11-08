@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import { cancelNotify, notify } from './notify';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { digestTimeOn, getAutonomySettings } from './autonomySettings';
 import { getBackgroundConfig, parseJsonReply } from './chat';
@@ -111,10 +112,7 @@ async function writeAhead(
   for (const [i, slot] of slots.entries()) {
     const body = messages[i]?.trim();
     if (!body) continue;
-    const id = await Notifications.scheduleNotificationAsync({
-      content: { title: 'Lifelog', body, data: { kind: 'checkin' } },
-      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(slot.at), channelId: 'checkins' },
-    });
+    const id = await notify({ title: 'Lifelog', body, data: { kind: 'checkin' }, at: slot.at, channelId: 'checkins' });
     await db.runAsync(
       "INSERT OR IGNORE INTO checkins(fire_at, body, notification_id, kind) VALUES (?, ?, ?, 'ahead')",
       slot.at,

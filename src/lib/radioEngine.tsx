@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import { notify } from './notify';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
@@ -261,10 +262,7 @@ function useRadioEngine() {
       fail(e);
       // you're probably in Spotify or the phone is in your pocket: say it where you'll see it
       if (AppState.currentState !== 'active') {
-        Notifications.scheduleNotificationAsync({
-          content: { title: 'Lifelog Radio paused', body: e instanceof Error ? e.message : String(e), data: { kind: 'radio' } },
-          trigger: null,
-        }).catch(() => {});
+        notify({ title: 'Lifelog Radio paused', body: e instanceof Error ? e.message : String(e), data: { kind: 'radio' } }).catch(() => {});
       }
     }
   }, []);

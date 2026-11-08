@@ -1,4 +1,5 @@
 import * as BackgroundTask from 'expo-background-task';
+import { cancelNotify, notify } from './notify';
 import * as Notifications from 'expo-notifications';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import * as TaskManager from 'expo-task-manager';
@@ -231,8 +232,9 @@ export async function maybeSendDigest(db: SQLiteDatabase, force = false): Promis
     const at = force ? Date.now() : Math.max(Date.now(), digestTimeOn(s));
     // today's pre-written message (see ahead.ts) steps aside for the real one
     await cancelPending(db, 'ahead', midnight(at), midnight(at) + DAY);
-    const notificationId = await Notifications.scheduleNotificationAsync({
-      content: {
+    const notificationId = await notify({
+        at,
+        channelId: 'checkins',
         title: reads.length
           ? `I dug into ${articleOf(reads[0])?.title ?? reads[0].topic} for you`
           : research.length
@@ -241,11 +243,6 @@ export async function maybeSendDigest(db: SQLiteDatabase, force = false): Promis
         body: body.length > 140 ? `${body.slice(0, 137)}…` : body,
         // a Read opens the article itself; anything else opens the chat
         data: reads.length ? { kind: 'read', id: reads[0].id } : { kind: 'checkin' },
-      },
-      trigger:
-        at > Date.now() + 5000
-          ? { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(at), channelId: 'checkins' }
-          : null,
     });
     await db.runAsync(
       "INSERT OR IGNORE INTO checkins(fire_at, body, notification_id, kind) VALUES (?, ?, ?, 'digest')",

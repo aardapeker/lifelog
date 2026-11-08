@@ -27,8 +27,8 @@ import { hybridSearch } from '../../lib/search';
 import { bigTitleMotion, CollapsingHeader, useCollapsingHeader } from '../../components/CollapsingHeader';
 import { FadeIn, PressScale, Shimmer, ShimmerText, stagger } from '../../components/motion';
 import { useBottomSpace } from '../../components/MiniPlayer';
-import { spotifyConnected } from '../../lib/spotify';
 import { MilestoneSuggestions } from '../../components/Milestones';
+import { TopBar } from '../../components/TopBar';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 
 type Range = 'all' | 'week' | 'month';
@@ -116,13 +116,7 @@ export default function JournalScreen() {
     }
   }, [db, query]);
 
-  const [radio, setRadio] = useState(false);
   const [learned, setLearned] = useState(0); // bumps when the background jobs finish // Spotify connected: the Radio button shows
-  useFocusEffect(
-    useCallback(() => {
-      spotifyConnected().then(setRadio);
-    }, []),
-  );
   useFocusEffect(
     useCallback(() => {
       load();
@@ -164,7 +158,7 @@ export default function JournalScreen() {
     if (!(await getPassphrase())) {
       Alert.alert('Set a passphrase first', 'Backups are encrypted with a passphrase only you know.', [
         { text: 'Later', style: 'cancel' },
-        { text: 'Open Settings', onPress: () => router.navigate('/settings') },
+        { text: 'Open Settings', onPress: () => router.push('/settings/privacy') },
       ]);
       return;
     }
@@ -207,9 +201,9 @@ export default function JournalScreen() {
           onPress={async () => {
             const s = await getPlannerSettings(db);
             if (!s.city) {
-              Alert.alert('Where are you?', 'Set your city in Settings → Days Off, so I can check the weather and events.', [
+              Alert.alert('Where are you?', 'Set your city in You → Friend → Days Off, so I can check the weather and events.', [
                 { text: 'Later', style: 'cancel' },
-                { text: 'Open Settings', onPress: () => router.navigate('/settings') },
+                { text: 'Open Settings', onPress: () => router.push('/settings/friend') },
               ]);
               return;
             }
@@ -243,20 +237,15 @@ export default function JournalScreen() {
 
   const header = (
     <View>
-      <View style={styles.top}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{(name.trim()[0] ?? '✎').toUpperCase()}</Text>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.hello}>{greeting()}</Text>
+      {/* your photo opens You (profile + settings); new entries start from the ＋ in the tab bar */}
+      <TopBar
+        kicker={greeting()}
+        title={
           <Animated.Text style={[styles.name, bigTitleMotion(y)]} numberOfLines={1}>
             {name.trim() || 'Your journal'}
           </Animated.Text>
-        </View>
-        {/* the radio lives on the home page: it's about your days, not the chat */}
-        {radio && <IconButton icon="radio-outline" label="Lifelog Radio" onPress={() => router.push('/radio')} />}
-        <IconButton icon="add" label="Write a new entry" variant="light" onPress={() => router.push('/note/new')} />
-      </View>
+        }
+      />
 
       <View style={styles.search}>
         <TextInput

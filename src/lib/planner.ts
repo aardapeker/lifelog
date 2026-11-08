@@ -1,4 +1,5 @@
 import { fetch } from 'expo/fetch';
+import { cancelNotify, notify } from './notify';
 import * as Notifications from 'expo-notifications';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getChatConfig, parseJsonReply, PROVIDERS } from './chat';
@@ -406,7 +407,7 @@ export async function scheduleDayOffReminders(db: SQLiteDatabase): Promise<void>
   // drop old ones; cancel everything if reminders are off or no city is set
   for (const [key, id] of Object.entries(scheduled)) {
     if (!s.reminders || !s.city || parseDayParam(key) < midnight(Date.now())) {
-      await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
+      await cancelNotify(id);
       delete scheduled[key];
     }
   }
@@ -419,13 +420,12 @@ export async function scheduleDayOffReminders(db: SQLiteDatabase): Promise<void>
       const at = day - 4 * 3600e3; // 20:00 the evening before
       if (scheduled[key] || at < Date.now() + 60_000 || !(await isDayOff(db, day + 12 * 3600e3))) continue;
       if (!(await ensureNotificationPermission())) break;
-      scheduled[key] = await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'Tomorrow is free',
-          body: 'Want me to plan your day? Weather, events and a little push included.',
-          data: { kind: 'planner', day: key },
-        },
-        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(at), channelId: 'checkins' },
+      scheduled[key] = await notify({
+        title: 'Tomorrow is free',
+        body: 'Want me to plan your day? Weather, events and a little push included.',
+        data: { kind: 'planner', day: key },
+        at,
+        channelId: 'checkins',
       });
     }
   }

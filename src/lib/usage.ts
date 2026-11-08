@@ -1,4 +1,5 @@
 import { openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
+import { cancelNotify, notify } from './notify';
 import * as Notifications from 'expo-notifications';
 import { DB_NAME, getSetting, setSetting } from './db';
 
@@ -248,12 +249,9 @@ async function checkBudget(db: SQLiteDatabase): Promise<void> {
   const level = spent >= budget ? 100 : spent >= budget * 0.8 ? 80 : 0;
   if (!level || warned === `${monthKey}:${level}` || (level === 80 && warned === `${monthKey}:100`)) return;
   await setSetting(db, 'usage.warned', `${monthKey}:${level}`);
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: level === 100 ? 'AI budget reached' : 'AI budget at 80%',
-      body: `About ${lira(spent / fx.rate, fx.rate)} of your ₺${budget} this month. Everything keeps working, this is just a heads-up.`,
-      data: { kind: 'usage' },
-    },
-    trigger: null,
+  await notify({
+    title: level === 100 ? 'AI budget reached' : 'AI budget at 80%',
+    body: `About ${lira(spent / fx.rate, fx.rate)} of your ₺${budget} this month. Everything keeps working, this is just a heads-up.`,
+    data: { kind: 'usage' },
   });
 }

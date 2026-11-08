@@ -39,7 +39,7 @@ type Fixing = 'idle' | 'fixing' | 'saving';
 export default function NoteScreen() {
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();
-  const { id, voice, shared } = useLocalSearchParams<{ id: string; voice?: string; shared?: string }>();
+  const { id, voice, shared, photo } = useLocalSearchParams<{ id: string; voice?: string; shared?: string; photo?: string }>();
   const noteId = id === 'new' ? null : Number(id);
   const [body, setBody] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
@@ -128,6 +128,11 @@ export default function NoteScreen() {
   useEffect(() => {
     if (noteId === null && voice === '1') {
       const t = setTimeout(() => startRecording(), 400);
+      return () => clearTimeout(t);
+    }
+    // opened from ＋ → Photo entry: straight to Gallery / Camera
+    if (noteId === null && photo === '1') {
+      const t = setTimeout(() => addPhoto(), 400);
       return () => clearTimeout(t);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

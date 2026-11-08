@@ -4,15 +4,16 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Image, Keyboard, ScrollView, StyleSheet, Text, TextInput, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MorphPlayButton, WavyProgress } from '../components/expressive';
-import { Glass, GlassArea } from '../components/Glass';
-import { FadeIn, Pulse, PressScale, Shimmer, ShimmerText } from '../components/motion';
-import { Chip, IconButton, PillButton, StatusLine } from '../components/ui';
-import type { Palette } from '../lib/albumColors';
-import { SHOW_LENGTHS, WISHES } from '../lib/radio';
-import { useRadio } from '../lib/radioEngine';
-import { LANGS, STATIONS, VOICES } from '../lib/stations';
-import { colors, fonts, inputColors, radius } from '../lib/theme';
+import { MorphPlayButton, WavyProgress } from '../../components/expressive';
+import { Glass, GlassArea } from '../../components/Glass';
+import { FadeIn, Pulse, PressScale, Shimmer, ShimmerText } from '../../components/motion';
+import { Chip, IconButton, PillButton, StatusLine } from '../../components/ui';
+import type { Palette } from '../../lib/albumColors';
+import { SHOW_LENGTHS, WISHES } from '../../lib/radio';
+import { useRadio } from '../../lib/radioEngine';
+import { LANGS, STATIONS, VOICES } from '../../lib/stations';
+import { colors, fonts, inputColors, radius, TAB_BAR_SPACE } from '../../lib/theme';
+import { Avatar, Bell } from '../../components/TopBar';
 
 /** Keeps the screen on while the show runs (the host needs the app awake to talk). */
 function KeepAwake() {
@@ -84,7 +85,7 @@ export default function RadioScreen() {
       hide.remove();
     };
   }, []);
-  const { banned, ban, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current } = useRadio();
+  const { banned, ban, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, stop, current } = useRadio();
 
   return (
     <View style={styles.screen}>
@@ -92,19 +93,22 @@ export default function RadioScreen() {
       <AlbumGlow palette={palette} />
       {phase === 'onair' && <KeepAwake />}
       <View style={styles.bar}>
-        <IconButton icon="chevron-down" label="Close radio" onPress={close} />
+        <Avatar size={44} />
         <View style={styles.onAir}>
           {phase === 'onair' && !paused && <Pulse style={styles.onAirDot} />}
           <Text style={styles.barTitle}>{phase === 'onair' ? 'On air' : 'Radio'}</Text>
         </View>
-        <IconButton icon={voice ? 'mic' : 'mic-off'} label={voice ? 'Host talks' : 'Host is quiet'} onPress={toggleVoice} />
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <IconButton icon={voice ? 'mic' : 'mic-off'} label={voice ? 'Host talks' : 'Host is quiet'} onPress={toggleVoice} />
+          <Bell />
+        </View>
       </View>
 
       <Glass blur radius={28} style={styles.sheet}>
       <ScrollView
         ref={scroll}
         style={{ flex: 1 }}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 70 + keyboard }]}
+        contentContainerStyle={[styles.content, { paddingBottom: (keyboard ? 70 : TAB_BAR_SPACE) + keyboard }]}
         keyboardShouldPersistTaps="handled"
       >
         {phase === 'pick' && (

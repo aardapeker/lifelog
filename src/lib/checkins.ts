@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import { cancelNotify, notify } from './notify';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getBackgroundConfig, parseJsonReply } from './chat';
 import { addMessage, chatForIncoming } from './chats';
@@ -145,10 +146,7 @@ export async function planCheckins(db: SQLiteDatabase): Promise<number> {
     for (const [i, slot] of slots.entries()) {
       const body = messages?.[i]?.trim();
       if (!body) continue;
-      const id = await Notifications.scheduleNotificationAsync({
-        content: { title: 'Lifelog', body, data: { kind: 'checkin' } },
-        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(slot.at), channelId: CHANNEL },
-      });
+      const id = await notify({ title: 'Lifelog', body, data: { kind: 'checkin' }, at: slot.at, channelId: CHANNEL });
       await db.runAsync(
         'INSERT OR IGNORE INTO checkins(fire_at, body, notification_id) VALUES (?, ?, ?)',
         slot.at,
@@ -195,7 +193,7 @@ export async function cancelPending(db: SQLiteDatabase, kind: string, from = 0, 
     to,
   );
   for (const r of rows) {
-    if (r.notification_id) await Notifications.cancelScheduledNotificationAsync(r.notification_id).catch(() => {});
+    if (r.notification_id) await cancelNotify(r.notification_id);
     await db.runAsync('DELETE FROM checkins WHERE id = ?', r.id);
   }
 }

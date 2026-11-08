@@ -58,7 +58,7 @@ export function MiniPlayer() {
     <FadeIn from={20}>
       <View {...swipe.panHandlers}>
       <Glass radius={radius.md} style={styles.bar}>
-        <Pressable style={styles.main} onPress={() => router.push('/radio')} accessibilityLabel="Open the radio">
+        <Pressable style={styles.main} onPress={() => router.navigate('/radio')} accessibilityLabel="Open the radio">
           {current.track.image ? (
             <Image source={{ uri: current.track.image }} style={styles.cover} />
           ) : (

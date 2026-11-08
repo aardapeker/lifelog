@@ -10,7 +10,7 @@ import { colors } from '../lib/theme';
 export default function SpotifyAuthReturn() {
   useEffect(() => {
     if (router.canGoBack()) router.back();
-    else router.replace('/settings');
+    else router.replace('/settings/music');
   }, []);
   return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
 }

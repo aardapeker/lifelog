@@ -1,6 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getBackgroundConfig, parseJsonReply } from './chat';
 import { getSetting, setSetting } from './db';
+import { notify } from './notify';
 
 /*
  * Milestones: the big moments of your life with a date (first day at a new job, moving house,
@@ -132,7 +133,13 @@ export const MILESTONE_RULE =
 export type FoundMilestone = { title?: string; story?: string; emoji?: string; big?: boolean; date?: string | null };
 
 /** Saves an AI-found milestone as a suggestion (pending), unless it's already there. */
-export async function suggestMilestone(db: SQLiteDatabase, f: FoundMilestone, noteId: number | null, fallbackDate: number): Promise<void> {
+export async function suggestMilestone(
+  db: SQLiteDatabase,
+  f: FoundMilestone,
+  noteId: number | null,
+  fallbackDate: number,
+  announce = true, // the journal scan shows its finds on the timeline instead of filling the inbox
+): Promise<void> {
   const title = f.title?.trim();
   if (!title) return;
   const parsed = f.date ? parseMilestoneDate(f.date) : null;
@@ -147,6 +154,8 @@ export async function suggestMilestone(db: SQLiteDatabase, f: FoundMilestone, no
   const dismissed = JSON.parse(await getSetting(db, 'milestones.dismissed', '[]')) as string[];
   if (dup || dismissed.includes(title.toLowerCase())) return;
   if (noteId !== null && (await db.getFirstAsync("SELECT id FROM milestones WHERE note_id = ? AND status = 'pending'", noteId))) return;
+  // the 🔔 inbox mentions it too (quietly: no buzz for a suggestion)
+  if (announce) notify({ title: 'A milestone?', body: `${f.emoji?.trim() ? `${f.emoji.trim()} ` : ''}${title}`, data: { kind: 'milestone' }, quiet: true }).catch(() => {});
   await db.runAsync(
     "INSERT INTO milestones(date, precision, title, story, emoji, big, status, note_id, created_at) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)",
     date,
@@ -200,7 +209,7 @@ export async function scanJournal(db: SQLiteDatabase, onProgress: (done: number,
     for (const m of list) {
       const note = batch[(Number(m.entry) || 1) - 1] ?? batch[0];
       const before = await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM milestones');
-      await suggestMilestone(db, m, note.id, note.created_at);
+      await suggestMilestone(db, m, note.id, note.created_at, false);
       const after = await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM milestones');
       if ((after?.n ?? 0) > (before?.n ?? 0)) found++;
     }

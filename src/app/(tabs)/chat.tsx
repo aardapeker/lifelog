@@ -4,6 +4,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,6 +17,8 @@ import { Glass } from '../../components/Glass';
 import { LinkedText } from '../../components/LinkedText';
 import { FadeIn, PressScale, TypingDots } from '../../components/motion';
 import { Chip, IconButton, PillButton } from '../../components/ui';
+import { Avatar, Bell } from '../../components/TopBar';
+import { ForYou } from '../../components/ForYou';
 import { getChatConfig, PROVIDERS, type ChatMessage } from '../../lib/chat';
 import { titleChat } from '../../lib/chatMemory';
 import { addMessage, chatMessages, chatTitle, createChat, getChat, latestChat } from '../../lib/chats';
@@ -54,6 +57,11 @@ export default function ChatScreen() {
   const [title, setTitle] = useState<string | null>(null);
   const [messages, setMessages] = useState<Row[]>([]);
   const [input, setInput] = useState('');
+  const [tab, setTab] = useState<'chat' | 'foryou'>('chat');
+  // opened to a specific chat (history, a Read's "ask about it", ＋ → Ask): show the chat side
+  useEffect(() => {
+    if (params.id || params.new || params.ask) setTab('chat');
+  }, [params.id, params.new, params.ask]);
   const [busy, setBusy] = useState(false);
   const [hasKey, setHasKey] = useState(true);
   const [label, setLabel] = useState('');
@@ -183,7 +191,7 @@ export default function ChatScreen() {
         <Text style={styles.muted}>One Gemini key is enough. Paste it in Settings, then come back.</Text>
         <PillButton
           label="Open Settings"
-          onPress={() => router.navigate('/settings')}
+          onPress={() => router.push('/settings/ai')}
           style={{ marginTop: 22, alignSelf: 'flex-start' }}
         />
       </View>
@@ -196,15 +204,33 @@ export default function ChatScreen() {
   return (
     <KeyboardAvoidingView style={[styles.screen, { paddingTop: insets.top + 12 }]} behavior="padding">
       <View style={styles.top}>
+        <Avatar size={42} />
         <View style={{ flex: 1 }}>
           <Text style={styles.title} numberOfLines={1}>
-            {chatId === null ? 'New chat' : chatTitle({ title })}
+            {tab === 'foryou' ? 'For you' : chatId === null ? 'New chat' : chatTitle({ title })}
           </Text>
-          {!!label && <Text style={styles.model}>{label}</Text>}
+          {tab === 'chat' && !!label && <Text style={styles.model}>{label}</Text>}
         </View>
-        <IconButton icon="time-outline" label="Chat history" onPress={() => router.push('/chats')} />
-        {!isEmptyNew && <IconButton icon="create-outline" label="New chat" onPress={startNew} />}
+        {tab === 'chat' && <IconButton icon="time-outline" label="Chat history" onPress={() => router.push('/chats')} />}
+        {tab === 'chat' && !isEmptyNew && <IconButton icon="create-outline" label="New chat" onPress={startNew} />}
+        <Bell />
       </View>
+
+      {/* Chat, or what your friend made for you on its own */}
+      <View style={styles.switch}>
+        {(['chat', 'foryou'] as const).map((t) => (
+          <Pressable key={t} onPress={() => setTab(t)} style={[styles.switchItem, tab === t && styles.switchOn]} accessibilityRole="tab" accessibilityState={{ selected: tab === t }}>
+            <Text style={[styles.switchText, tab === t && styles.switchTextOn]}>{t === 'chat' ? 'Chat' : 'For you'}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {tab === 'foryou' ? (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: TAB_BAR_SPACE + insets.bottom }}>
+          <ForYou />
+        </ScrollView>
+      ) : (
+      <>
 
       <ScrollView
         ref={scrollRef}
@@ -269,6 +295,8 @@ export default function ChatScreen() {
           <Ionicons name="arrow-up" size={20} color={canSend ? colors.accentText : colors.muted} />
         </PressScale>
       </Glass>
+      </>
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -276,8 +304,13 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   center: { justifyContent: 'center', paddingHorizontal: 28 },
-  top: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, marginBottom: 6 },
-  title: { fontFamily: fonts.serif, fontSize: 28, color: colors.text },
+  top: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, marginBottom: 10 },
+  title: { fontFamily: fonts.serif, fontSize: 24, color: colors.text },
+  switch: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 6, backgroundColor: colors.raised, borderRadius: 999, padding: 4 },
+  switchItem: { flex: 1, paddingVertical: 9, borderRadius: 999, alignItems: 'center' },
+  switchOn: { backgroundColor: colors.accent },
+  switchText: { fontFamily: fonts.sansRegular, fontSize: 14, color: colors.muted },
+  switchTextOn: { fontFamily: fonts.sans, color: colors.accentText },
   model: { fontFamily: fonts.sansRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
 
   thread: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16, gap: 18 },

@@ -33,8 +33,8 @@ import { bigTitleMotion, CollapsingHeader, useCollapsingHeader } from '../../com
 import { Glass } from '../../components/Glass';
 import { FadeIn, PressScale, stagger } from '../../components/motion';
 import { useBottomSpace } from '../../components/MiniPlayer';
-import { UsageSection } from '../../components/UsageSection';
 import { LifeTimeline } from '../../components/Milestones';
+import { TopBar } from '../../components/TopBar';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 
 const WEEKS = 12;
@@ -202,27 +202,6 @@ export default function InsightsScreen() {
     load();
   };
 
-  const pinWidget = async () => {
-    try {
-      const ok = await requestPinWidget({ widgetName: 'Lifelog' });
-      if (!ok) throw new Error('not supported');
-    } catch {
-      Alert.alert(
-        "Your launcher didn't allow it",
-        'On Xiaomi: Settings → Apps → Manage apps → Lifelog → Other permissions → turn on "Home screen shortcuts", then try again. ' +
-          'Or long-press the home screen → Widgets → Lifelog.',
-      );
-    }
-  };
-
-  const exportAll = async () => {
-    try {
-      await exportJson(db);
-    } catch (e) {
-      Alert.alert("Couldn't export", e instanceof Error ? e.message : String(e));
-    }
-  };
-
   const avg = moods.size ? [...moods.values()].reduce((a, b) => a + b, 0) / moods.size : 0;
   const openGoals = goals.filter((g) => !g.done);
   const doneGoals = goals.filter((g) => g.done);
@@ -236,7 +215,7 @@ export default function InsightsScreen() {
       contentContainerStyle={[styles.content, { paddingTop: insets.top + 12, paddingBottom: bottomSpace + insets.bottom }]}
       keyboardShouldPersistTaps="handled"
     >
-      <Animated.Text style={[styles.title, bigTitleMotion(y)]}>Insights</Animated.Text>
+      <TopBar kicker="You, over time" title={<Animated.Text style={[styles.title, bigTitleMotion(y)]}>Life</Animated.Text>} />
 
       {week && (
         <FadeIn>
@@ -283,82 +262,10 @@ export default function InsightsScreen() {
         </View>
       </FadeIn>
 
-      {/* ── reads ── */}
-      {reads.length > 0 && (
-        <FadeIn style={styles.section} delay={stagger(1, 60)}>
-          <SectionTitle title="Reads" />
-          <Text style={styles.hint}>Short articles your friend researched and wrote after your chats.</Text>
-          <View style={{ gap: 10 }}>
-            {reads.map((r) => {
-              const a = articleOf(r);
-              return (
-                <Pressable
-                  key={r.id}
-                  style={({ pressed }) => [styles.readCard, pressed && { opacity: 0.8 }]}
-                  onPress={() => router.push(`/read/${r.id}`)}
-                >
-                  <View style={styles.readTop}>
-                    <Text style={styles.readMeta}>
-                      {a ? `${a.minutes} min read, ${formatDate(r.done_at ?? r.created_at).split(',').slice(0, 2).join(',')}` : 'Researching…'}
-                    </Text>
-                    {!!a && !r.opened && <View style={styles.newDot} />}
-                  </View>
-                  <Text style={styles.readTitle}>{a?.title ?? r.topic}</Text>
-                  {!!a?.hook && (
-                    <Text style={styles.readHook} numberOfLines={2}>
-                      {a.hook}
-                    </Text>
-                  )}
-                </Pressable>
-              );
-            })}
-          </View>
-        </FadeIn>
-      )}
-
-      {/* ── research ── */}
-      {research.length > 0 && (
-        <FadeIn style={styles.section} delay={stagger(2, 60)}>
-          <SectionTitle title="Looked Into" />
-          <Text style={styles.hint}>Things your friend searched for after reading your entries. Tap to read, hold to remove.</Text>
-          <View style={styles.panel}>
-            {research.map((r) => (
-              <Pressable
-                key={r.id}
-                style={styles.research}
-                onPress={() => router.push(`/research/${r.id}`)}
-                onLongPress={() =>
-                  Alert.alert('Remove this?', r.topic, [
-                    { text: 'Keep', style: 'cancel' },
-                    {
-                      text: 'Remove',
-                      style: 'destructive',
-                      onPress: async () => {
-                        await deleteResearch(db, r.id);
-                        load();
-                      },
-                    },
-                  ])
-                }
-              >
-                <Text style={styles.rowTitle}>{r.topic}</Text>
-                {r.status === 'pending' ? (
-                  <Text style={styles.rowMeta}>On the list, looking it up soon.</Text>
-                ) : (
-                  <>
-                    <Text style={styles.researchText} numberOfLines={3}>
-                      {r.result}
-                    </Text>
-                    <Text style={styles.researchLink}>
-                      Read · {researchSources(r).length} source{researchSources(r).length === 1 ? '' : 's'} →
-                    </Text>
-                  </>
-                )}
-              </Pressable>
-            ))}
-          </View>
-        </FadeIn>
-      )}
+      {/* ── your life in milestones ── */}
+      <FadeIn style={styles.section} delay={stagger(6, 60)}>
+        <LifeTimeline />
+      </FadeIn>
 
       {/* ── goals ── */}
       <FadeIn style={styles.section} delay={stagger(3, 60)}>
@@ -482,39 +389,9 @@ export default function InsightsScreen() {
         </View>
       </FadeIn>
 
-      {/* ── your life in milestones ── */}
-      <FadeIn style={styles.section} delay={stagger(6, 60)}>
-        <LifeTimeline />
-      </FadeIn>
 
-      {/* ── what the AI costs ── */}
-      <FadeIn style={styles.section} delay={stagger(6, 60)}>
-        <UsageSection />
-      </FadeIn>
-
-      {/* ── widget + export ── */}
-      <FadeIn style={styles.section} delay={stagger(6, 60)}>
-        <SectionTitle title="Home Screen" />
-        <Text style={styles.hint}>A widget with Talk and Write buttons, so a break is enough for an entry.</Text>
-        <View style={styles.panel}>
-          <PillButton label="Add widget to home screen" onPress={pinWidget} full />
-          <Text style={[styles.rowMeta, { marginTop: 10 }]}>
-            Nothing happens on Xiaomi? Turn on "Home screen shortcuts" for Lifelog in its app permissions first.
-          </Text>
-        </View>
-      </FadeIn>
-
-      <FadeIn style={styles.section} delay={stagger(7, 60)}>
-        <SectionTitle title="Export" />
-        <Text style={styles.hint}>
-          Your whole journal as one JSON file, ready to move to your own server one day. Not encrypted, so keep it private.
-        </Text>
-        <View style={styles.panel}>
-          <PillButton label="Export everything" onPress={exportAll} ghost full />
-        </View>
-      </FadeIn>
     </Animated.ScrollView>
-    <CollapsingHeader title="Insights" y={y} />
+    <CollapsingHeader title="Life" y={y} />
     </View>
   );
 }
