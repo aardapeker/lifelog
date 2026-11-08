@@ -48,6 +48,33 @@ const LANGUAGE: Record<Station['lang'], string> = {
   tr: 'Sadece Türkçe konuş (doğal, samimi İstanbul Türkçesi). Speak Turkish only, and lean towards Turkish songs.',
 };
 
+/** How much the hosts say before each song (Settings → Radio). */
+const TALK = {
+  short: { duo: '1 to 3 quick lines', solo: '1 or 2 sentences', tokens: 450 },
+  normal: { duo: '2 to 5 lines', solo: '1 to 3 sentences', tokens: 600 },
+  long: { duo: '5 to 8 lines, a real little scene with a story or a running bit', solo: '3 to 5 sentences, a proper monologue', tokens: 900 },
+} as const;
+
+/** Lowercase, no accents or Turkish letters, no punctuation: for comparing artist names. */
+const plain = (s: string) =>
+  s
+    .toLocaleLowerCase('tr')
+    .replace(/ı/g, 'i')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+/** Did Spotify find the artist the hosts talk about? ("Sena Şener - Cambaz" finding mor ve ötesi = no) */
+export function sameArtist(asked: string, found: string): boolean {
+  const a = plain(asked);
+  const f = plain(found);
+  if (!a || !f) return true;
+  if (a.includes(f) || f.includes(a)) return true;
+  const words = (s: string) => s.split(' ').filter((w) => w.length >= 4 && !['band', 'feat', 'with', 'orchestra'].includes(w));
+  return words(a).some((w) => words(f).includes(w));
+}
+
 const persona = (p: Persona, role: string) => `- ${p.name} (${role}): ${p.bio}`;
 
 export async function buildShow(db: SQLiteDatabase, station: Station, wish: string, length = 8): Promise<Show> {
@@ -92,7 +119,7 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
     apiKey: chat.apiKey,
     model: chat.model,
     json: true,
-    maxTokens: 1500 + SHOW_LENGTH * 600,
+    maxTokens: 1500 + SHOW_LENGTH * TALK[prefs.talk].tokens,
     system:
       `You write a private radio show on "${station.name} ${station.freq}" (${station.tagline}) for ONE listener, ` +
       `in the spirit of the radio stations in classic open-world crime games: larger-than-life hosts, absurd humour, ` +
@@ -105,7 +132,10 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
       '. Every other ' +
       'song must be a lesser-known track, album cut, B-side or forgotten gem that still fits perfectly. Never repeat ' +
       'a song from the "already played" list. Surprise them. ' +
-      `\n\nBefore every song the hosts talk${duo ? ' as a quick back-and-forth (2 to 5 lines; the sidekick gets the punchlines)' : ' (1 to 3 sentences)'}. ` +
+      `\n\nBefore every song the hosts talk${duo ? ` as a back-and-forth (${TALK[prefs.talk].duo}; the sidekick gets the punchlines)` : ` (${TALK[prefs.talk].solo})`}. ` +
+      'FACTS: when the hosts name a song or artist, it must be exactly the one in that "songs" entry (the song just ' +
+      'played is the previous entry). Never invent facts about artists (who sang what, years, gossip); if unsure, ' +
+      'joke about the listener\'s life instead. ' +
       'The first talk opens the show with a station ID. Make it about THIS listener: callbacks to what they wrote, ' +
       'their shift, their cat, their plans. Teasing is welcome, cruelty is not. ' +
       (station.ads.startsWith('none')
@@ -161,6 +191,8 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
   for (const s of plan.songs ?? []) {
     const track = await findTrack(s.title, s.artist).catch(() => null);
     if (!track || !ok(track) || slots.some((x) => x.track.id === track.id)) continue;
+    // Spotify found a different artist's song with that title: the talk would name the wrong singer
+    if (!sameArtist(s.artist, track.artist)) continue;
     // the AI ignored the memory: skip a repeat unless it's one they hearted
     if (played.some((p) => p.id === track.id) && !liked.some((l) => l.id === track.id) && !welcome.some((w) => w.id === track.id)) {
       continue;

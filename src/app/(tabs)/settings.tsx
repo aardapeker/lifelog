@@ -699,6 +699,11 @@ function SpotifySection() {
 }
 
 const HITS = [0, 1, 2, 3, 4].map((n) => ({ key: String(n), label: n ? String(n) : 'None' }));
+const TALKS: { key: RadioPrefs['talk']; label: string }[] = [
+  { key: 'short', label: 'Short' },
+  { key: 'normal', label: 'Normal' },
+  { key: 'long', label: 'Long' },
+];
 const FAVS: { key: RadioPrefs['favourites']; label: string }[] = [
   { key: 'never', label: 'Never' },
   { key: 'sometimes', label: 'Sometimes' },
@@ -730,6 +735,9 @@ function RadioSection() {
 
   return (
     <Section title="Radio" hint="How Lifelog Radio picks songs. Every show still digs for songs you haven't heard on it yet.">
+      <Text style={styles.label}>Talk between songs</Text>
+      <Segment options={TALKS} value={p.talk} onChange={(talk) => update({ talk })} />
+      <Text style={styles.hint}>Long talks are more fun, and use more of Gemini's free voice quota.</Text>
       <Text style={styles.label}>Big hits per show</Text>
       <Segment options={HITS} value={String(p.hits)} onChange={(v) => update({ hits: Number(v) })} />
       <Text style={styles.hint}>The rest are deep cuts: album tracks, B-sides, forgotten gems.</Text>
