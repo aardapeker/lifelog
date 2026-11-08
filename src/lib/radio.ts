@@ -23,6 +23,9 @@ export type Show = { title: string; lang: string; station: Station; slots: Slot[
 /** Quick ideas for the "anything else?" box. */
 export const WISHES = ['On the way to work', 'After the shift', 'Focus', 'Rainy day', 'Make me laugh'];
 
+/** A favourite among the last this-many played songs (about 3 or 4 shows) waits for a later show. */
+const REST = 40;
+
 /** How many songs a show can have (the Radio screen offers these). */
 export const SHOW_LENGTHS = [5, 8, 12, 16] as const;
 
@@ -97,20 +100,23 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
     likedSongs(db),
   ]);
   const [prefs, banned] = await Promise.all([getRadioPrefs(db), bannedSongs(db)]);
+  // favourites take turns: one that played in the last few shows sits this one out
+  const resting = new Set(played.slice(0, REST).map((p) => p.id));
   const ok = (t: { id: string }) => !banned.some((b) => b.id === t.id);
+  const fresh = (t: { id: string }) => ok(t) && !resting.has(t.id);
   const favs = FAVOURITES_PER_SHOW[prefs.favourites];
   const spotifyFavs = favs && prefs.spotifyLiked ? (await spotifyLikedSongs(db).catch(() => [])).filter(ok) : [];
   const twist = prefs.twists ? TWISTS[Math.floor(Math.random() * TWISTS.length)] : null;
   const shuffle = <T,>(a: T[]) => a.map((x) => [Math.random(), x] as const).sort((x, y) => x[0] - y[0]).map((x) => x[1]);
   // a few hearted ones plus a few from Spotify Liked Songs, different each time
-  const likedHere = favs ? [...shuffle(liked.filter(ok)).slice(0, 3), ...shuffle(spotifyFavs).slice(0, 4)] : [];
+  const likedHere = favs ? [...shuffle(liked.filter(fresh)).slice(0, 3), ...shuffle(spotifyFavs.filter(fresh)).slice(0, 4)] : [];
   // songs that were playing while they wrote this week's entries: they're welcome back, like hearted ones
   const journalSongs = recent
     .map((n) => noteSong(n))
     .filter((x): x is NonNullable<typeof x> => !!x)
     .filter((x, i, all) => all.findIndex((o) => o.id === x.id) === i)
     .map((x) => ({ id: x.id, uri: `spotify:track:${x.id}`, name: x.name, artist: x.artist }))
-    .filter(ok);
+    .filter(fresh);
   const welcome = [...likedHere, ...journalSongs.filter((j) => !likedHere.some((l) => l.id === j.id))];
   const duo = !!station.sidekick;
   const names = duo ? `"${station.host.name}" or "${station.sidekick!.name}"` : `"${station.host.name}"`;
@@ -196,7 +202,8 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
     if (!track || !ok(track) || slots.some((x) => x.track.id === track.id)) continue;
     // Spotify found a different artist's song with that title: the talk would name the wrong singer
     if (!sameArtist(s.artist, track.artist)) continue;
-    // the AI ignored the memory: skip a repeat unless it's one they hearted
+    // the AI ignored the memory: skip a repeat, unless it's a favourite that has rested long enough
+    if (resting.has(track.id)) continue;
     if (played.some((p) => p.id === track.id) && !liked.some((l) => l.id === track.id) && !welcome.some((w) => w.id === track.id)) {
       continue;
     }
