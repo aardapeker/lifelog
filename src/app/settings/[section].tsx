@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useState, type ReactNode } from 'react';
+import { Children, cloneElement, isValidElement, useCallback, useState, type ReactNode } from 'react';
 import { Alert, Animated, KeyboardAvoidingView, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { authenticate, canUseBiometrics } from '../../components/LockGate';
@@ -72,12 +72,22 @@ import { getKey, maskKey, setKey, type Provider } from '../../lib/keys';
 import { useBottomSpace } from '../../components/MiniPlayer';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 
+/** A field name or a switch at the very top of a panel doesn't need the space it keeps above itself elsewhere. */
+function flushTop(children: ReactNode): ReactNode {
+  const all = Children.toArray(children);
+  const first = all[0];
+  if (!isValidElement<{ style?: unknown; first?: boolean }>(first)) return children;
+  if (first.type === Toggle) all[0] = cloneElement(first, { first: true });
+  else if (first.props.style === styles.label) all[0] = cloneElement(first, { style: [styles.label, { marginTop: 0 }] });
+  return all;
+}
+
 function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   return (
     <View style={styles.section}>
       <SectionTitle title={title} />
       {hint && <Text style={styles.sectionHint}>{hint}</Text>}
-      <View style={styles.panel}>{children}</View>
+      <View style={styles.panel}>{flushTop(children)}</View>
     </View>
   );
 }
@@ -162,12 +172,24 @@ function KeyBlock(props: { provider: Provider; title: string; hint: string; test
   );
 }
 
-function Toggle({ label, hint, value, onChange }: { label: string; hint?: string; value: boolean; onChange: (v: boolean) => void }) {
+function Toggle({
+  label,
+  hint,
+  value,
+  onChange,
+  first,
+}: {
+  label: string;
+  hint?: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+  first?: boolean; // the top of a panel: no space above
+}) {
   return (
-    <View style={styles.toggle}>
+    <View style={[styles.toggle, first && { marginTop: 0 }]}>
       <View style={{ flex: 1 }}>
         <Text style={styles.keyTitle}>{label}</Text>
-        {hint && <Text style={styles.hint}>{hint}</Text>}
+        {hint && <Text style={[styles.hint, { marginTop: 3 }]}>{hint}</Text>}
       </View>
       <Switch
         value={value}
@@ -1178,24 +1200,25 @@ const styles = StyleSheet.create({
   songListHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   songRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
   songName: { fontFamily: fonts.sans, fontSize: 15, color: colors.text },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 6 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   screen: { flex: 1, backgroundColor: colors.bg },
   content: { paddingHorizontal: 20, gap: 30 },
   title: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 34, color: colors.text },
 
   section: { gap: 6 },
   sectionHint: { fontFamily: fonts.sansRegular, fontSize: 13, lineHeight: 19, color: colors.muted, marginBottom: 8 },
-  panel: { backgroundColor: colors.surface, borderRadius: radius.md, padding: 18 },
+  panel: { backgroundColor: colors.surface, borderRadius: radius.md, padding: 20 },
   divider: { height: 1, backgroundColor: colors.line, marginVertical: 20 },
 
   keyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  keyTitle: { fontFamily: fonts.serif, fontSize: 19, color: colors.text },
+  keyTitle: { fontFamily: fonts.sans, fontSize: 16, lineHeight: 22, color: colors.text },
   keyState: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   keyStateText: { fontFamily: fonts.sansRegular, fontSize: 12, color: colors.muted },
 
-  hint: { fontFamily: fonts.sansRegular, fontSize: 13, lineHeight: 19, color: colors.muted },
-  label: { fontFamily: fonts.serif, fontSize: 14, color: colors.muted, marginTop: 14 },
+  hint: { fontFamily: fonts.sansRegular, fontSize: 13, lineHeight: 19, color: colors.muted, marginTop: 8 },
+  // a field's name: room above (a new field starts) and a little below (it belongs to what follows)
+  label: { fontFamily: fonts.sans, fontSize: 13, letterSpacing: 0.2, color: colors.muted, marginTop: 24, marginBottom: 10 },
   stat: { fontFamily: fonts.serif, fontSize: 17, lineHeight: 25, color: colors.text, marginBottom: 6 },
 
   input: {
@@ -1216,8 +1239,8 @@ const styles = StyleSheet.create({
   segmentText: { fontFamily: fonts.sansRegular, fontSize: 14, color: colors.muted },
   segmentTextActive: { fontFamily: fonts.sans, color: colors.accentText },
 
-  row: { flexDirection: 'row', gap: 10, marginTop: 16 },
-  toggle: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 22 },
+  toggle: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 22 },
   bgBox: { marginTop: 18, padding: 14, borderRadius: radius.sm, backgroundColor: colors.raised },
   bgBoxWarn: { borderWidth: 1, borderColor: colors.text },
   times: { flexDirection: 'row', gap: 8 },
