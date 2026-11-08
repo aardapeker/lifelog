@@ -1,19 +1,19 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Tabs } from 'expo-router';
-import { useEffect, useRef, useState, type ComponentProps } from 'react';
-import { router } from 'expo-router';
-import { Animated, Pressable, StyleSheet, View } from 'react-native';
+import { router, Tabs } from 'expo-router';
+import { useEffect, useMemo, useRef, useState, type ComponentProps } from 'react';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Glass } from '../../components/Glass';
 import { MiniPlayer } from '../../components/MiniPlayer';
-import { colors } from '../../lib/theme';
+import { colors, fonts } from '../../lib/theme';
 import { useKeyboardVisible } from '../../lib/useKeyboardVisible';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
+type Tab = { route: string; icon: IconName; label: string };
 
 /** The five slots, left to right. ＋ isn't a tab: it opens a new entry. */
-const SLOTS: ({ route: string; icon: IconName; label: string } | 'create')[] = [
+const SLOTS: (Tab | 'create')[] = [
   { route: 'index', icon: 'book-outline', label: 'Journal' },
   { route: 'insights', icon: 'leaf-outline', label: 'Life' },
   'create',
@@ -21,36 +21,80 @@ const SLOTS: ({ route: string; icon: IconName; label: string } | 'create')[] = [
   { route: 'radio', icon: 'radio-outline', label: 'Radio' },
 ];
 
-const ITEM = 46;
+const ITEM = 46; // a circle: an icon-only tab, the ＋, the ends of the pill
 const PAD = 8;
+const ICON = 21;
+const GAP = 7; // icon ↔ name inside the pill
+const SIDE = 16; // space at the ends of the pill
+const MID = 100; // the pill's middle piece is drawn this wide and scaled (a scaled rectangle stays a rectangle)
+const SPRING = { useNativeDriver: true, speed: 16, bounciness: 8 } as const;
+
+/** Where every slot sits when `active` is the open tab: the open one is a pill (icon + name), the rest share the rest. */
+function slotLayout(width: number, active: number, labelW: number[]) {
+  const inner = width - PAD * 2;
+  const pill = Math.max(ITEM, SIDE + ICON + GAP + labelW[active] + SIDE); // at least a circle
+  const rest = (inner - pill) / (SLOTS.length - 1);
+  let x = PAD;
+  return SLOTS.map((_, i) => {
+    const w = i === active ? pill : rest;
+    const slot = { left: x, width: w, center: x + w / 2 };
+    x += w;
+    return slot;
+  });
+}
 
 /**
- * A glass bar from side to side, five slots. The active one sits in a white circle that slides
- * (and pops) between tabs; the ＋ in the middle (a new entry) is always a circle of its own.
+ * A glass bar from side to side. The open tab is a white pill with its name; tapping another one
+ * shrinks the old pill back to an icon while the new one stretches open and the others slide aside.
+ * Every move is native (positions, a scale, fades): the pill is built from two round ends and a
+ * scaled middle, because widths can't animate natively and would stutter when the app is busy.
  * Drawn by hand: the library's bar ignored left/width on Android.
  */
 function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
   const insets = useSafeAreaInsets();
   const keyboardOpen = useKeyboardVisible();
   const [width, setWidth] = useState(0);
+  // each name's width, measured once from hidden copies (a guess until then)
+  const [labelW, setLabelW] = useState(() => SLOTS.map((s) => (s === 'create' ? 0 : s.label.length * 8.5)));
   const current = state.routes[state.index]?.name;
-  const slot = Math.max(0, SLOTS.findIndex((s) => s !== 'create' && s.route === current));
-  const cell = width ? (width - PAD * 2) / SLOTS.length : 0;
-  const target = PAD + slot * cell + (cell - ITEM) / 2;
-  const x = useRef(new Animated.Value(target)).current;
-  const pop = useRef(new Animated.Value(1)).current;
+  const active = Math.max(0, SLOTS.findIndex((s) => s !== 'create' && s.route === current));
+  const layout = useMemo(() => (width ? slotLayout(width, active, labelW) : null), [width, active, labelW]);
+
+  // animated values: per slot the icon's x and how "open" it is; the pill's two ends and middle
+  const v = useRef({
+    x: SLOTS.map(() => new Animated.Value(0)),
+    open: SLOTS.map((_, i) => new Animated.Value(i === active ? 1 : 0)),
+    left: new Animated.Value(0),
+    right: new Animated.Value(0),
+    midX: new Animated.Value(0),
+    midScale: new Animated.Value(1),
+  }).current;
+
   const placed = useRef(false);
   useEffect(() => {
-    if (!width) return;
+    if (!layout) return;
+    const pill = layout[active];
+    const contentW = ICON + GAP + labelW[active];
+    const targets: [Animated.Value, number][] = [
+      ...SLOTS.map((_, i): [Animated.Value, number] => [
+        v.x[i],
+        // in the pill: icon + name centered together; elsewhere: the icon centered in its slot
+        i === active ? pill.center - contentW / 2 : layout[i].center - ICON / 2,
+      ]),
+      ...SLOTS.map((_, i): [Animated.Value, number] => [v.open[i], i === active ? 1 : 0]),
+      [v.left, pill.left],
+      [v.right, pill.left + pill.width - ITEM],
+      [v.midX, pill.center - MID / 2],
+      [v.midScale, Math.max(0.01, (pill.width - ITEM) / MID)],
+    ];
     if (!placed.current) {
-      placed.current = true; // first layout: just put it there
-      x.setValue(target);
+      placed.current = true; // first layout: just put everything there
+      targets.forEach(([val, to]) => val.setValue(to));
       return;
     }
-    Animated.spring(x, { toValue: target, useNativeDriver: true, speed: 16, bounciness: 9 }).start();
-    pop.setValue(0.6);
-    Animated.spring(pop, { toValue: 1, useNativeDriver: true, speed: 14, bounciness: 14 }).start();
-  }, [target, width, x, pop]);
+    Animated.parallel(targets.map(([val, to]) => Animated.spring(val, { toValue: to, ...SPRING }))).start();
+  }, [layout, active, labelW, v]);
+
   // the bar would float over the keyboard and the message box while typing
   if (keyboardOpen) return null;
   return (
@@ -63,33 +107,79 @@ function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
       )}
       <Glass radius={31} style={styles.bar}>
         <View style={styles.row} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
-          {width > 0 && <Animated.View style={[styles.indicator, { transform: [{ translateX: x }, { scale: pop }] }]} />}
-          {SLOTS.map((s) => {
-            if (s === 'create') {
-              return (
-                <View key="create" style={styles.cell}>
-                  <Pressable onPress={() => router.push('/note/new')} accessibilityLabel="Write a new entry" style={styles.create}>
-                    <Ionicons name="add" size={26} color={colors.text} />
-                  </Pressable>
-                </View>
-              );
-            }
-            const route = state.routes.find((r) => r.name === s.route);
-            const focused = current === s.route;
-            return (
-              <View key={s.route} style={styles.cell}>
-                <Pressable
-                  onPress={() => route && !focused && navigateToTab(route.key)}
-                  accessibilityRole="tab"
-                  accessibilityLabel={s.label}
-                  accessibilityState={{ selected: focused }}
-                  style={styles.item}
+          {/* hidden copies of the names, to measure them */}
+          <View style={styles.measure} pointerEvents="none">
+            {SLOTS.map((s, i) =>
+              s === 'create' ? null : (
+                <Text
+                  key={s.route}
+                  style={styles.label}
+                  onLayout={(e) => {
+                    const w = Math.ceil(e.nativeEvent.layout.width);
+                    setLabelW((all) => (all[i] === w ? all : all.map((x, k) => (k === i ? w : x))));
+                  }}
                 >
-                  <Ionicons name={s.icon} size={21} color={focused ? colors.accentText : colors.text} />
-                </Pressable>
-              </View>
-            );
-          })}
+                  {s.label}
+                </Text>
+              ),
+            )}
+          </View>
+
+          {layout && (
+            <>
+              {/* the white pill: round left end, scaled middle, round right end */}
+              <Animated.View style={[styles.cap, { transform: [{ translateX: v.left }] }]} />
+              <Animated.View style={[styles.mid, { transform: [{ translateX: v.midX }, { scaleX: v.midScale }] }]} />
+              <Animated.View style={[styles.cap, { transform: [{ translateX: v.right }] }]} />
+
+              {SLOTS.map((s, i) => {
+                if (s === 'create') {
+                  return (
+                    <Pressable
+                      key="create"
+                      onPress={() => router.push('/note/new')}
+                      accessibilityLabel="Write a new entry"
+                      style={[styles.create, { left: layout[i].center - ITEM / 2 }]}
+                    >
+                      <Ionicons name="add" size={26} color={colors.text} />
+                    </Pressable>
+                  );
+                }
+                const route = state.routes.find((r) => r.name === s.route);
+                const focused = i === active;
+                const light = v.open[i].interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
+                return (
+                  <View key={s.route} style={StyleSheet.absoluteFill} pointerEvents="box-none">
+                    {/* the icon: a light copy and a dark copy cross-fade as the pill arrives */}
+                    <Animated.View style={[styles.icon, { transform: [{ translateX: v.x[i] }] }]} pointerEvents="none">
+                      <Animated.View style={[StyleSheet.absoluteFill, styles.center, { opacity: light }]}>
+                        <Ionicons name={s.icon} size={ICON} color={colors.text} />
+                      </Animated.View>
+                      <Animated.View style={[StyleSheet.absoluteFill, styles.center, { opacity: v.open[i] }]}>
+                        <Ionicons name={s.icon} size={ICON} color={colors.accentText} />
+                      </Animated.View>
+                    </Animated.View>
+                    {/* the name, riding next to the icon, fading in with the pill */}
+                    <Animated.Text
+                      style={[styles.label, styles.labelOn, { opacity: v.open[i], transform: [{ translateX: Animated.add(v.x[i], ICON + GAP) }] }]}
+                      numberOfLines={1}
+                      pointerEvents="none"
+                    >
+                      {s.label}
+                    </Animated.Text>
+                    {/* the touch area: the slot as it will be */}
+                    <Pressable
+                      onPress={() => route && !focused && navigateToTab(route.key)}
+                      accessibilityRole="tab"
+                      accessibilityLabel={s.label}
+                      accessibilityState={{ selected: focused }}
+                      style={[styles.touch, { left: layout[i].left, width: layout[i].width }]}
+                    />
+                  </View>
+                );
+              })}
+            </>
+          )}
         </View>
       </Glass>
     </View>
@@ -116,10 +206,18 @@ const styles = StyleSheet.create({
   wrap: { position: 'absolute', left: 16, right: 16 },
   mini: { alignSelf: 'stretch' },
   bar: { elevation: 10 },
-  row: { flexDirection: 'row', padding: PAD },
-  cell: { flex: 1, alignItems: 'center' },
-  item: { width: ITEM, height: ITEM, borderRadius: ITEM / 2, alignItems: 'center', justifyContent: 'center' },
+  row: { height: ITEM + PAD * 2 },
+  measure: { position: 'absolute', opacity: 0, flexDirection: 'row', top: -100 },
+  cap: { position: 'absolute', left: 0, top: PAD, width: ITEM, height: ITEM, borderRadius: ITEM / 2, backgroundColor: colors.accent },
+  mid: { position: 'absolute', left: 0, top: PAD, width: MID, height: ITEM, backgroundColor: colors.accent },
+  icon: { position: 'absolute', left: 0, top: PAD, width: ICON, height: ITEM },
+  center: { alignItems: 'center', justifyContent: 'center' },
+  label: { fontFamily: fonts.sans, fontSize: 14 },
+  labelOn: { position: 'absolute', left: 0, top: PAD + (ITEM - 20) / 2, lineHeight: 20, color: colors.accentText },
+  touch: { position: 'absolute', top: 0, bottom: 0 },
   create: {
+    position: 'absolute',
+    top: PAD,
     width: ITEM,
     height: ITEM,
     borderRadius: ITEM / 2,
@@ -128,14 +226,5 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.35)',
     backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  indicator: {
-    position: 'absolute',
-    left: 0,
-    top: PAD,
-    width: ITEM,
-    height: ITEM,
-    borderRadius: ITEM / 2,
-    backgroundColor: colors.accent,
   },
 });
