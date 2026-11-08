@@ -23,6 +23,7 @@ import {
 } from './spotify';
 import { stationByKey, withVoices, type Lang, type Persona, type VoiceChoices } from './stations';
 import { likedSongs, rememberPlayed, toggleLiked } from './songMemory';
+import { onRadioCommand, publishToWidget } from '../widget/radioBridge';
 import { clearClips, playClip, speakRobot, synthesize, type Talking } from './tts';
 
 /*
@@ -396,8 +397,8 @@ function useRadioEngine() {
   };
 
   // the lock screen / notification buttons drive the show too
-  const controls = useRef({ togglePause, skip });
-  controls.current = { togglePause, skip };
+  const controls = useRef({ togglePause, skip, previous });
+  controls.current = { togglePause, skip, previous };
   useEffect(
     () =>
       onRemote({
@@ -468,6 +469,33 @@ function useRadioEngine() {
       return next;
     });
   };
+
+  // the home screen widget: show what's on, and take its ⏮ ⏯ ⏭
+  useEffect(() => {
+    if (phase !== 'onair' || !show) return publishToWidget(null);
+    const n = show.slots.length;
+    const slot = show.slots[Math.min(index, n - 1)];
+    const st = show.station;
+    publishToWidget({
+      song: slot.track.name,
+      artist: slot.track.artist,
+      station: `${st.emoji} ${st.name} ${st.freq}`,
+      cover: slot.track.image,
+      paused,
+      talking: speaking ? `${st.sidekick ? `${st.host.name} & ${st.sidekick.name}` : st.host.name} on the mic` : null,
+      position: `${Math.min(index + 1, n)}/${n}`,
+    });
+  }, [phase, show, index, paused, speaking]);
+  useEffect(
+    () =>
+      onRadioCommand((c) => {
+        if (!live.current.show) return;
+        if (c === 'toggle') controls.current.togglePause();
+        else if (c === 'next') controls.current.skip();
+        else controls.current.previous();
+      }),
+    [],
+  );
 
   return { miniCollapsed, setMiniCollapsed, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
 }
