@@ -110,6 +110,7 @@ function useRadioEngine() {
   const talking = useRef<Talking | null>(null);
   // intros are voiced ahead of time (while the previous song plays), so the host never makes you wait
   const clips = useRef(new Map<number, Promise<string | null>>());
+  const retried = useRef(new Set<number>()); // talks that already got their second chance
 
   const prepare = useCallback((i: number) => {
     const s = live.current.show;
@@ -122,6 +123,11 @@ function useRadioEngine() {
       synthesize(lines, castOf(s.station)).catch((e) => {
         // say why it sounds robotic, instead of failing silently
         setStatus({ kind: 'err', msg: `${e instanceof Error ? e.message : e} Using the phone's voice for now.` });
+        // forget the failure: when its turn comes, it's voiced again (a speed limit is usually gone by then)
+        if (!retried.current.has(i)) {
+          retried.current.add(i);
+          clips.current.delete(i);
+        }
         return null;
       }),
     );
@@ -334,6 +340,7 @@ function useRadioEngine() {
       const s = await buildShow(db, station, wish, length);
       live.current = { show: s, index: 0, speaking: false, paused: false, startedAt: 0, voice, talked: -1, overlapping: false };
       clips.current = new Map();
+      retried.current = new Set();
       if (voice) {
         prepare(0);
         await clips.current.get(0); // the opening line is ready before we go on air

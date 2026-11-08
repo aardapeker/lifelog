@@ -106,6 +106,10 @@ const ROUTES: Route[] = MODELS.flatMap((model) => [
 ]);
 let working: Route | null = null; // the route that worked last time
 let failure: { at: number; message: string } | null = null; // everything failed: don't hammer the API
+// models whose DAILY quota ran out (each model has its own): skipped until tomorrow, no waiting on them
+const spent = new Map<string, string>();
+const today = () => new Date().toDateString();
+const dailyLimit = (e: unknown) => /\b429\b/.test(String(e)) && /per ?day|PerDay|daily/i.test(String(e));
 
 /**
  * "Too many requests" / "busy" (429, 503) is a speed limit, not a failure: wait and try again
@@ -116,7 +120,8 @@ async function withRetry<T>(call: () => Promise<T>): Promise<T> {
     try {
       return await call();
     } catch (e) {
-      if (!pause || !/\b(429|503)\b/.test(String(e))) throw e;
+      // a daily limit won't lift in 15 seconds: hand over to the next model right away
+      if (!pause || !/\b(429|503)\b/.test(String(e)) || dailyLimit(e)) throw e;
       await waitMs(pause);
     }
   }
@@ -125,20 +130,28 @@ async function withRetry<T>(call: () => Promise<T>): Promise<T> {
 
 /** One voice, one or more lines: tries every route (remembering what works) and returns WAV bytes. */
 async function voiceBytes(apiKey: string, lines: SpokenLine[], cast: Cast): Promise<Uint8Array> {
-  if (failure && Date.now() - failure.at < 60_000) throw new Error(failure.message);
+  if (failure && Date.now() - failure.at < 20_000) throw new Error(failure.message);
   const errors: string[] = [];
   for (const route of working ? [working, ...ROUTES.filter((r) => r !== working)] : ROUTES) {
+    if (spent.get(route.model) === today()) continue;
     try {
       const bytes = await withRetry(() => route.call(apiKey, route.model, lines, cast));
       working = route;
       failure = null;
       return bytes;
     } catch (e) {
+      if (dailyLimit(e)) spent.set(route.model, today());
       errors.push(`${route.model} (${route.call === viaInteractions ? 'interactions' : 'generate'}): ${e instanceof Error ? e.message : e}`);
       if (/\b(401|403)\b/.test(String(e)) && /API key/i.test(String(e))) break; // a bad key fails everywhere
     }
   }
-  failure = { at: Date.now(), message: `Natural voice failed. ${errors.join(' | ')}` };
+  const allSpent = MODELS.every((m) => spent.get(m) === today());
+  failure = {
+    at: Date.now(),
+    message: allSpent
+      ? "Gemini's free voice quota for today is used up (it resets overnight, Pacific time)."
+      : `Natural voice failed. ${errors.join(' | ')}`,
+  };
   throw new Error(failure.message);
 }
 
