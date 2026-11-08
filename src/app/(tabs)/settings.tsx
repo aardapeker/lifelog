@@ -210,7 +210,7 @@ function PrivacySection() {
   const toggleLock = (on: boolean) =>
     run(async () => {
       if (on && !(await canUseBiometrics())) throw new Error('Set up a fingerprint or screen lock in Android settings first.');
-      if (!(await authenticate(on ? 'Turn on the lock' : 'Turn off the lock'))) throw new Error('Not changed.');
+      if (!(await authenticate(on ? 'Turn on the lock' : 'Turn off the lock')).ok) throw new Error('Not changed.');
       await setSetting(db, 'lockEnabled', on ? '1' : '0');
       setLock(on);
       return on ? 'Lifelog now asks for your fingerprint.' : 'Lock is off.';
