@@ -32,6 +32,7 @@ export type CompleteOptions = {
   json?: boolean; // ask for a JSON object back
   maxTokens?: number;
   temperature?: number; // 0 = predictable … 1+ = adventurous (left to the model when unset)
+  lightThinking?: boolean; // creative writing, not puzzles: think a little (thinking is billed as output)
 };
 
 type Adapter = {

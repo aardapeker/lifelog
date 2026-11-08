@@ -156,6 +156,7 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
       '"outro" is said after the last song: wrap up the show, a callback or two, a warm goodbye (2 to 4 lines).\n\n' +
       about,
     temperature: 1.1, // song picking wants surprise; the talks stay readable at this level
+    lightThinking: true, // jokes don't need deep reasoning, and thinking tokens are the priciest part
     prompt:
       `Now: ${formatDate(Date.now())}, ${shiftFor(shifts, Date.now())} shift week${city ? `, in ${city}` : ''}.\n` +
       (twist ? `Tonight's twist for the playlist: ${twist}.\n` : '') +
@@ -166,7 +167,7 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
       (played.length
         ? `Already played on the radio (do NOT pick these): ${played
             .filter((p) => !welcome.some((l) => l.id === p.id))
-            .slice(0, 120)
+            .slice(0, 60) // the newest ones; the app itself still skips anything older that comes back
             .map(songLine)
             .join('; ')}\n`
         : '') +
