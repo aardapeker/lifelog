@@ -83,6 +83,11 @@ export async function banSong(db: SQLiteDatabase, t: Track | SongRef): Promise<v
 
 export const clearBanned = (db: SQLiteDatabase) => setSetting(db, BANNED, '[]');
 
+/** Lets one banned song play again. */
+export async function unbanSong(db: SQLiteDatabase, id: string): Promise<void> {
+  await setSetting(db, BANNED, JSON.stringify((await bannedSongs(db)).filter((s) => s.id !== id)));
+}
+
 // ── how the radio picks songs (Settings → Radio) ──
 
 export type RadioPrefs = {

@@ -336,6 +336,7 @@ function useRadioEngine() {
     setStatus({ kind: 'idle' });
     bannedSongs(db).then((b) => setBanned(new Set(b.map((x) => x.id)))).catch(() => {}); // Settings may have let some back
     getSetting(db, 'voiceModel', '').then(preferVoiceModel).catch(() => {}); // Settings → AI Models
+    likedSongs(db).then((l) => setHearts(new Set(l.map((x) => x.id)))).catch(() => {}); // hearts changed in Settings
     try {
       preview.current?.stop();
       const s = await buildShow(db, station, wish, length);

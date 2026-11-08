@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState, type ReactNode } from 'react';
@@ -19,7 +20,7 @@ import {
   testPlayback,
   likedAccess,
 } from '../../lib/spotify';
-import { bannedSongs, clearBanned, getRadioPrefs, saveRadioPrefs, type RadioPrefs } from '../../lib/songMemory';
+import { bannedSongs, getRadioPrefs, likedSongs, saveRadioPrefs, toggleLiked, unbanSong, type RadioPrefs, type SongRef } from '../../lib/songMemory';
 import { Chip, PillButton, SectionTitle, StatusLine, type Status } from '../../components/ui';
 import { backupNow, getPassphrase, lastBackupAt, restoreFromFile, setPassphrase } from '../../lib/backup';
 import {
@@ -716,14 +717,15 @@ const FAVS: { key: RadioPrefs['favourites']; label: string }[] = [
 function RadioSection() {
   const db = useSQLiteContext();
   const [p, setP] = useState<RadioPrefs | null>(null);
-  const [bans, setBans] = useState(0);
+  const [bans, setBans] = useState<SongRef[]>([]);
+  const [hearts, setHearts] = useState<SongRef[]>([]);
   const [access, setAccess] = useState(true);
-  const [status, run] = useStatus();
 
   useFocusEffect(
     useCallback(() => {
       getRadioPrefs(db).then(setP);
-      bannedSongs(db).then((b) => setBans(b.length));
+      bannedSongs(db).then(setBans);
+      likedSongs(db).then(setHearts);
       likedAccess(db).then(setAccess);
     }, [db]),
   );
@@ -758,22 +760,28 @@ function RadioSection() {
         value={p.twists}
         onChange={(twists) => update({ twists })}
       />
-      {bans > 0 && (
-        <View style={styles.row}>
-          <PillButton
-            label={`Let ${bans} banned song${bans > 1 ? 's' : ''} back`}
-            ghost
-            onPress={() =>
-              run(async () => {
-                await clearBanned(db);
-                setBans(0);
-                return 'Banned songs can play again.';
-              })
-            }
-          />
-        </View>
-      )}
-      <StatusLine status={status} />
+      <SongList
+        title="❤️ Hearted"
+        empty="Tap the heart on the radio to keep a song coming back."
+        songs={hearts}
+        action="heart-dislike-outline"
+        actionLabel="Remove the heart"
+        onAction={async (s) => {
+          await toggleLiked(db, s);
+          setHearts((h) => h.filter((x) => x.id !== s.id));
+        }}
+      />
+      <SongList
+        title="🚫 Never play"
+        empty="Nothing banned. The 🚫 on the radio adds songs here."
+        songs={bans}
+        action="refresh-outline"
+        actionLabel="Let it play again"
+        onAction={async (s) => {
+          await unbanSong(db, s.id);
+          setBans((b) => b.filter((x) => x.id !== s.id));
+        }}
+      />
     </Section>
   );
 }
@@ -834,6 +842,48 @@ function JobModels({ provider }: { provider: Provider }) {
       </View>
       <Text style={styles.hint}>{priceHint(voice)}. The other voice models stay as backups when a limit runs out.</Text>
     </>
+  );
+}
+
+/** A folding list of songs, each with one action (un-heart, un-ban). */
+function SongList(props: {
+  title: string;
+  empty: string;
+  songs: SongRef[];
+  action: keyof typeof Ionicons.glyphMap;
+  actionLabel: string;
+  onAction: (s: SongRef) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={styles.songList}>
+      <Pressable style={styles.songListHead} onPress={() => setOpen((o) => !o)} accessibilityLabel={`${props.title}, ${props.songs.length} songs`}>
+        <Text style={styles.label}>
+          {props.title} <Text style={styles.hint}>· {props.songs.length}</Text>
+        </Text>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={colors.muted} />
+      </Pressable>
+      {open &&
+        (props.songs.length ? (
+          props.songs.map((s) => (
+            <View key={s.id} style={styles.songRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.songName} numberOfLines={1}>
+                  {s.name}
+                </Text>
+                <Text style={styles.hint} numberOfLines={1}>
+                  {s.artist}
+                </Text>
+              </View>
+              <Pressable onPress={() => props.onAction(s)} hitSlop={10} accessibilityLabel={`${props.actionLabel}: ${s.name}`}>
+                <Ionicons name={props.action} size={20} color={colors.muted} />
+              </Pressable>
+            </View>
+          ))
+        ) : (
+          <Text style={styles.hint}>{props.empty}</Text>
+        ))}
+    </View>
   );
 }
 
@@ -1052,6 +1102,10 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
+  songList: { marginTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, paddingTop: 6 },
+  songListHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  songRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
+  songName: { fontFamily: fonts.sans, fontSize: 15, color: colors.text },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 6 },
   screen: { flex: 1, backgroundColor: colors.bg },
   content: { paddingHorizontal: 20, gap: 30 },
