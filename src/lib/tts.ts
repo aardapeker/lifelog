@@ -14,7 +14,7 @@ import { getKey } from './keys';
 
 const BASE = 'https://generativelanguage.googleapis.com/v1beta';
 // newest first; the first one that works on this key is remembered for the session
-const MODELS = ['gemini-3.8-flash-tts', 'gemini-3.1-flash-tts-preview', 'gemini-2.5-flash-preview-tts'];
+const MODELS = ['gemini-3.8-flash-tts', 'gemini-3.8-flash-lite-tts', 'gemini-3.1-flash-tts-preview', 'gemini-2.5-flash-preview-tts'];
 
 export type VoiceStyle = { voice: string; style: string };
 /** One spoken line; `speaker` is the persona's name when a show has two voices. */
