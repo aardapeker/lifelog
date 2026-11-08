@@ -1,7 +1,7 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Ionicons, { ICON_STYLES, setIconStyle, useIconStyle } from '../../components/Icon';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { Children, cloneElement, isValidElement, useCallback, useState, type ReactNode } from 'react';
+import { Children, cloneElement, isValidElement, useCallback, useState, type ComponentProps, type ReactNode } from 'react';
 import { Alert, Animated, KeyboardAvoidingView, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { authenticate, canUseBiometrics } from '../../components/LockGate';
@@ -871,6 +871,23 @@ function JobModels({ provider }: { provider: Provider }) {
   );
 }
 
+/** The look of every icon in the app, with a live preview. */
+function IconsSection() {
+  const db = useSQLiteContext();
+  const style = useIconStyle();
+  const PREVIEW: ComponentProps<typeof Ionicons>['name'][] = ['book-outline', 'leaf-outline', 'chatbubble-ellipses-outline', 'radio-outline', 'mic-outline', 'image-outline', 'notifications-outline'];
+  return (
+    <Section title="Icons" hint="The style of every icon in the app.">
+      <Segment options={ICON_STYLES} value={style} onChange={(s) => setIconStyle(db, s)} />
+      <View style={styles.iconPreview}>
+        {PREVIEW.map((n) => (
+          <Ionicons key={n} name={n} size={24} color={colors.text} />
+        ))}
+      </View>
+    </Section>
+  );
+}
+
 /** A folding list of songs, each with one action (un-heart, un-ban). */
 function SongList(props: {
   title: string;
@@ -1103,6 +1120,7 @@ export default function SettingsScreen() {
         <WritingSection />
 
         <LearnedSection />
+        <IconsSection />
         </>
         )}
 
@@ -1195,6 +1213,7 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
+  iconPreview: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 22, paddingHorizontal: 6 },
   pageTop: { flexDirection: 'row', marginBottom: -10 },
   songList: { marginTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, paddingTop: 6 },
   songListHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

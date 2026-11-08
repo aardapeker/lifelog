@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Ionicons from './Icon';
 import { useAudioRecorder } from 'expo-audio';
 import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
