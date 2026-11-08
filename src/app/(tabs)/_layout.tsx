@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router, Tabs } from 'expo-router';
+import { Tabs } from 'expo-router';
 import { useEffect, useMemo, useRef, useState, type ComponentProps } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,11 +12,11 @@ type IconName = ComponentProps<typeof Ionicons>['name'];
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
 type Tab = { route: string; icon: IconName; label: string };
 
-/** The five slots, left to right. ＋ isn't a tab: it opens a new entry. */
-const SLOTS: (Tab | 'create')[] = [
+/** The five tabs, left to right. The ＋ in the middle is Write: new entries and editing. */
+const SLOTS: Tab[] = [
   { route: 'index', icon: 'book-outline', label: 'Journal' },
   { route: 'insights', icon: 'leaf-outline', label: 'Life' },
-  'create',
+  { route: 'write', icon: 'add', label: 'Write' },
   { route: 'chat', icon: 'chatbubble-ellipses-outline', label: 'Friend' },
   { route: 'radio', icon: 'radio-outline', label: 'Radio' },
 ];
@@ -55,9 +55,9 @@ function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
   const keyboardOpen = useKeyboardVisible();
   const [width, setWidth] = useState(0);
   // each name's width, measured once from hidden copies (a guess until then)
-  const [labelW, setLabelW] = useState(() => SLOTS.map((s) => (s === 'create' ? 0 : s.label.length * 8.5)));
+  const [labelW, setLabelW] = useState(() => SLOTS.map((s) => s.label.length * 8.5));
   const current = state.routes[state.index]?.name;
-  const active = Math.max(0, SLOTS.findIndex((s) => s !== 'create' && s.route === current));
+  const active = Math.max(0, SLOTS.findIndex((s) => s.route === current));
   const layout = useMemo(() => (width ? slotLayout(width, active, labelW) : null), [width, active, labelW]);
 
   // animated values: per slot the icon's x and how "open" it is; the pill's two ends and middle
@@ -99,8 +99,8 @@ function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
   if (keyboardOpen) return null;
   return (
     <View pointerEvents="box-none" style={[styles.wrap, { bottom: insets.bottom + 14 }]}>
-      {/* the radio, docked above the tabs while a show is on (not on Friend: it would cover the message box; not on Radio itself) */}
-      {current !== 'chat' && current !== 'radio' && (
+      {/* the radio, docked above the tabs while a show is on (not on Friend or Write: it would cover the typing; not on Radio itself) */}
+      {current !== 'chat' && current !== 'radio' && current !== 'write' && (
         <View style={styles.mini}>
           <MiniPlayer />
         </View>
@@ -109,8 +109,7 @@ function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
         <View style={styles.row} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
           {/* hidden copies of the names, to measure them */}
           <View style={styles.measure} pointerEvents="none">
-            {SLOTS.map((s, i) =>
-              s === 'create' ? null : (
+            {SLOTS.map((s, i) => (
                 <Text
                   key={s.route}
                   style={styles.label}
@@ -121,8 +120,7 @@ function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
                 >
                   {s.label}
                 </Text>
-              ),
-            )}
+            ))}
           </View>
 
           {layout && (
@@ -133,23 +131,18 @@ function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
               <Animated.View style={[styles.cap, { transform: [{ translateX: v.right }] }]} />
 
               {SLOTS.map((s, i) => {
-                if (s === 'create') {
-                  return (
-                    <Pressable
-                      key="create"
-                      onPress={() => router.push('/note/new')}
-                      accessibilityLabel="Write a new entry"
-                      style={[styles.create, { left: layout[i].center - ITEM / 2 }]}
-                    >
-                      <Ionicons name="add" size={26} color={colors.text} />
-                    </Pressable>
-                  );
-                }
                 const route = state.routes.find((r) => r.name === s.route);
                 const focused = i === active;
                 const light = v.open[i].interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
                 return (
                   <View key={s.route} style={StyleSheet.absoluteFill} pointerEvents="box-none">
+                    {/* Write keeps its ring while it isn't open, so the ＋ always stands out */}
+                    {s.route === 'write' && (
+                      <Animated.View
+                        pointerEvents="none"
+                        style={[styles.ring, { opacity: light, transform: [{ translateX: Animated.add(v.x[i], (ICON - ITEM) / 2) }] }]}
+                      />
+                    )}
                     {/* the icon: a light copy and a dark copy cross-fade as the pill arrives */}
                     <Animated.View style={[styles.icon, { transform: [{ translateX: v.x[i] }] }]} pointerEvents="none">
                       <Animated.View style={[StyleSheet.absoluteFill, styles.center, { opacity: light }]}>
@@ -192,10 +185,13 @@ export default function TabsLayout() {
     // the bar came back (after the editor, after the keyboard). It keeps the glass look without it.
     <Tabs
       tabBar={(props) => <FloatingTabBar {...props} />}
+      // Back goes to the tab you came from (not always to Journal), like a normal page
+      backBehavior="history"
       screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg }, animation: 'shift' }}
     >
       <Tabs.Screen name="index" options={{ title: 'Journal' }} />
       <Tabs.Screen name="insights" options={{ title: 'Life' }} />
+      <Tabs.Screen name="write" options={{ title: 'Write' }} />
       <Tabs.Screen name="chat" options={{ title: 'Friend' }} />
       <Tabs.Screen name="radio" options={{ title: 'Radio' }} />
     </Tabs>
@@ -215,8 +211,9 @@ const styles = StyleSheet.create({
   label: { fontFamily: fonts.sans, fontSize: 14 },
   labelOn: { position: 'absolute', left: 0, top: PAD + (ITEM - 20) / 2, lineHeight: 20, color: colors.accentText },
   touch: { position: 'absolute', top: 0, bottom: 0 },
-  create: {
+  ring: {
     position: 'absolute',
+    left: 0,
     top: PAD,
     width: ITEM,
     height: ITEM,

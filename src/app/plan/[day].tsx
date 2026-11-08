@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { openWrite } from '../../lib/write';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useState } from 'react';
@@ -69,7 +70,7 @@ export default function PlanScreen() {
     try {
       setPendingShare({ text: await draftEntryFromPlan(db, plan), imageUri: null });
       setStatus({ kind: 'idle' });
-      router.push('/note/new?shared=1');
+      openWrite({ shared: true });
     } catch (e) {
       setStatus({ kind: 'err', msg: e instanceof Error ? e.message : String(e) });
     }

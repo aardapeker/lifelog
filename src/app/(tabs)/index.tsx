@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { openWrite } from '../../lib/write';
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -307,7 +308,7 @@ export default function JournalScreen() {
           : 'Write how the shift went, what you ate, what you are thinking about. Your friend learns from every entry.'}
       </Text>
       {!isSearch && (
-        <PillButton label="Write your first entry" onPress={() => router.push('/note/new')} style={{ marginTop: 20 }} />
+        <PillButton label="Write your first entry" onPress={() => openWrite()} style={{ marginTop: 20 }} />
       )}
     </View>
   );

@@ -143,8 +143,8 @@ function RadioWidget({ radio, tall }: { radio: WidgetRadio; tall: boolean }) {
       <FlexWidget style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: 'match_parent' }}>
         {controls(20)}
         <FlexWidget style={{ flexDirection: 'row', flexGap: 8 }}>
-          <SmallLink label="Talk" uri="lifelog://note/new?voice=1" />
-          <SmallLink label="Write" uri="lifelog://note/new" />
+          <SmallLink label="Talk" uri="lifelog://write?voice=1" />
+          <SmallLink label="Write" uri="lifelog://write" />
         </FlexWidget>
       </FlexWidget>
     </FlexWidget>
@@ -196,8 +196,8 @@ export function LifelogWidget({ width, height, radio }: { width: number; height:
             style={{ fontSize: 19, fontFamily: 'LibreCaslonText_400Regular', color: WHITE, marginLeft: 8, marginRight: 4 }}
           />
         )}
-        <Button label="Talk" uri="lifelog://note/new?voice=1" primary height={40} />
-        <Button label="Write" uri="lifelog://note/new" height={40} />
+        <Button label="Talk" uri="lifelog://write?voice=1" primary height={40} />
+        <Button label="Write" uri="lifelog://write" height={40} />
         <RadioButton size={40} />
       </FlexWidget>
     );
@@ -221,8 +221,8 @@ export function LifelogWidget({ width, height, radio }: { width: number; height:
         <TextWidget text="How was the shift?" style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: MUTED }} />
       </FlexWidget>
       <FlexWidget style={{ flexDirection: 'row', width: 'match_parent', flexGap: 10 }}>
-        <Button label="Talk" uri="lifelog://note/new?voice=1" primary height={48} />
-        <Button label="Write" uri="lifelog://note/new" height={48} />
+        <Button label="Talk" uri="lifelog://write?voice=1" primary height={48} />
+        <Button label="Write" uri="lifelog://write" height={48} />
         <RadioButton size={48} />
       </FlexWidget>
     </FlexWidget>

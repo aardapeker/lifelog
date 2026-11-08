@@ -1,4 +1,5 @@
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
+import { openWrite } from '../lib/write';
 import {
   LibreCaslonText_400Regular,
   LibreCaslonText_400Regular_Italic,
@@ -49,7 +50,7 @@ function ShareHandler() {
     const image = shareIntent.files?.find((f) => f.mimeType?.startsWith('image/'));
     setPendingShare({ text: (shareIntent.text ?? shareIntent.webUrl ?? '').trim(), imageUri: image?.path ?? null });
     resetShareIntent();
-    setTimeout(() => router.push('/note/new?shared=1'), 300);
+    setTimeout(() => openWrite({ shared: true }), 300);
   }, [hasShareIntent, shareIntent, resetShareIntent]);
   return null;
 }
@@ -127,7 +128,7 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="milestone/[id]" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="entry/[id]" options={{ animation: 'fade_from_bottom' }} />
-        <Stack.Screen name="note/[id]" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="note/[id]" options={{ animation: 'none' }} />
         <Stack.Screen name="recap/[id]" />
         <Stack.Screen name="goal/[id]" />
         <Stack.Screen name="person/[name]" />

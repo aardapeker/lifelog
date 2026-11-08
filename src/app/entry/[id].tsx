@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { openWrite } from '../../lib/write';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState, type ReactNode } from 'react';
@@ -79,7 +80,7 @@ export default function EntryScreen() {
     }, [db, id]),
   );
 
-  const edit = () => router.push(`/note/${id}`);
+  const edit = () => openWrite({ id: Number(id) });
   const song = note ? noteSong(note) : null;
   const blocks = note ? paragraphs(note.body) : [];
   const words = note?.body.split(/\s+/).filter(Boolean).length ?? 0;
