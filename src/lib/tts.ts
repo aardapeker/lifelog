@@ -3,7 +3,7 @@ import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { File, Paths } from 'expo-file-system';
 import * as Speech from 'expo-speech';
 import { jsonHeaders } from './gemini';
-import { onBeat } from './heartbeat';
+import { onBeat, waitMs } from './heartbeat';
 import { getKey } from './keys';
 
 /*
@@ -107,13 +107,29 @@ const ROUTES: Route[] = MODELS.flatMap((model) => [
 let working: Route | null = null; // the route that worked last time
 let failure: { at: number; message: string } | null = null; // everything failed: don't hammer the API
 
+/**
+ * "Too many requests" / "busy" (429, 503) is a speed limit, not a failure: wait and try again
+ * (6 s, then 15 s) before giving up on this route. Waits survive the background (heartbeat).
+ */
+async function withRetry<T>(call: () => Promise<T>): Promise<T> {
+  for (const pause of [6000, 15000, 0]) {
+    try {
+      return await call();
+    } catch (e) {
+      if (!pause || !/\b(429|503)\b/.test(String(e))) throw e;
+      await waitMs(pause);
+    }
+  }
+  throw new Error('unreachable');
+}
+
 /** One voice, one or more lines: tries every route (remembering what works) and returns WAV bytes. */
 async function voiceBytes(apiKey: string, lines: SpokenLine[], cast: Cast): Promise<Uint8Array> {
-  if (failure && Date.now() - failure.at < 3 * 60_000) throw new Error(failure.message);
+  if (failure && Date.now() - failure.at < 60_000) throw new Error(failure.message);
   const errors: string[] = [];
   for (const route of working ? [working, ...ROUTES.filter((r) => r !== working)] : ROUTES) {
     try {
-      const bytes = await route.call(apiKey, route.model, lines, cast);
+      const bytes = await withRetry(() => route.call(apiKey, route.model, lines, cast));
       working = route;
       failure = null;
       return bytes;
@@ -135,7 +151,16 @@ export async function synthesize(lines: SpokenLine[], cast: Cast): Promise<strin
   const apiKey = await getKey('gemini');
   if (!apiKey) throw new Error('A natural voice needs a Gemini key.');
   const voiceFor = (name: string) => cast.find((c) => c.name === name) ?? cast[0];
-  const parts = await Promise.all(lines.map((l) => voiceBytes(apiKey, [l], [voiceFor(l.speaker)])));
+  // back-to-back lines by the same person are one request; requests go one at a time, so a show
+  // stays under Gemini's per-minute limit (it was sending a burst for every talk)
+  const turns: SpokenLine[] = [];
+  for (const l of lines) {
+    const last = turns[turns.length - 1];
+    if (last && last.speaker === l.speaker) last.text = `${last.text} ${l.text}`;
+    else turns.push({ ...l });
+  }
+  const parts: Uint8Array[] = [];
+  for (const t of turns) parts.push(await voiceBytes(apiKey, [t], [voiceFor(t.speaker)]));
   const file = new File(Paths.cache, `voice-${Date.now()}-${Math.round(Math.random() * 1e6)}.wav`);
   file.create();
   await file.write(joinWavs(parts, 0.35));
