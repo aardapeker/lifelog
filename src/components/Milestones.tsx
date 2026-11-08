@@ -98,8 +98,9 @@ export function LifeTimeline() {
       <SectionTitle
         title="Life timeline"
         right={
-          <PressScale onPress={() => router.push('/milestone/new')} hitSlop={10} accessibilityLabel="Add a milestone">
-            <Ionicons name="add-circle-outline" size={26} color={colors.text} />
+          <PressScale onPress={() => router.push('/milestone/new')} hitSlop={10} scaleTo={0.92} style={styles.add} accessibilityLabel="Add a milestone">
+            <Ionicons name="add" size={18} color={colors.accentText} />
+            <Text style={styles.addText}>Add</Text>
           </PressScale>
         }
       />
@@ -168,5 +169,7 @@ const styles = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.muted, marginTop: 8 },
   dotBig: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.text, marginTop: 6, marginLeft: -2 },
   rowTitle: { fontFamily: fonts.serif, fontSize: 16, lineHeight: 23, color: colors.text },
+  add: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingLeft: 10, paddingRight: 14, paddingVertical: 7, borderRadius: 999, backgroundColor: colors.accent, alignSelf: 'center' },
+  addText: { fontFamily: fonts.sans, fontSize: 14, color: colors.accentText },
   scanRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 14, marginBottom: 6 },
 });

@@ -1,9 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
 import { useEffect, useRef, useState, type ComponentProps } from 'react';
+import { router } from 'expo-router';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CreateSheet } from '../../components/CreateSheet';
 import { Glass } from '../../components/Glass';
 import { MiniPlayer } from '../../components/MiniPlayer';
 import { colors } from '../../lib/theme';
@@ -12,7 +12,7 @@ import { useKeyboardVisible } from '../../lib/useKeyboardVisible';
 type IconName = ComponentProps<typeof Ionicons>['name'];
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
 
-/** The five slots, left to right. ＋ isn't a page: it opens the Start something sheet. */
+/** The five slots, left to right. ＋ isn't a tab: it opens a new entry. */
 const SLOTS: ({ route: string; icon: IconName; label: string } | 'create')[] = [
   { route: 'index', icon: 'book-outline', label: 'Journal' },
   { route: 'insights', icon: 'leaf-outline', label: 'Life' },
@@ -26,14 +26,13 @@ const PAD = 8;
 
 /**
  * A glass bar from side to side, five slots. The active one sits in a white circle that slides
- * (and pops) between tabs; the ＋ in the middle is always a circle of its own.
+ * (and pops) between tabs; the ＋ in the middle (a new entry) is always a circle of its own.
  * Drawn by hand: the library's bar ignored left/width on Android.
  */
 function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
   const insets = useSafeAreaInsets();
   const keyboardOpen = useKeyboardVisible();
   const [width, setWidth] = useState(0);
-  const [creating, setCreating] = useState(false);
   const current = state.routes[state.index]?.name;
   const slot = Math.max(0, SLOTS.findIndex((s) => s !== 'create' && s.route === current));
   const cell = width ? (width - PAD * 2) / SLOTS.length : 0;
@@ -69,7 +68,7 @@ function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
             if (s === 'create') {
               return (
                 <View key="create" style={styles.cell}>
-                  <Pressable onPress={() => setCreating(true)} accessibilityLabel="Start something" style={styles.create}>
+                  <Pressable onPress={() => router.push('/note/new')} accessibilityLabel="Write a new entry" style={styles.create}>
                     <Ionicons name="add" size={26} color={colors.text} />
                   </Pressable>
                 </View>
@@ -93,7 +92,6 @@ function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
           })}
         </View>
       </Glass>
-      <CreateSheet open={creating} onClose={() => setCreating(false)} />
     </View>
   );
 }

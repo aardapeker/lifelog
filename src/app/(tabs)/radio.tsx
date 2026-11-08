@@ -108,7 +108,11 @@ export default function RadioScreen() {
       <ScrollView
         ref={scroll}
         style={{ flex: 1 }}
-        contentContainerStyle={[styles.content, { paddingBottom: (keyboard ? 70 : TAB_BAR_SPACE) + keyboard }]}
+        // room for the sheet's 40px overhang, the tab bar, and (while picking) the floating Go on air
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: keyboard ? 110 + keyboard : 40 + TAB_BAR_SPACE + insets.bottom + (phase === 'pick' ? 74 : 0) },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
         {phase === 'pick' && (
@@ -197,7 +201,6 @@ export default function RadioScreen() {
               onFocus={() => setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 250)}
               {...inputColors}
             />
-            <PillButton label="Go on air" onPress={start} full style={{ marginTop: 24 }} />
           </FadeIn>
         )}
 
@@ -287,6 +290,12 @@ export default function RadioScreen() {
         <StatusLine status={status} />
       </ScrollView>
       </Glass>
+      {/* always in reach while picking: floats just above the tab bar */}
+      {phase === 'pick' && !keyboard && (
+        <View style={[styles.goOnAir, { bottom: insets.bottom + 88 }]} pointerEvents="box-none">
+          <PillButton label="Go on air" onPress={start} full />
+        </View>
+      )}
     </GlassArea>
     </View>
   );
@@ -300,6 +309,7 @@ const styles = StyleSheet.create({
   onAirDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.danger },
   barTitle: { fontFamily: fonts.serif, fontSize: 18, color: colors.text },
   sheet: { flex: 1, marginBottom: -40 },
+  goOnAir: { position: 'absolute', left: 24, right: 24, elevation: 12 },
   content: { padding: 24 },
   center: { paddingVertical: 80, alignItems: 'center' },
   title: { fontFamily: fonts.serif, fontSize: 40, lineHeight: 46, color: colors.text, marginBottom: 14 },

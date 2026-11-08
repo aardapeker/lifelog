@@ -133,6 +133,6 @@ const styles = StyleSheet.create({
 
   status: { marginTop: 10, fontFamily: fonts.sansRegular, fontSize: 13, lineHeight: 19, alignSelf: 'flex-start' },
 
-  sectionRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionTitle: { fontFamily: fonts.serif, fontSize: 24, color: colors.text },
 });
