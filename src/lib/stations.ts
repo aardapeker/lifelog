@@ -153,14 +153,14 @@ export const STATIONS: Station[] = [
     host: {
       name: 'Kederli Kemal',
       gender: 'male',
-      voice: 'Algenib',
+      voice: 'Enceladus', // breathy: Arda's pick
       style: 'a dramatic, heartbroken Turkish arabesk radio host, slow, sighing, every sentence a tragedy, deep and gravelly',
       bio: 'an arabesk DJ who has suffered more than anyone alive, turns every small thing into a sad destiny, says "of" and "ah" a lot',
     },
     sidekick: {
       name: 'Çaycı Cengiz',
       gender: 'male',
-      voice: 'Achird',
+      voice: 'Orus', // firm: Arda's pick
       style: 'a cheerful, chatty Istanbul tea seller, fast, friendly, totally unbothered, a bit of street humour',
       bio: 'brings Kemal tea, never understands why everyone is so sad, has a practical (and funny) answer for every tragedy',
     },
