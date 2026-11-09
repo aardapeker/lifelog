@@ -128,14 +128,14 @@ export const STATIONS: Station[] = [
     host: {
       name: 'Ece',
       gender: 'female',
-      voice: 'Aoede',
+      voice: 'Despina', // Arda's pick
       style: 'a calm, breezy, soft-spoken late-night host, gentle and cosy, almost whispering',
       bio: 'a calm host who wants the listener to rest',
     },
     sidekick: {
       name: 'Şemistan',
       gender: 'male',
-      voice: 'Puck',
+      voice: 'Iapetus', // Arda's pick
       style: 'a dramatic, entitled house cat who can talk, demanding and theatrical, sometimes meowing',
       bio: "the listener's actual cat, demanding food and attention, judging the music and the owner",
     },
