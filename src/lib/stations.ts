@@ -56,14 +56,14 @@ export const STATIONS: Station[] = [
     host: {
       name: 'Candy Starr',
       gender: 'female',
-      voice: 'Laomedeia',
+      voice: 'Sulafat', // Arda's pick
       style: 'a hyper-cheerful 1980s pop radio DJ, bubbly, fast, over the top, like she drank six espressos',
       bio: "an 80s pop DJ who thinks everything is AMAZING, calls the listener 'sugar', lives for gossip",
     },
     sidekick: {
       name: 'Rico',
       gender: 'male',
-      voice: 'Fenrir',
+      voice: 'Algieba', // Arda's pick
       style: 'a sarcastic, deadpan comedian sidekick, dry and unimpressed, mumbling the punchlines',
       bio: "Candy's co-host, a broke comedian who mocks everything, especially the listener's life choices",
     },
