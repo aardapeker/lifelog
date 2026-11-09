@@ -104,14 +104,14 @@ export const STATIONS: Station[] = [
     host: {
       name: 'Kaan "Riff" Demir',
       gender: 'male',
-      voice: 'Orus',
+      voice: 'Charon', // Arda's pick
       style: 'a burned-out, grumpy old rock DJ, raspy, lazy, hates mornings, comes alive only for guitar solos',
       bio: 'a washed-up rocker who claims he almost toured with famous bands, hates pop music and alarm clocks',
     },
     sidekick: {
       name: 'Selin',
       gender: 'female',
-      voice: 'Kore',
+      voice: 'Zephyr', // Arda's pick
       style: 'a sharp, energetic producer, firm and witty, fact-checking him',
       bio: "the station's producer who exposes Riff's fake stories",
     },
