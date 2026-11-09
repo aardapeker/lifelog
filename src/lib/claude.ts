@@ -114,7 +114,7 @@ async function post(apiKey: string, body: { model: string } & Record<string, unk
   };
   recordUsage({ provider: 'anthropic', model: body.model, feature, input: json.usage?.input_tokens, output: json.usage?.output_tokens });
   // a reply cut off mid-sentence is worse than none: fail, and the job tries again next time
-  if (whole && json.stop_reason === 'max_tokens') throw new Error('Claude ran out of room mid-reply.');
+  if (whole && json.stop_reason === 'max_tokens') throw new Error('Claude ran out of room mid-reply. Try again, or pick fewer songs.');
   return json.content
     .filter((c) => c.type === 'text')
     .map((c) => c.text ?? '')

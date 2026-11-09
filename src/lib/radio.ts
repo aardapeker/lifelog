@@ -153,7 +153,9 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
     apiKey: chat.apiKey,
     model: writer,
     json: true,
-    maxTokens: 1500 + SHOW_LENGTH * TALK[prefs.talk].tokens,
+    // a ceiling, not a cost (only what's written is billed). Roomy: Turkish takes Claude about twice the
+    // tokens of English, and a 16-song Turkish show ran out of room with the old, tighter number
+    maxTokens: 4000 + SHOW_LENGTH * TALK[prefs.talk].tokens * 2,
     system:
       `You write a private radio show on "${station.name} ${station.freq}" (${station.tagline}) for ONE listener, ` +
       `in the spirit of the radio stations in classic open-world crime games: larger-than-life hosts, absurd humour, ` +
