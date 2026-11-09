@@ -23,6 +23,7 @@ import {
 import { bannedSongs, getRadioPrefs, likedSongs, saveRadioPrefs, toggleLiked, unbanSong, type RadioPrefs, type SongRef } from '../../lib/songMemory';
 import { Chip, IconButton, PillButton, SectionTitle, StatusLine, type Status } from '../../components/ui';
 import { UsageSection } from '../../components/UsageSection';
+import { IconTile } from '../../components/IconTile';
 import { requestPinWidget } from 'react-native-android-widget';
 import { exportJson } from '../../lib/insights';
 import { SETTINGS_PAGES, type SettingsPage } from '../../lib/settingsPages';
@@ -787,7 +788,8 @@ function RadioSection() {
         onChange={(twists) => update({ twists })}
       />
       <SongList
-        title="❤️ Hearted"
+        title="Hearted"
+        icon="heart"
         empty="Tap the heart on the radio to keep a song coming back."
         songs={hearts}
         action="heart-dislike-outline"
@@ -798,7 +800,8 @@ function RadioSection() {
         }}
       />
       <SongList
-        title="🚫 Never play"
+        title="Never play"
+        icon="ban-outline"
         empty="Nothing banned. The 🚫 on the radio adds songs here."
         songs={bans}
         action="refresh-outline"
@@ -809,6 +812,16 @@ function RadioSection() {
         }}
       />
     </Section>
+  );
+}
+
+/** A field name with a small icon in front (instead of an emoji). */
+function Label({ icon, children }: { icon: ComponentProps<typeof Ionicons>['name']; children: ReactNode }) {
+  return (
+    <View style={styles.labelRow}>
+      <Ionicons name={icon} size={15} color={colors.muted} />
+      <Text style={[styles.label, { marginTop: 0, marginBottom: 0 }]}>{children}</Text>
+    </View>
   );
 }
 
@@ -847,7 +860,7 @@ function JobModels({ provider }: { provider: Provider }) {
 
   return (
     <>
-      <Text style={styles.label}>📻 Radio writer</Text>
+      <Label icon="radio-outline">Radio writer</Label>
       <ModelChips
         provider={provider}
         value={radio}
@@ -856,11 +869,11 @@ function JobModels({ provider }: { provider: Provider }) {
       />
       <Text style={styles.hint}>{radio ? priceHint(radio) : 'Writes the shows with your chat model.'} The cheaper one is a bit less funny.</Text>
 
-      <Text style={styles.label}>⚙️ Background jobs</Text>
+      <Label icon="cog-outline">Background jobs</Label>
       <ModelChips provider={provider} value={background} onPick={(m) => save(`backgroundModel.${provider}`, m, setBackground)} />
       <Text style={styles.hint}>Facts, photo captions, recaps, check-ins. {priceHint(background)}.</Text>
 
-      <Text style={styles.label}>🗣️ Radio voice (Gemini)</Text>
+      <Label icon="mic-outline">Radio voice (Gemini)</Label>
       <View style={styles.chips}>
         {VOICE_MODELS.map((v) => (
           <Chip key={v.id} label={v.label} active={v.id === voice} onPress={() => save('voiceModel', v.id, setVoice)} />
@@ -891,6 +904,7 @@ function IconsSection() {
 /** A folding list of songs, each with one action (un-heart, un-ban). */
 function SongList(props: {
   title: string;
+  icon: ComponentProps<typeof Ionicons>['name'];
   empty: string;
   songs: SongRef[];
   action: keyof typeof Ionicons.glyphMap;
@@ -901,9 +915,12 @@ function SongList(props: {
   return (
     <View style={styles.songList}>
       <Pressable style={styles.songListHead} onPress={() => setOpen((o) => !o)} accessibilityLabel={`${props.title}, ${props.songs.length} songs`}>
-        <Text style={styles.label}>
-          {props.title} <Text style={styles.hint}>· {props.songs.length}</Text>
-        </Text>
+        <View style={[styles.labelRow, { marginTop: 12, marginBottom: 12 }]}>
+          <Ionicons name={props.icon} size={15} color={colors.muted} />
+          <Text style={[styles.label, { marginTop: 0, marginBottom: 0 }]}>
+            {props.title} · {props.songs.length}
+          </Text>
+        </View>
         <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={colors.muted} />
       </Pressable>
       {open &&
@@ -1033,10 +1050,21 @@ export default function SettingsScreen() {
     }, [db]),
   );
 
+  // the switch IS the choice: it takes effect at once (it used to wait for Save and looked like tabs)
   const pickProvider = async (p: Provider) => {
+    const m = await getChatModel(db, p);
     setProvider(p);
-    setModel(await getChatModel(db, p));
-    setChatStatus({ kind: 'idle' });
+    setModel(m);
+    await saveChatConfig(db, p, m);
+    setChatStatus(
+      (await getKey(p))
+        ? { kind: 'ok', msg: `Now using ${PROVIDERS[p].label}.` }
+        : { kind: 'err', msg: `No ${PROVIDERS[p].label} key yet: add it under API Keys below.` },
+    );
+  };
+  const pickChatModel = async (m: string) => {
+    setModel(m);
+    await saveChatConfig(db, provider, m);
   };
 
   const saveChat = () =>
@@ -1084,9 +1112,10 @@ export default function SettingsScreen() {
         <View style={styles.pageTop}>
           <IconButton icon="arrow-back" label="Back" onPress={() => router.back()} />
         </View>
-        <Animated.Text style={[styles.title, bigTitleMotion(y)]}>
-          {SETTINGS_PAGES[page].emoji} {SETTINGS_PAGES[page].title}
-        </Animated.Text>
+        <View style={styles.pageTitle}>
+          <IconTile icon={SETTINGS_PAGES[page].icon} tint={SETTINGS_PAGES[page].tint} size={40} />
+          <Animated.Text style={[styles.title, bigTitleMotion(y), { flexShrink: 1 }]}>{SETTINGS_PAGES[page].title}</Animated.Text>
+        </View>
 
         {page === 'me' && (
         <>
@@ -1129,12 +1158,16 @@ export default function SettingsScreen() {
 
         <Section title="AI Models" hint="Which AI does each job. Prices are per 1M tokens; AI Usage below shows what it adds up to.">
           <Segment
-            options={(Object.keys(PROVIDERS) as Provider[]).map((p) => ({ key: p, label: PROVIDERS[p].label }))}
+            options={(Object.keys(PROVIDERS) as Provider[]).map((p) => ({ key: p, label: `${PROVIDERS[p].label}${p === provider ? ' ✓' : ''}` }))}
             value={provider}
             onChange={pickProvider}
           />
-          <Text style={styles.label}>💬 Chat friend</Text>
-          <ModelChips provider={provider} value={model} onPick={setModel} />
+          <Text style={styles.hint}>
+            Chat, radio scripts and background jobs run on {PROVIDERS[provider].label}. The radio voices, web search and
+            voice notes always use Gemini.
+          </Text>
+          <Label icon="chatbubble-ellipses-outline">Chat friend</Label>
+          <ModelChips provider={provider} value={model} onPick={pickChatModel} />
           <TextInput
             style={styles.input}
             value={model}
@@ -1143,7 +1176,7 @@ export default function SettingsScreen() {
             autoCorrect={false}
             {...inputColors}
           />
-          <Text style={styles.hint}>{priceHint(model)}. Or type any model name above.</Text>
+          <Text style={styles.hint}>{priceHint(model)}. Tap a model, or type any model name and Save.</Text>
           <View style={styles.row}>
             <PillButton label="Save" onPress={saveChat} />
             <PillButton label="Test" onPress={testChat} ghost />
@@ -1213,6 +1246,8 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
+  pageTitle: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 24, marginBottom: 10 },
   iconPreview: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 22, paddingHorizontal: 6 },
   pageTop: { flexDirection: 'row', marginBottom: -10 },
   songList: { marginTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, paddingTop: 6 },

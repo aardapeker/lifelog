@@ -1,3 +1,5 @@
+import type Ionicons from '@expo/vector-icons/Ionicons';
+import type { ComponentProps } from 'react';
 import { openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
 import { cancelNotify, notify } from './notify';
 import * as Notifications from 'expo-notifications';
@@ -24,19 +26,19 @@ export type Feature =
   | 'index'
   | 'other';
 
-export const FEATURES: Record<Feature, { label: string; emoji: string }> = {
-  chat: { label: 'Chat', emoji: '💬' },
-  radio: { label: 'Radio scripts', emoji: '📻' },
-  voice: { label: 'Radio voices', emoji: '🗣️' },
-  reads: { label: 'Reads', emoji: '📰' },
-  research: { label: 'Looked into', emoji: '🔎' },
-  daysoff: { label: 'Days off', emoji: '🌤️' },
-  checkins: { label: 'Check-ins & messages', emoji: '👋' },
-  background: { label: 'Background (facts, recaps…)', emoji: '⚙️' },
-  photos: { label: 'Photo captions', emoji: '🖼️' },
-  voicenotes: { label: 'Voice notes', emoji: '🎙️' },
-  index: { label: 'Search index', emoji: '🧭' },
-  other: { label: 'Other', emoji: '✨' },
+export const FEATURES: Record<Feature, { label: string; icon: ComponentProps<typeof Ionicons>['name']; tint: string }> = {
+  chat: { label: 'Chat', icon: 'chatbubble-ellipses-outline', tint: '#7FB2FF' },
+  radio: { label: 'Radio scripts', icon: 'radio-outline', tint: '#FFC46B' },
+  voice: { label: 'Radio voices', icon: 'mic-outline', tint: '#FF9F7A' },
+  reads: { label: 'Reads', icon: 'newspaper-outline', tint: '#C79BFF' },
+  research: { label: 'Looked into', icon: 'search-outline', tint: '#8FD3FF' },
+  daysoff: { label: 'Days off', icon: 'partly-sunny-outline', tint: '#FFD86B' },
+  checkins: { label: 'Check-ins & messages', icon: 'hand-left-outline', tint: '#6EDC9A' },
+  background: { label: 'Background (facts, recaps…)', icon: 'cog-outline', tint: '#B0B0B0' },
+  photos: { label: 'Photo captions', icon: 'image-outline', tint: '#FF8AC8' },
+  voicenotes: { label: 'Voice notes', icon: 'recording-outline', tint: '#FF8A80' },
+  index: { label: 'Search index', icon: 'compass-outline', tint: '#7FE0D0' },
+  other: { label: 'Other', icon: 'ellipsis-horizontal-circle-outline', tint: '#B0B0B0' },
 };
 
 // ── prices (USD per 1M tokens, paid tier, standard) ──

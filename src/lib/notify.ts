@@ -1,3 +1,5 @@
+import type Ionicons from '@expo/vector-icons/Ionicons';
+import type { ComponentProps } from 'react';
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import { openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
@@ -79,11 +81,11 @@ export function openNotification(data: Record<string, unknown> | undefined | nul
 }
 
 /** Icon and label per kind, for the inbox list. */
-export const KIND_LOOK: Record<string, { emoji: string; label: string }> = {
-  checkin: { emoji: '👋', label: 'Your friend' },
-  read: { emoji: '📰', label: 'A Read' },
-  planner: { emoji: '🌤️', label: 'Day off' },
-  radio: { emoji: '📻', label: 'Radio' },
-  usage: { emoji: '💰', label: 'AI budget' },
-  milestone: { emoji: '📌', label: 'Milestone' },
+export const KIND_LOOK: Record<string, { icon: ComponentProps<typeof Ionicons>['name']; tint: string; label: string }> = {
+  checkin: { icon: 'chatbubbles-outline', tint: '#FFC46B', label: 'Your friend' },
+  read: { icon: 'newspaper-outline', tint: '#C79BFF', label: 'A Read' },
+  planner: { icon: 'partly-sunny-outline', tint: '#FFD86B', label: 'Day off' },
+  radio: { icon: 'radio-outline', tint: '#FF9F7A', label: 'Radio' },
+  usage: { icon: 'wallet-outline', tint: '#6EDC9A', label: 'AI budget' },
+  milestone: { icon: 'flag-outline', tint: '#7FB2FF', label: 'Milestone' },
 };

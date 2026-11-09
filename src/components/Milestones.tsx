@@ -16,12 +16,15 @@ import { colors, fonts, radius } from '../lib/theme';
 import { FadeIn, PressScale } from './motion';
 import { PillButton, SectionTitle } from './ui';
 
-/** "📌 A milestone?" — a suggestion with Save / Edit / No. */
+/** "A milestone?": a suggestion with Save / Edit / No. */
 function Suggestion({ m, onDone }: { m: Milestone; onDone: () => void }) {
   const db = useSQLiteContext();
   return (
     <View style={styles.suggestion}>
-      <Text style={styles.kicker}>📌 A milestone?</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <Ionicons name="flag-outline" size={13} color={colors.muted} />
+        <Text style={styles.kicker}>A milestone?</Text>
+      </View>
       <Text style={styles.title}>
         {m.emoji ? `${m.emoji} ` : ''}
         {m.title}

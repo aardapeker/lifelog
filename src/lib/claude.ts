@@ -1,5 +1,6 @@
 import { fetch } from 'expo/fetch';
 import type { CompleteOptions, StreamOptions } from './chat';
+import { friendlyAiError } from './aiErrors';
 import { readSSE } from './sse';
 import { recordUsage, type Feature } from './usage';
 
@@ -16,11 +17,11 @@ function headers(apiKey: string) {
 
 async function readError(res: { status: number; text(): Promise<string> }) {
   const text = await res.text();
+  let message = text.slice(0, 300);
   try {
-    return `Claude ${res.status}: ${JSON.parse(text)?.error?.message ?? text}`;
-  } catch {
-    return `Claude ${res.status}: ${text.slice(0, 300)}`;
-  }
+    message = JSON.parse(text)?.error?.message ?? message;
+  } catch {}
+  return friendlyAiError('Claude', res.status, message);
 }
 
 type Block =

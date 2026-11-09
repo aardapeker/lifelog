@@ -1,5 +1,6 @@
 import { fetch } from 'expo/fetch';
 import type { ChatMessage, CompleteOptions, StreamOptions } from './chat';
+import { friendlyAiError } from './aiErrors';
 import { readSSE } from './sse';
 import { geminiTokens, recordUsage, type Feature } from './usage';
 
@@ -12,11 +13,11 @@ const outputLimit = (answerTokens: number) => answerTokens + THINKING_ROOM;
 
 async function readError(res: { status: number; text(): Promise<string> }) {
   const text = await res.text();
+  let message = text.slice(0, 300);
   try {
-    return `Gemini ${res.status}: ${JSON.parse(text)?.error?.message ?? text}`;
-  } catch {
-    return `Gemini ${res.status}: ${text.slice(0, 300)}`;
-  }
+    message = JSON.parse(text)?.error?.message ?? message;
+  } catch {}
+  return friendlyAiError('Gemini', res.status, message);
 }
 
 export const jsonHeaders = (apiKey: string) => ({ 'Content-Type': 'application/json', 'x-goog-api-key': apiKey });

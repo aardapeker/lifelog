@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors, fonts, inputColors, radius } from '../lib/theme';
 import { FEATURES, getBudget, lira, setBudget, usageReport, usdToTry, type UsageReport } from '../lib/usage';
 import { Glass } from './Glass';
+import { IconTile } from './IconTile';
 import { PillButton, SectionTitle } from './ui';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -103,9 +104,12 @@ export function UsageSection() {
         {detail.length ? (
           detail.map((f) => (
             <View key={f.feature} style={styles.line}>
-              <Text style={styles.lineText}>
-                {FEATURES[f.feature].emoji} {FEATURES[f.feature].label}
-              </Text>
+              <View style={styles.featName}>
+                <IconTile icon={FEATURES[f.feature].icon} tint={FEATURES[f.feature].tint} size={26} />
+                <Text style={styles.lineText} numberOfLines={1}>
+                  {FEATURES[f.feature].label}
+                </Text>
+              </View>
               <Text style={styles.lineValue}>{money(f.usd)}</Text>
             </View>
           ))
@@ -119,9 +123,12 @@ export function UsageSection() {
           <Text style={styles.panelTitle}>This month, by job</Text>
           {r.byFeature.map((f) => (
             <View key={f.feature} style={styles.featRow}>
-              <Text style={styles.featLabel} numberOfLines={1}>
-                {FEATURES[f.feature].emoji} {FEATURES[f.feature].label}
-              </Text>
+              <View style={[styles.featName, { width: 150, flex: 0 }]}>
+                <IconTile icon={FEATURES[f.feature].icon} tint={FEATURES[f.feature].tint} size={26} />
+                <Text style={styles.featLabel} numberOfLines={1}>
+                  {FEATURES[f.feature].label}
+                </Text>
+              </View>
               <View style={styles.track}>
                 <View style={[styles.fill, { width: `${Math.max(2, (f.usd / featMax) * 100)}%` }]} />
               </View>
@@ -201,6 +208,7 @@ function Tile({ label, value, sub }: { label: string; value: string; sub?: strin
 }
 
 const styles = StyleSheet.create({
+  featName: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   hint: { fontFamily: fonts.sansRegular, fontSize: 13, lineHeight: 19, color: colors.muted, marginBottom: 6 },
   small: { fontFamily: fonts.sansRegular, fontSize: 11, lineHeight: 16, color: colors.muted },
   muted: { color: colors.muted },
@@ -223,7 +231,7 @@ const styles = StyleSheet.create({
   lineText: { flex: 1, fontFamily: fonts.sansRegular, fontSize: 14, color: colors.text },
   lineValue: { fontFamily: fonts.sans, fontSize: 14, color: colors.text },
   featRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 5 },
-  featLabel: { width: 128, fontFamily: fonts.sansRegular, fontSize: 13, color: colors.text },
+  featLabel: { flex: 1, fontFamily: fonts.sansRegular, fontSize: 13, color: colors.text },
   track: { flex: 1, height: 8, borderRadius: 4, backgroundColor: colors.raised, overflow: 'hidden' },
   fill: { height: 8, borderRadius: 4, backgroundColor: colors.text },
   featValue: { width: 64, textAlign: 'right', fontFamily: fonts.sans, fontSize: 13, color: colors.text },

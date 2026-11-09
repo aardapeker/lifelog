@@ -101,8 +101,10 @@ async function viaGenerate(apiKey: string, model: string, lines: SpokenLine[], c
 }
 
 type Route = { model: string; call: typeof viaInteractions };
+// the 2.5 preview can't take the Interactions route's speaking-style notes ("Speech annotations
+// are not supported"), so it only goes the classic way
 const ROUTES: Route[] = MODELS.flatMap((model) => [
-  { model, call: viaInteractions },
+  ...(model.startsWith('gemini-2.5') ? [] : [{ model, call: viaInteractions }]),
   { model, call: viaGenerate },
 ]);
 // which way of calling (interactions or generate) worked last, per model. Only the WAY is
@@ -131,6 +133,8 @@ let failure: { at: number; message: string } | null = null; // everything failed
 // models whose DAILY quota ran out (each model has its own): skipped until tomorrow, no waiting on them
 const spent = new Map<string, string>();
 const today = () => new Date().toDateString();
+// the prepaid balance ran out (Google says "check your plan and billing details")
+const credits = (e: unknown) => /\b429\b/.test(String(e)) && /plan and billing|billing details|prepay/i.test(String(e));
 const dailyLimit = (e: unknown) => /\b429\b/.test(String(e)) && /per ?day|PerDay|daily/i.test(String(e));
 
 /**
@@ -143,7 +147,7 @@ async function withRetry<T>(call: () => Promise<T>): Promise<T> {
       return await call();
     } catch (e) {
       // a daily limit won't lift in 15 seconds: hand over to the next model right away
-      if (!pause || !/\b(429|503)\b/.test(String(e)) || dailyLimit(e)) throw e;
+      if (!pause || !/\b(429|503)\b/.test(String(e)) || dailyLimit(e) || credits(e)) throw e; // no point waiting on an empty balance
       await waitMs(pause);
     }
   }
@@ -180,7 +184,7 @@ async function voiceBytes(apiKey: string, lines: SpokenLine[], cast: Cast): Prom
       if (dailyLimit(e)) spent.set(route.model, today());
       failedHere.set(route.model, (failedHere.get(route.model) ?? 0) + 1);
       // both ways failed for this model: let it rest a little, then it's first in line again
-      if (failedHere.get(route.model) === 2) resting.set(route.model, Date.now());
+      if (failedHere.get(route.model) === ROUTES.filter((r) => r.model === route.model).length) resting.set(route.model, Date.now());
       errors.push(`${route.model} (${route.call === viaInteractions ? 'interactions' : 'generate'}): ${e instanceof Error ? e.message : e}`);
       if (/\b(401|403)\b/.test(String(e)) && /API key/i.test(String(e))) break; // a bad key fails everywhere
     }
@@ -188,9 +192,11 @@ async function voiceBytes(apiKey: string, lines: SpokenLine[], cast: Cast): Prom
   const allSpent = MODELS.every((m) => spent.get(m) === today());
   failure = {
     at: Date.now(),
-    message: allSpent
-      ? "Gemini's free voice quota for today is used up (it resets overnight, Pacific time)."
-      : `Natural voice failed. ${errors.join(' | ')}`,
+    message: errors.some(credits)
+      ? '💳 Out of Gemini credits for the voices. Top up in AI Studio → Billing.'
+      : allSpent
+        ? "Gemini's free voice quota for today is used up (it resets overnight, Pacific time)."
+        : `Natural voice failed. ${errors.join(' | ')}`,
   };
   throw new Error(failure.message);
 }

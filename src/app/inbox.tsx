@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FadeIn } from '../components/motion';
 import { UNREAD } from '../components/TopBar';
 import { IconButton } from '../components/ui';
+import { IconTile } from '../components/IconTile';
 import { clearInbox, inboxItems, KIND_LOOK, markAllRead, markRead, openNotification, type InboxItem } from '../lib/notify';
 import { colors, fonts, radius } from '../lib/theme';
 
@@ -66,11 +67,11 @@ export default function InboxScreen() {
           ) : undefined
         }
         renderItem={({ item, index }) => {
-          const look = KIND_LOOK[item.kind] ?? { emoji: '✨', label: 'Lifelog' };
+          const look = KIND_LOOK[item.kind] ?? { icon: 'sparkles-outline' as const, tint: '#B0B0B0', label: 'Lifelog' };
           return (
             <FadeIn delay={Math.min(index, 8) * 40}>
               <Pressable style={[styles.item, !item.read && styles.itemNew]} onPress={() => open(item)} accessibilityLabel={`${item.read ? '' : 'New. '}${item.title}: ${item.body}`}>
-                <Text style={styles.emoji}>{look.emoji}</Text>
+                <IconTile icon={look.icon} tint={look.tint} size={38} />
                 <View style={{ flex: 1 }}>
                   <View style={styles.row}>
                     <Text style={styles.kind}>{look.label}</Text>
@@ -102,7 +103,6 @@ const styles = StyleSheet.create({
   empty: { fontFamily: fonts.sansRegular, fontSize: 14, lineHeight: 21, color: colors.muted, textAlign: 'center', marginTop: 40 },
   item: { flexDirection: 'row', gap: 12, padding: 16, borderRadius: radius.md, backgroundColor: colors.surface, alignItems: 'flex-start' },
   itemNew: { backgroundColor: colors.raised },
-  emoji: { fontSize: 22, marginTop: 2 },
   row: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
   kind: { fontFamily: fonts.sans, fontSize: 12, color: colors.muted },
   time: { fontFamily: fonts.sansRegular, fontSize: 12, color: colors.muted },

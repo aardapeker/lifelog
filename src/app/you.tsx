@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FadeIn, PressScale, stagger } from '../components/motion';
 import { useProfile } from '../components/TopBar';
 import { IconButton } from '../components/ui';
+import { IconTile } from '../components/IconTile';
 import { getSetting, setSetting } from '../lib/db';
 import { deletePhotoFile, pickPhoto, photoUri } from '../lib/photos';
 import { colors, fonts, radius } from '../lib/theme';
@@ -114,7 +115,7 @@ export default function YouScreen() {
           return (
             <FadeIn key={key} delay={stagger(i + 1, 50)}>
               <Pressable style={({ pressed }) => [styles.row, pressed && { opacity: 0.75 }]} onPress={() => router.push(`/settings/${key}`)}>
-                <Text style={styles.emoji}>{p.emoji}</Text>
+                <IconTile icon={p.icon} tint={p.tint} size={44} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.rowTitle}>{p.title}</Text>
                   <Text style={styles.rowHint}>{p.hint}</Text>
@@ -153,7 +154,6 @@ const styles = StyleSheet.create({
   stats: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.muted, marginTop: 6, textAlign: 'center' },
   list: { gap: 10 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 18, borderRadius: radius.md, backgroundColor: colors.surface },
-  emoji: { fontSize: 24 },
   rowTitle: { fontFamily: fonts.serif, fontSize: 18, color: colors.text },
   rowHint: { fontFamily: fonts.sansRegular, fontSize: 12, lineHeight: 17, color: colors.muted, marginTop: 3 },
 });
