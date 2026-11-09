@@ -80,15 +80,16 @@ export const STATIONS: Station[] = [
     host: {
       name: 'Max Volt',
       gender: 'male',
-      voice: 'Algenib',
+      voice: 'Puck', // Arda's pick
       style: 'a deep, gravelly, overly dramatic movie-trailer narrator, slow and intense, every sentence epic',
       bio: 'treats the listener\'s warehouse job like a Miami action movie; boxes are "the enemy", breaks are "extraction"',
     },
     sidekick: {
       name: 'Deniz',
-      voice: 'Zubenelgenubi',
+      gender: 'female', // Arda cast her with a woman's voice
+      voice: 'Laomedeia', // Arda's pick
       style: 'a casual, tired, sarcastic night-shift coworker, unimpressed, yawning',
-      bio: 'a fellow night-shift worker who keeps bringing Max back to boring reality',
+      bio: 'a fellow night-shift worker (a woman) who keeps bringing Max back to boring reality',
     },
     ads: 'fake ads for energy drinks, coffee, sleep and miracle products for night-shift workers, read like action trailers',
     lang: 'en',
