@@ -27,6 +27,9 @@ import { banSong, bannedSongs, likedSongs, rememberPlayed, toggleLiked } from '.
 import { onRadioCommand, publishToWidget } from '../widget/radioBridge';
 import { clearClips, keepSample, playClip, preferVoiceModel, sampleFile, speakRobot, synthesize, type Talking } from './tts';
 
+const LIVE_KEY = 'radio.live';
+const RESUME_FOR_MS = 12 * 60 * 60 * 1000; // a show older than this isn't worth picking up
+
 /*
  * The radio's engine lives here, mounted once at the root of the app, so a show keeps running
  * (and keeps its songs and talks) when you close the Radio screen. The screen only shows it.
@@ -112,6 +115,25 @@ function useRadioEngine() {
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
   const [progress, setProgress] = useState(0); // of the current song, 0..1
   const [palette, setPalette] = useState<Palette | null>(null); // the album cover's colours
+  // the show on air is kept on the phone: if the app gets closed, you can pick it up where it was
+  const [resumable, setResumable] = useState<{ show: Show; index: number } | null>(null);
+  useEffect(() => {
+    getSetting(db, LIVE_KEY, '')
+      .then((v) => {
+        if (!v) return;
+        const saved = JSON.parse(v) as { show: Show; index: number; savedAt: number };
+        if (Date.now() - saved.savedAt < RESUME_FOR_MS && saved.index < saved.show.slots.length) setResumable(saved);
+      })
+      .catch(() => {});
+  }, [db]);
+  useEffect(() => {
+    if (phase !== 'onair' || !show) return;
+    setSetting(db, LIVE_KEY, JSON.stringify({ show, index, savedAt: Date.now() })).catch(() => {});
+  }, [db, phase, show, index]);
+  const forgetLive = useCallback(() => {
+    setResumable(null);
+    setSetting(db, LIVE_KEY, '').catch(() => {});
+  }, [db]);
 
   // the engine runs on refs: timers and speech callbacks must see the latest values
   // talked: the last slot whose talk already played (so resuming starts just the song)
@@ -173,6 +195,7 @@ function useRadioEngine() {
       // the end: the hosts say goodbye (if they have something to say and the voice is on), then off air
       const finish = () => {
         stopEngine();
+        forgetLive(); // the show is over: nothing to pick up later
         setPhase('done');
       };
       if (!live.current.voice || !s.outro.length || live.current.talked === s.slots.length) return finish();
@@ -234,7 +257,7 @@ function useRadioEngine() {
       talking.current = t;
       if (await t.done) start();
     })();
-  }, [stopEngine, prepare]);
+  }, [stopEngine, prepare, forgetLive]);
 
   /**
    * Starts slot i's song on Spotify and checks it really plays. Spotify on the phone sometimes
@@ -349,6 +372,7 @@ function useRadioEngine() {
     try {
       preview.current?.stop();
       const s = await buildShow(db, station, wish, length);
+      setResumable(null); // a new show replaces the one you could have picked up
       live.current = { show: s, index: 0, speaking: false, paused: false, startedAt: 0, voice, talked: -1, overlapping: false };
       clips.current = new Map();
       retried.current = new Set();
@@ -443,6 +467,49 @@ function useRadioEngine() {
     }
   };
 
+  /**
+   * Picks up a show the app lost (closed by accident). The script is kept, so nothing is written again;
+   * only the talks still ahead are voiced. Spotify usually kept playing our queue: then the show just
+   * catches up to the song it's on, without stopping the music.
+   */
+  const resume = async () => {
+    if (!resumable) return;
+    const { show: s, index: at } = resumable;
+    setResumable(null);
+    setStatus({ kind: 'idle' });
+    try {
+      preview.current?.stop();
+      live.current = { show: s, index: at, speaking: false, paused: false, startedAt: Date.now(), voice, talked: at, overlapping: false };
+      clips.current = new Map();
+      retried.current = new Set();
+      setShow(s);
+      setIndex(at);
+      setPaused(false);
+      setPhase('onair');
+      await goOnAir(s.title, `${s.station.name} ${s.station.freq}`);
+      const p = await playbackState().catch(() => null);
+      const k = p?.track && p.isPlaying ? s.slots.findIndex((x, n) => n >= at && sameTrack(p.track!, x.track)) : -1;
+      if (k >= 0) {
+        // still playing one of ours: just listen in again
+        live.current.index = k;
+        live.current.talked = k;
+        setIndex(k);
+        updateOnAir(s.slots[k].track.name, `${s.station.name} · ${s.slots[k].track.artist}`);
+        prepare(k + 1);
+        prepare(k + 2);
+        poll.current = onBeat(tick);
+        return;
+      }
+      // Spotify stopped: the song where we were starts again (its talk already played)
+      if (!(await remoteReady())) await wakeSpotify(s.slots[at].track.uri).catch(() => null);
+      poll.current = onBeat(tick);
+      playSlot(at);
+    } catch (e) {
+      setPhase('pick');
+      fail(e);
+    }
+  };
+
   const save = async () => {
     if (!show) return;
     setStatus({ kind: 'busy' });
@@ -460,6 +527,7 @@ function useRadioEngine() {
   /** Ends the show for good. */
   const stop = () => {
     stopEngine();
+    forgetLive();
     live.current = { ...live.current, show: null, speaking: false, paused: false };
     setShow(null);
     setPaused(false);
@@ -540,7 +608,7 @@ function useRadioEngine() {
     [],
   );
 
-  return { banned, ban, miniCollapsed, setMiniCollapsed, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
+  return { resumable, resume, forgetLive, banned, ban, miniCollapsed, setMiniCollapsed, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
 }
 
 export type RadioEngine = ReturnType<typeof useRadioEngine>;
