@@ -133,6 +133,8 @@ let failure: { at: number; message: string } | null = null; // everything failed
 // models whose DAILY quota ran out (each model has its own): skipped until tomorrow, no waiting on them
 const spent = new Map<string, string>();
 const today = () => new Date().toDateString();
+const offline = (e: unknown) =>
+  /UnknownHost|Unable to resolve host|Network request failed|failed to fetch|SocketTimeout|ConnectException|timed? ?out/i.test(String(e));
 // the prepaid balance ran out (Google says "check your plan and billing details")
 const credits = (e: unknown) => /\b429\b/.test(String(e)) && /plan and billing|billing details|prepay/i.test(String(e));
 const dailyLimit = (e: unknown) => /\b429\b/.test(String(e)) && /per ?day|PerDay|daily/i.test(String(e));
@@ -181,6 +183,12 @@ async function voiceBytes(apiKey: string, lines: SpokenLine[], cast: Cast): Prom
       failure = null;
       return bytes;
     } catch (e) {
+      // no internet (a tunnel, the servis between towers): every model would fail the same way,
+      // and it isn't their fault, so stop here and don't make them rest
+      if (offline(e)) {
+        errors.push(String(e));
+        break;
+      }
       if (dailyLimit(e)) spent.set(route.model, today());
       failedHere.set(route.model, (failedHere.get(route.model) ?? 0) + 1);
       // both ways failed for this model: let it rest a little, then it's first in line again
@@ -192,7 +200,9 @@ async function voiceBytes(apiKey: string, lines: SpokenLine[], cast: Cast): Prom
   const allSpent = MODELS.every((m) => spent.get(m) === today());
   failure = {
     at: Date.now(),
-    message: errors.some(credits)
+    message: errors.some(offline)
+      ? '📶 No internet right now. The phone reads the talk until the connection is back.'
+      : errors.some(credits)
       ? '💳 Out of Gemini credits for the voices. Top up in AI Studio → Billing.'
       : allSpent
         ? "Gemini's free voice quota for today is used up (it resets overnight, Pacific time)."
