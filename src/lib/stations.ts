@@ -38,7 +38,7 @@ export const STATIONS: Station[] = [
     music: 'whatever fits their day and taste right now; mix favourites with a few new finds',
     host: {
       name: 'Your friend',
-      voice: 'Puck',
+      voice: 'Sadachbia', // lively; or Laomedeia (female), see FRIEND_VOICES
       style: 'a warm, charismatic late-night radio DJ, playful and relaxed, smiling while talking',
       bio: "their close friend who has read their journal; warm, funny, a little teasing",
     },
@@ -204,6 +204,12 @@ export const VOICES: { name: string; vibe: string; gender: Gender }[] = [
   { name: 'Erinome', vibe: 'Clear', gender: 'female' },
   { name: 'Schedar', vibe: 'Even', gender: 'male' },
   { name: 'Pulcherrima', vibe: 'Forward', gender: 'female' },
+];
+
+/** Your Friend 88.0 offers a choice of gender, not of voice: these two (Arda's picks). */
+export const FRIEND_VOICES: { gender: Gender; label: string; voice: string }[] = [
+  { gender: 'male', label: 'Male', voice: 'Sadachbia' },
+  { gender: 'female', label: 'Female', voice: 'Laomedeia' },
 ];
 
 /** The voices to offer a persona: its gender's (plus whatever it uses now, so a past choice never vanishes). */

@@ -11,7 +11,7 @@ import { Chip, IconButton, PillButton, StatusLine } from '../../components/ui';
 import type { Palette } from '../../lib/albumColors';
 import { SHOW_LENGTHS, WISHES } from '../../lib/radio';
 import { useRadio } from '../../lib/radioEngine';
-import { LANGS, STATIONS, voicesFor } from '../../lib/stations';
+import { FRIEND_VOICES, LANGS, STATIONS, voicesFor } from '../../lib/stations';
 import { colors, fonts, inputColors, radius, TAB_BAR_SPACE } from '../../lib/theme';
 import { Avatar, Bell } from '../../components/TopBar';
 
@@ -229,6 +229,19 @@ export default function RadioScreen() {
             ].map(({ role, p }) => (
               <View key={role} style={{ marginBottom: 12 }}>
                 <Text style={styles.voiceFor}>{p.name}</Text>
+                {station.key === 'friend' ? (
+                  // your friend: just a man's or a woman's voice, no list of thirty
+                  <View style={styles.chips}>
+                    {FRIEND_VOICES.map((f) => (
+                      <Chip
+                        key={f.gender}
+                        label={`${trying === f.voice && p.voice === f.voice ? '🔊 ' : ''}${f.label}`}
+                        active={p.voice === f.voice || (f.gender === 'male' && !FRIEND_VOICES.some((x) => x.voice === p.voice))}
+                        onPress={() => chooseVoice(role, p, f.voice)}
+                      />
+                    ))}
+                  </View>
+                ) : (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.voiceRow}>
                   {voicesFor(p).map((v) => (
                     <Chip
@@ -239,6 +252,7 @@ export default function RadioScreen() {
                     />
                   ))}
                 </ScrollView>
+                )}
               </View>
             ))}
 
