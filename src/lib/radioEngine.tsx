@@ -25,7 +25,7 @@ import {
 import { stationByKey, withVoices, type Lang, type Persona, type VoiceChoices } from './stations';
 import { banSong, bannedSongs, likedSongs, rememberPlayed, toggleLiked } from './songMemory';
 import { onRadioCommand, publishToWidget } from '../widget/radioBridge';
-import { clearClips, playClip, preferVoiceModel, speakRobot, synthesize, type Talking } from './tts';
+import { clearClips, keepSample, playClip, preferVoiceModel, sampleFile, speakRobot, synthesize, type Talking } from './tts';
 
 /*
  * The radio's engine lives here, mounted once at the root of the app, so a show keeps running
@@ -74,18 +74,24 @@ function useRadioEngine() {
     preview.current = null;
     setTrying(voice);
     try {
-      const uri = await synthesize(
-        [
-          {
-            speaker: p.name,
-            text:
-              station.lang === 'tr'
-                ? `Merhaba! Ben ${p.name}, ${station.name} ${station.freq} dinliyorsunuz.`
-                : `Hey! I'm ${p.name}, and you're listening to ${station.name} ${station.freq}.`,
-          },
-        ],
-        [{ name: p.name, voice, style: p.style }],
-      );
+      // each sample is made once and kept: hearing it again costs nothing from the daily voice quota
+      const saved = sampleFile(stationKey, p.name, voice, station.lang);
+      let uri = saved.exists ? saved.uri : null;
+      if (!uri) {
+        const made = await synthesize(
+          [
+            {
+              speaker: p.name,
+              text:
+                station.lang === 'tr'
+                  ? `Merhaba! Ben ${p.name}, ${station.name} ${station.freq} dinliyorsunuz.`
+                  : `Hey! I'm ${p.name}, and you're listening to ${station.name} ${station.freq}.`,
+            },
+          ],
+          [{ name: p.name, voice, style: p.style }],
+        );
+        uri = keepSample(made, saved);
+      }
       if (turn !== previewTurn.current) return; // you already tapped another voice
       preview.current = playClip(uri);
       await preview.current.done;

@@ -2,7 +2,7 @@ import Ionicons from '../../components/Icon';
 import { useKeepAwake } from 'expo-keep-awake';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Easing, Image, Keyboard, ScrollView, StyleSheet, Text, TextInput, View, type ScrollViewInstance } from 'react-native';
+import { Alert, Animated, Easing, Image, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MorphPlayButton, WavyProgress } from '../../components/expressive';
 import { Glass, GlassArea } from '../../components/Glass';
@@ -141,7 +141,9 @@ export default function RadioScreen() {
       hide.remove();
     };
   }, []);
+  const [recast, setRecast] = useState(false); // the full voice lists, only on purpose
   const { banned, ban, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, stop, current } = useRadio();
+  useEffect(() => setRecast(false), [stationKey]); // a new station opens with its cast folded
 
   return (
     <View style={styles.screen}>
@@ -222,39 +224,43 @@ export default function RadioScreen() {
               ))}
             </View>
 
-            <Text style={styles.label}>Voices (tap one to hear it)</Text>
+            <Text style={styles.label}>Voices</Text>
             {[
               { role: 'host' as const, p: station.host },
               ...(station.sidekick ? [{ role: 'sidekick' as const, p: station.sidekick }] : []),
-            ].map(({ role, p }) => (
-              <View key={role} style={{ marginBottom: 12 }}>
-                <Text style={styles.voiceFor}>{p.name}</Text>
-                {station.key === 'friend' ? (
-                  // your friend: just a man's or a woman's voice, no list of thirty
-                  <View style={styles.chips}>
-                    {FRIEND_VOICES.map((f) => (
-                      <Chip
-                        key={f.gender}
-                        label={`${trying === f.voice && p.voice === f.voice ? '🔊 ' : ''}${f.label}`}
-                        active={p.voice === f.voice || (f.gender === 'male' && !FRIEND_VOICES.some((x) => x.voice === p.voice))}
-                        onPress={() => chooseVoice(role, p, f.voice)}
-                      />
-                    ))}
-                  </View>
-                ) : (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.voiceRow}>
-                  {voicesFor(p).map((v) => (
-                    <Chip
-                      key={v.name}
-                      label={`${trying === v.name && p.voice === v.name ? '🔊 ' : ''}${v.name} · ${v.vibe}${p.gender ? '' : v.gender === 'male' ? ' ♂' : ' ♀'}`}
-                      active={p.voice === v.name}
-                      onPress={() => chooseVoice(role, p, v.name)}
-                    />
-                  ))}
-                </ScrollView>
-                )}
-              </View>
-            ))}
+            ].map(({ role, p }) => {
+              const friend = station.key === 'friend';
+              const options = friend
+                ? FRIEND_VOICES.map((f) => ({ voice: f.voice, label: f.label }))
+                : voicesFor(p).map((v) => ({
+                    voice: v.name,
+                    label: `${v.name} · ${v.vibe}${p.gender ? '' : v.gender === 'male' ? ' ♂' : ' ♀'}`,
+                  }));
+              const currentVoice = friend && !FRIEND_VOICES.some((f) => f.voice === p.voice) ? FRIEND_VOICES[0].voice : p.voice;
+              const mine = options.find((o) => o.voice === currentVoice) ?? { voice: currentVoice, label: currentVoice };
+              const say = (o: { voice: string; label: string }) => `${trying === o.voice && p.voice === o.voice ? '🔊 ' : ''}${o.label}`;
+              return (
+                <View key={role} style={{ marginBottom: 12 }}>
+                  <Text style={styles.voiceFor}>{p.name}</Text>
+                  {!recast ? (
+                    // the cast is set: only the chosen voice shows (tap to hear it; a kept sample costs nothing)
+                    <View style={styles.chips}>
+                      <Chip label={say(mine)} active onPress={() => chooseVoice(role, p, mine.voice)} />
+                    </View>
+                  ) : (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.voiceRow}>
+                      {options.map((o) => (
+                        <Chip key={o.voice} label={say(o)} active={currentVoice === o.voice} onPress={() => chooseVoice(role, p, o.voice)} />
+                      ))}
+                    </ScrollView>
+                  )}
+                </View>
+              );
+            })}
+            {/* changing voices is tucked away on purpose: every new sample uses the daily voice quota */}
+            <Pressable onPress={() => setRecast((r) => !r)} hitSlop={8} style={styles.recast}>
+              <Text style={styles.recastText}>{recast ? 'Done' : 'Change voices'}</Text>
+            </Pressable>
 
             <Text style={styles.label}>Anything else? (optional)</Text>
             <View style={[styles.chips, { marginBottom: 10 }]}>
@@ -399,6 +405,8 @@ const styles = StyleSheet.create({
   dial: { gap: 10, marginTop: 22 },
   voiceFor: { fontFamily: fonts.sans, fontSize: 13, color: colors.text, marginBottom: 8 },
   voiceRow: { gap: 8, paddingRight: 24 },
+  recast: { alignSelf: 'flex-start', marginBottom: 18 },
+  recastText: { fontFamily: fonts.sans, fontSize: 13, color: colors.muted, textDecorationLine: 'underline' },
   station: {
     flexDirection: 'row',
     alignItems: 'center',

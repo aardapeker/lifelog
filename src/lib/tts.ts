@@ -1,6 +1,6 @@
 import { fetch } from 'expo/fetch';
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
-import { File, Paths } from 'expo-file-system';
+import { Directory, File, Paths } from 'expo-file-system';
 import * as Speech from 'expo-speech';
 import { jsonHeaders } from './gemini';
 import { onBeat, waitMs } from './heartbeat';
@@ -367,6 +367,26 @@ export function speakRobot(text: string, language: string): Talking {
   const done = new Promise<boolean>((r) => (settle = r));
   Speech.speak(text, { language, onDone: () => settle(true), onError: () => settle(true), onStopped: () => settle(false) });
   return { done, stop: () => Speech.stop() };
+}
+
+/** Where a voice sample for this station, persona, voice and language is kept (made once, replayed for free). */
+export function sampleFile(station: string, persona: string, voice: string, lang: string): File {
+  const dir = new Directory(Paths.document, 'voice-samples');
+  if (!dir.exists) dir.create({ intermediates: true });
+  const safe = (x: string) => x.normalize('NFKD').replace(/[^\w-]+/g, '');
+  return new File(dir, `${safe(station)}-${safe(persona)}-${safe(voice)}-${safe(lang)}.wav`);
+}
+
+/** Moves a freshly made clip into the samples folder; if that fails, the clip still plays from the cache. */
+export function keepSample(made: string, saved: File): string {
+  try {
+    const tmp = new File(made);
+    tmp.copy(saved);
+    tmp.delete();
+    return saved.uri;
+  } catch {
+    return made;
+  }
 }
 
 /** Deletes the voice clips left in the cache. */
