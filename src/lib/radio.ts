@@ -79,6 +79,11 @@ const LANGUAGE: Record<Station['lang'], string> = {
   tr: 'Sadece Türkçe konuş (doğal, samimi İstanbul Türkçesi). Speak Turkish only.',
 };
 
+/** The song languages a station offers ('Station picks' always); a choice it doesn't offer counts as 'station'. */
+export const songLangsFor = (st: Station) => SONG_LANGS.filter((l) => l.key === 'station' || !st.songLangs || st.songLangs.includes(l.key));
+export const songLangOf = (st: Station, chosen: string): SongLang =>
+  (songLangsFor(st).find((l) => l.key === chosen)?.key ?? 'station');
+
 /** The songs' language, picked on the Radio screen; 'station' follows the talk language and the station's style. */
 export type SongLang = 'station' | 'tr' | 'en' | 'mix';
 export const SONG_LANGS: { key: SongLang; label: string }[] = [
@@ -208,7 +213,7 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
       'Lines are SPOKEN aloud by a voice engine: no emojis, no markdown, no stage directions in brackets, natural speech, ' +
       'short sentences. You may put <laugh> or <short pause> inside a line. ' +
       LANGUAGE[station.lang] +
-      songLangRule((await getSetting(db, 'radio.songLang', 'station')) as SongLang, station.lang) +
+      songLangRule(songLangOf(station, await getSetting(db, 'radio.songLang', 'station')), station.lang) +
       '\n\n' +
       `Return {"title":"show name","lang":"tr or en","songs":[{"title":"…","artist":"…","label":null or "Commercial" or "News",` +
       `"overlap":0,"talk":[{"who":${names},"text":"…"}]}],"outro":[{"who":${names},"text":"…"}]} with ${SHOW_LENGTH} songs. ` +

@@ -10,7 +10,7 @@ import { Glass, GlassArea } from '../../components/Glass';
 import { FadeIn, Pulse, PressScale, Shimmer, ShimmerText } from '../../components/motion';
 import { Chip, IconButton, PillButton, StatusLine } from '../../components/ui';
 import type { Palette } from '../../lib/albumColors';
-import { SHOW_LENGTHS, SONG_LANGS, type SongLang } from '../../lib/radio';
+import { SHOW_LENGTHS, songLangOf, songLangsFor, type SongLang } from '../../lib/radio';
 import { getSetting, setSetting } from '../../lib/db';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useRadio } from '../../lib/radioEngine';
@@ -297,8 +297,9 @@ export default function RadioScreen() {
 
             <Text style={styles.label}>Songs</Text>
             <View style={styles.chips}>
-              {SONG_LANGS.map((l) => (
-                <Chip key={l.key} label={l.label} active={songLang === l.key} onPress={() => pickSongLang(l.key)} />
+              {/* only the languages that exist in the station's genre (Arabesk: Turkish only) */}
+              {songLangsFor(station).map((l) => (
+                <Chip key={l.key} label={l.label} active={songLangOf(station, songLang) === l.key} onPress={() => pickSongLang(l.key)} />
               ))}
             </View>
 

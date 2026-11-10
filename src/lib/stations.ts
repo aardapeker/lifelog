@@ -20,6 +20,8 @@ export type Station = {
   ads: string; // the flavour of its commercials
   lang: Lang; // what the hosts speak (you can change it per station)
   wishes: string[]; // the quick "Anything else?" picks, in the station's spirit
+  // song languages that make sense for its genre (unset = all): no English arabesk, no Turkish dark synthwave
+  songLangs?: ('tr' | 'en' | 'mix')[];
 };
 
 export type Lang = 'auto' | 'en' | 'tr';
@@ -78,6 +80,7 @@ export const STATIONS: Station[] = [
   },
   {
     key: 'nightshift',
+    songLangs: ['en'],
     wishes: ['Keep me awake', '3 a.m. thoughts', 'Empty city streets', 'Ride home at dawn', 'Make me laugh'],
     name: 'Night Shift FM',
     freq: '23.3',
@@ -153,6 +156,7 @@ export const STATIONS: Station[] = [
   },
   {
     key: 'arabesk',
+    songLangs: ['tr'],
     wishes: ['Damar', 'Ayrılık acısı', 'Eski plaklar (70s–80s)', 'Fantezi', 'Gurbet & hasret'],
     name: 'Tuzla Arabesk FM',
     freq: '90.5',
