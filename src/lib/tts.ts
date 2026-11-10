@@ -15,7 +15,10 @@ import { recordUsage, textTokens } from './usage';
 
 const BASE = 'https://generativelanguage.googleapis.com/v1beta';
 // newest first; the first one that works on this key is remembered for the session
-const MODELS = ['gemini-3.8-flash-tts', 'gemini-3.8-flash-lite-tts', 'gemini-3.1-flash-tts-preview', 'gemini-2.5-flash-preview-tts'];
+// only the two cheap voice models: the 3.1 preview (3x the price) and the 2.5 preview used to step in
+// when their daily limits ran out, and quietly became the biggest part of the bill. When both are used
+// up, the phone's own voice reads the talks until the quota resets.
+const MODELS = ['gemini-3.8-flash-tts', 'gemini-3.8-flash-lite-tts'];
 
 export type VoiceStyle = { voice: string; style: string };
 /** One spoken line; `speaker` is the persona's name when a show has two voices. */
@@ -101,10 +104,8 @@ async function viaGenerate(apiKey: string, model: string, lines: SpokenLine[], c
 }
 
 type Route = { model: string; call: typeof viaInteractions };
-// the 2.5 preview can't take the Interactions route's speaking-style notes ("Speech annotations
-// are not supported"), so it only goes the classic way
 const ROUTES: Route[] = MODELS.flatMap((model) => [
-  ...(model.startsWith('gemini-2.5') ? [] : [{ model, call: viaInteractions }]),
+  { model, call: viaInteractions },
   { model, call: viaGenerate },
 ]);
 // which way of calling (interactions or generate) worked last, per model. Only the WAY is
@@ -132,7 +133,34 @@ const routesInOrder = () =>
 let failure: { at: number; message: string } | null = null; // everything failed: don't hammer the API
 // models whose DAILY quota ran out (each model has its own): skipped until tomorrow, no waiting on them
 const spent = new Map<string, string>();
-const today = () => new Date().toDateString();
+/**
+ * Google's daily limits reset at midnight Pacific time (11:00 in Istanbul, 10:00 during US daylight time).
+ * US daylight time: second Sunday of March to first Sunday of November, 2 a.m.
+ */
+function pacificOffsetH(at: Date): number {
+  const y = at.getUTCFullYear();
+  const sunday = (month: number, nth: number) => {
+    const first = new Date(Date.UTC(y, month, 1)).getUTCDay();
+    return 1 + ((7 - first) % 7) + (nth - 1) * 7;
+  };
+  const dstStart = Date.UTC(y, 2, sunday(2, 2), 10); // 2 a.m. PST = 10:00 UTC
+  const dstEnd = Date.UTC(y, 10, sunday(10, 1), 9); // 2 a.m. PDT = 09:00 UTC
+  return at.getTime() >= dstStart && at.getTime() < dstEnd ? -7 : -8;
+}
+/** Today's date in Pacific time: a model "spent" today is skipped until Google resets it. */
+const today = () => {
+  const now = new Date();
+  return new Date(now.getTime() + pacificOffsetH(now) * 3600_000).toISOString().slice(0, 10);
+};
+/** When the daily voice limits come back, in the phone's own time ("11:00"). */
+export function voiceQuotaReset(): string {
+  const now = new Date();
+  const off = pacificOffsetH(now);
+  const pacific = new Date(now.getTime() + off * 3600_000);
+  const midnight = Date.UTC(pacific.getUTCFullYear(), pacific.getUTCMonth(), pacific.getUTCDate() + 1) - off * 3600_000;
+  const at = new Date(midnight);
+  return `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`;
+}
 const offline = (e: unknown) =>
   /UnknownHost|Unable to resolve host|Network request failed|failed to fetch|SocketTimeout|ConnectException|timed? ?out/i.test(String(e));
 // the prepaid balance ran out (Google says "check your plan and billing details")
@@ -205,7 +233,7 @@ async function voiceBytes(apiKey: string, lines: SpokenLine[], cast: Cast): Prom
       : errors.some(credits)
       ? '💳 Out of Gemini credits for the voices. Top up in AI Studio → Billing.'
       : allSpent
-        ? "Gemini's free voice quota for today is used up (it resets overnight, Pacific time)."
+        ? `🎙️ Today's voices are used up. The phone reads the talks until ${voiceQuotaReset()}, when they're back.`
         : `Natural voice failed. ${errors.join(' | ')}`,
   };
   throw new Error(failure.message);

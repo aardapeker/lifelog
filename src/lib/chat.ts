@@ -51,7 +51,7 @@ type Adapter = {
 export const PROVIDERS: Record<Provider, Adapter> = {
   anthropic: {
     label: 'Claude',
-    defaultModel: 'claude-sonnet-5-5',
+    defaultModel: 'claude-haiku-5-5', // ~25x cheaper per call than Sonnet; Sonnet stays one tap away
     backgroundModel: 'claude-haiku-5-5',
     stream: streamClaude,
     complete: completeClaude,
