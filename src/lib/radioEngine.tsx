@@ -27,8 +27,12 @@ import { banSong, bannedSongs, likedSongs, rememberPlayed, toggleLiked } from '.
 import { onRadioCommand, publishToWidget } from '../widget/radioBridge';
 import { clearClips, keepSample, playClip, preferVoiceModel, sampleFile, speakRobot, synthesize, type Talking } from './tts';
 
-const LIVE_KEY = 'radio.live';
-const RESUME_FOR_MS = 12 * 60 * 60 * 1000; // a show older than this isn't worth picking up
+const HISTORY_KEY = 'radio.history';
+const KEEP_MS = 24 * 60 * 60 * 1000; // shows stay in Recent shows for a day
+const KEEP_MAX = 12;
+
+/** A show you heard lately: its whole script is kept, so it can be resumed or replayed without writing it again. */
+export type PastShow = { id: string; show: Show; index: number; savedAt: number; done: boolean };
 
 /*
  * The radio's engine lives here, mounted once at the root of the app, so a show keeps running
@@ -115,25 +119,44 @@ function useRadioEngine() {
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
   const [progress, setProgress] = useState(0); // of the current song, 0..1
   const [palette, setPalette] = useState<Palette | null>(null); // the album cover's colours
-  // the show on air is kept on the phone: if the app gets closed, you can pick it up where it was
-  const [resumable, setResumable] = useState<{ show: Show; index: number } | null>(null);
+  // every show is kept on the phone for a day (Recent shows): closed by accident, stopped or finished,
+  // you can pick it up where it was or hear it again
+  const [history, setHistory] = useState<PastShow[]>([]);
+  const historyRef = useRef<PastShow[]>([]);
+  const liveId = useRef<string | null>(null); // which Recent shows entry is on air
+  const writeHistory = useCallback(
+    (next: PastShow[]) => {
+      const fresh = next.filter((h) => Date.now() - h.savedAt < KEEP_MS).slice(0, KEEP_MAX);
+      historyRef.current = fresh;
+      setHistory(fresh);
+      setSetting(db, HISTORY_KEY, JSON.stringify(fresh)).catch(() => {});
+    },
+    [db],
+  );
   useEffect(() => {
-    getSetting(db, LIVE_KEY, '')
+    getSetting(db, HISTORY_KEY, '[]')
       .then((v) => {
-        if (!v) return;
-        const saved = JSON.parse(v) as { show: Show; index: number; savedAt: number };
-        if (Date.now() - saved.savedAt < RESUME_FOR_MS && saved.index < saved.show.slots.length) setResumable(saved);
+        const all = JSON.parse(v) as PastShow[];
+        historyRef.current = all.filter((h) => Date.now() - h.savedAt < KEEP_MS);
+        setHistory(historyRef.current);
       })
       .catch(() => {});
+    setSetting(db, 'radio.live', '').catch(() => {}); // the old single "resume" slot
   }, [db]);
+  /** Updates the entry on air (and lifts it to the top). */
+  const record = useCallback(
+    (patch: Partial<PastShow>) => {
+      const id = liveId.current;
+      const h = historyRef.current.find((x) => x.id === id);
+      if (!h) return;
+      writeHistory([{ ...h, ...patch, savedAt: Date.now() }, ...historyRef.current.filter((x) => x.id !== id)]);
+    },
+    [writeHistory],
+  );
   useEffect(() => {
-    if (phase !== 'onair' || !show) return;
-    setSetting(db, LIVE_KEY, JSON.stringify({ show, index, savedAt: Date.now() })).catch(() => {});
-  }, [db, phase, show, index]);
-  const forgetLive = useCallback(() => {
-    setResumable(null);
-    setSetting(db, LIVE_KEY, '').catch(() => {});
-  }, [db]);
+    if (phase === 'onair' && show) record({ index });
+  }, [phase, show, index, record]);
+  const forgetShow = (id: string) => writeHistory(historyRef.current.filter((h) => h.id !== id));
 
   // the engine runs on refs: timers and speech callbacks must see the latest values
   // talked: the last slot whose talk already played (so resuming starts just the song)
@@ -195,11 +218,11 @@ function useRadioEngine() {
       // the end: the hosts say goodbye (if they have something to say and the voice is on), then off air
       const finish = () => {
         stopEngine();
-        forgetLive(); // the show is over: nothing to pick up later
         setPhase('done');
       };
       if (!live.current.voice || !s.outro.length || live.current.talked === s.slots.length) return finish();
       live.current.index = s.slots.length;
+      record({ done: true }); // the music is over: closed during the goodbye, it's still a finished show
       live.current.speaking = true;
       setSpeaking(true);
       prepare(s.slots.length);
@@ -257,7 +280,7 @@ function useRadioEngine() {
       talking.current = t;
       if (await t.done) start();
     })();
-  }, [stopEngine, prepare, forgetLive]);
+  }, [stopEngine, prepare, record]);
 
   /**
    * Starts slot i's song on Spotify and checks it really plays. Spotify on the phone sometimes
@@ -372,7 +395,8 @@ function useRadioEngine() {
     try {
       preview.current?.stop();
       const s = await buildShow(db, station, wish, length);
-      setResumable(null); // a new show replaces the one you could have picked up
+      liveId.current = String(Date.now());
+      writeHistory([{ id: liveId.current, show: s, index: 0, savedAt: Date.now(), done: false }, ...historyRef.current]);
       live.current = { show: s, index: 0, speaking: false, paused: false, startedAt: 0, voice, talked: -1, overlapping: false };
       clips.current = new Map();
       retried.current = new Set();
@@ -468,39 +492,51 @@ function useRadioEngine() {
   };
 
   /**
-   * Picks up a show the app lost (closed by accident). The script is kept, so nothing is written again;
-   * only the talks still ahead are voiced. Spotify usually kept playing our queue: then the show just
-   * catches up to the song it's on, without stopping the music.
+   * Plays a show from Recent shows. The script is kept, so nothing is written again; only the talks
+   * still ahead are voiced. `fromStart` false: picks up where it was, and if Spotify is still playing
+   * our queue (the app was closed mid-show) it just catches up, without stopping the music.
    */
-  const resume = async () => {
-    if (!resumable) return;
-    const { show: s, index: at } = resumable;
-    setResumable(null);
+  const playPast = async (id: string, fromStart: boolean) => {
+    const h = historyRef.current.find((x) => x.id === id);
+    if (!h) return;
+    const s = h.show;
+    const again = fromStart || h.done;
+    const at = again ? 0 : h.index;
+    setStationKey(s.station.key);
     setStatus({ kind: 'idle' });
+    setPhase('building');
     try {
       preview.current?.stop();
-      live.current = { show: s, index: at, speaking: false, paused: false, startedAt: Date.now(), voice, talked: at, overlapping: false };
+      liveId.current = id;
+      record({ index: at, done: false });
+      live.current = { show: s, index: at, speaking: false, paused: false, startedAt: Date.now(), voice, talked: again ? -1 : at, overlapping: false };
       clips.current = new Map();
       retried.current = new Set();
+      if (again && voice) {
+        prepare(0);
+        await clips.current.get(0); // the opening line is ready before we go on air
+      }
       setShow(s);
       setIndex(at);
       setPaused(false);
       setPhase('onair');
       await goOnAir(s.title, `${s.station.name} ${s.station.freq}`);
-      const p = await playbackState().catch(() => null);
-      const k = p?.track && p.isPlaying ? s.slots.findIndex((x, n) => n >= at && sameTrack(p.track!, x.track)) : -1;
-      if (k >= 0) {
-        // still playing one of ours: just listen in again
-        live.current.index = k;
-        live.current.talked = k;
-        setIndex(k);
-        updateOnAir(s.slots[k].track.name, `${s.station.name} · ${s.slots[k].track.artist}`);
-        prepare(k + 1);
-        prepare(k + 2);
-        poll.current = onBeat(tick);
-        return;
+      if (!again) {
+        const p = await playbackState().catch(() => null);
+        const k = p?.track && p.isPlaying ? s.slots.findIndex((x, n) => n >= at && sameTrack(p.track!, x.track)) : -1;
+        if (k >= 0) {
+          // still playing one of ours: just listen in again
+          live.current.index = k;
+          live.current.talked = k;
+          setIndex(k);
+          updateOnAir(s.slots[k].track.name, `${s.station.name} · ${s.slots[k].track.artist}`);
+          prepare(k + 1);
+          prepare(k + 2);
+          poll.current = onBeat(tick);
+          return;
+        }
       }
-      // Spotify stopped: the song where we were starts again (its talk already played)
+      // Spotify stopped (or a replay): the song starts, with its talk unless we already heard it
       if (!(await remoteReady())) await wakeSpotify(s.slots[at].track.uri).catch(() => null);
       poll.current = onBeat(tick);
       playSlot(at);
@@ -527,7 +563,7 @@ function useRadioEngine() {
   /** Ends the show for good. */
   const stop = () => {
     stopEngine();
-    forgetLive();
+    liveId.current = null; // stays in Recent shows, at the song where you stopped
     live.current = { ...live.current, show: null, speaking: false, paused: false };
     setShow(null);
     setPaused(false);
@@ -608,7 +644,7 @@ function useRadioEngine() {
     [],
   );
 
-  return { resumable, resume, forgetLive, banned, ban, miniCollapsed, setMiniCollapsed, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
+  return { history, playPast, forgetShow, banned, ban, miniCollapsed, setMiniCollapsed, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
 }
 
 export type RadioEngine = ReturnType<typeof useRadioEngine>;

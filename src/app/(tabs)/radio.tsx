@@ -142,7 +142,7 @@ export default function RadioScreen() {
     };
   }, []);
   const [recast, setRecast] = useState(false); // the full voice lists, only on purpose
-  const { resumable, resume, forgetLive, banned, ban, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, stop, current } = useRadio();
+  const { history, playPast, forgetShow, banned, ban, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, stop, current } = useRadio();
   useEffect(() => setRecast(false), [stationKey]); // a new station opens with its cast folded
 
   return (
@@ -181,23 +181,39 @@ export default function RadioScreen() {
               Pick a station. The hosts play real songs on your Spotify and talk between them, with fake ads and news about
               your life.
             </Text>
-            {resumable && (
-              // the app was closed mid-show: the show was kept, pick it up where it stopped
-              <View style={styles.resume}>
-                <Text style={styles.stationEmoji}>{resumable.show.station.emoji}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.stationName} numberOfLines={1}>{resumable.show.title}</Text>
-                  <Text style={styles.stationTag}>
-                    {resumable.show.station.name} · song {resumable.index + 1} of {resumable.show.slots.length}
-                  </Text>
-                  <View style={styles.resumeRow}>
-                    <PillButton label="Resume" onPress={resume} />
-                    <Pressable onPress={forgetLive} hitSlop={8}>
-                      <Text style={styles.recastText}>Forget it</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              </View>
+            {history.length > 0 && (
+              // every show of the last day: closed by accident, stopped or finished; its script is kept
+              <>
+                <Text style={styles.label}>Recent shows</Text>
+                {history.map((h) => {
+                  const open = !h.done && h.index < h.show.slots.length;
+                  return (
+                    <View key={h.id} style={styles.resume}>
+                      <Text style={styles.stationEmoji}>{h.show.station.emoji}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.stationName} numberOfLines={1}>{h.show.title}</Text>
+                        <Text style={styles.stationTag}>
+                          {h.show.station.name} · {ago(h.savedAt)} ·{' '}
+                          {open ? `song ${h.index + 1} of ${h.show.slots.length}` : 'finished'}
+                        </Text>
+                        <View style={styles.resumeRow}>
+                          {open ? (
+                            <>
+                              <Chip label="Resume" active onPress={() => playPast(h.id, false)} />
+                              <Chip label="From the start" active={false} onPress={() => playPast(h.id, true)} />
+                            </>
+                          ) : (
+                            <Chip label="Play again" active onPress={() => playPast(h.id, true)} />
+                          )}
+                        </View>
+                      </View>
+                      <Pressable onPress={() => forgetShow(h.id)} hitSlop={10} accessibilityLabel="Remove from recent shows">
+                        <Ionicons name="close" size={18} color={colors.muted} />
+                      </Pressable>
+                    </View>
+                  );
+                })}
+              </>
             )}
             <View style={styles.dial}>
               {STATIONS.map((st) => {
@@ -423,8 +439,8 @@ const styles = StyleSheet.create({
   dial: { gap: 10, marginTop: 22 },
   voiceFor: { fontFamily: fonts.sans, fontSize: 13, color: colors.text, marginBottom: 8 },
   voiceRow: { gap: 8, paddingRight: 24 },
-  resume: { flexDirection: 'row', gap: 12, padding: 14, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', marginBottom: 16 },
-  resumeRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 10 },
+  resume: { flexDirection: 'row', gap: 12, padding: 14, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', marginBottom: 10 },
+  resumeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' },
   recast: { alignSelf: 'flex-start', marginBottom: 18 },
   recastText: { fontFamily: fonts.sans, fontSize: 13, color: colors.muted, textDecorationLine: 'underline' },
   station: {
@@ -460,3 +476,11 @@ const styles = StyleSheet.create({
   rowArtist: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.muted, marginTop: 2 },
   after: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 22 },
 });
+
+/** "just now", "25 min ago", "3 h ago". */
+function ago(t: number): string {
+  const min = Math.round((Date.now() - t) / 60000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min} min ago`;
+  return `${Math.round(min / 60)} h ago`;
+}
