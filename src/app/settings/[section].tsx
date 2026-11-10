@@ -916,11 +916,13 @@ function JobModels({ provider }: { provider: Provider }) {
   return (
     <>
       <Label icon="radio-outline">Radio writer</Label>
+      <Text style={styles.subLabel}>AI</Text>
       <ProviderChips job="radio" value={radioOn} set={setRadioOn} />
+      <Text style={styles.subLabel}>Model</Text>
       <ModelChips
         provider={radioP}
         value={radio}
-        extra={{ id: '', label: radioOn && radioOn !== provider ? 'Its chat model' : 'Same as chat' }}
+        extra={{ id: '', label: radioOn && radioOn !== provider ? 'Its default' : 'Chat model' }}
         onPick={(m) => save(`radioModel.${radioP}`, m, setRadio)}
       />
       <Text style={styles.hint}>
@@ -928,7 +930,9 @@ function JobModels({ provider }: { provider: Provider }) {
       </Text>
 
       <Label icon="cog-outline">Background jobs</Label>
+      <Text style={styles.subLabel}>AI</Text>
       <ProviderChips job="background" value={backOn} set={setBackOn} />
+      <Text style={styles.subLabel}>Model</Text>
       <ModelChips provider={backP} value={background} onPick={(m) => save(`backgroundModel.${backP}`, m, setBackground)} />
       <Text style={styles.hint}>
         Facts, photo captions, check-ins, milestones. {priceHint(background)}. Claude Haiku is the cheapest of all.{noKey(backOn)}
@@ -1341,6 +1345,7 @@ const styles = StyleSheet.create({
   hint: { fontFamily: fonts.sansRegular, fontSize: 13, lineHeight: 19, color: colors.muted, marginTop: 8 },
   // a field's name: room above (a new field starts) and a little below (it belongs to what follows)
   label: { fontFamily: fonts.sans, fontSize: 13, letterSpacing: 0.2, color: colors.muted, marginTop: 24, marginBottom: 10 },
+  subLabel: { fontFamily: fonts.sans, fontSize: 12, letterSpacing: 0.6, textTransform: 'uppercase', color: colors.muted, opacity: 0.7, marginTop: 4, marginBottom: 8 },
   labelInRow: { marginTop: 0, marginBottom: 0 },
   stat: { fontFamily: fonts.serif, fontSize: 17, lineHeight: 25, color: colors.text, marginBottom: 6 },
 

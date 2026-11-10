@@ -25,7 +25,7 @@ import {
 import { stationByKey, withVoices, type Lang, type Persona, type VoiceChoices } from './stations';
 import { banSong, bannedSongs, getRadioPrefs, likedSongs, rememberPlayed, toggleLiked } from './songMemory';
 import { onRadioCommand, publishToWidget } from '../widget/radioBridge';
-import { clearClips, keepSample, playClip, preferVoiceModel, pruneShowVoices, sampleFile, showVoiceFile, speakRobot, synthesize, type Talking } from './tts';
+import { clearClips, keepSample, playable, playClip, preferVoiceModel, pruneShowVoices, sampleFile, showVoiceFile, speakRobot, synthesize, type Talking } from './tts';
 
 const HISTORY_KEY = 'radio.history';
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -96,7 +96,7 @@ function useRadioEngine() {
     try {
       // each sample is made once and kept: hearing it again costs nothing from the daily voice quota
       const saved = sampleFile(stationKey, p.name, voice, station.lang);
-      let uri = saved.exists ? saved.uri : null;
+      let uri = playable(saved) ? saved.uri : null;
       if (!uri) {
         const made = await synthesize(
           [
@@ -204,7 +204,7 @@ function useRadioEngine() {
     // the newest shows keep their voices: a talk already made is played from the phone, for free
     const id = liveId.current;
     const saved = id ? showVoiceFile(id, i) : null;
-    if (saved?.exists) {
+    if (saved && playable(saved)) {
       clips.current.set(i, Promise.resolve(saved.uri));
       return;
     }

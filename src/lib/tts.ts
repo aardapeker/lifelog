@@ -406,12 +406,25 @@ export function sampleFile(station: string, persona: string, voice: string, lang
 }
 
 /** Moves a freshly made clip into the samples folder; if that fails, the clip still plays from the cache. */
+/**
+ * A kept clip worth playing: there, and more than a WAV header. Anything else (the empty files an
+ * earlier build left behind) is deleted, so it gets voiced again instead of playing silence.
+ */
+export function playable(f: File): boolean {
+  try {
+    if (!f.exists) return false;
+    if ((f.size ?? 0) > 44) return true;
+    f.delete();
+  } catch {}
+  return false;
+}
+
 export function keepSample(made: string, saved: File): string {
   try {
-    const tmp = new File(made);
-    tmp.copy(saved);
-    tmp.delete();
-    return saved.uri;
+    // moveSync, not copy: in this SDK copy() is async, and deleting the clip right after it left an
+    // empty file behind, so every saved talk played as silence
+    new File(made).moveSync(saved, { overwrite: true });
+    return playable(saved) ? saved.uri : made;
   } catch {
     return made;
   }
