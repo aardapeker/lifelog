@@ -165,7 +165,8 @@ const offline = (e: unknown) =>
   /UnknownHost|Unable to resolve host|Network request failed|failed to fetch|SocketTimeout|ConnectException|timed? ?out/i.test(String(e));
 // the prepaid balance ran out (Google says "check your plan and billing details")
 const credits = (e: unknown) => /\b429\b/.test(String(e)) && /plan and billing|billing details|prepay/i.test(String(e));
-const dailyLimit = (e: unknown) => /\b429\b/.test(String(e)) && /per ?day|PerDay|daily/i.test(String(e));
+// Google words it several ways: "per day", "PerDay", "per_day", "requests_per_model_per_day", "RPD"
+const dailyLimit = (e: unknown) => /\b429\b/.test(String(e)) && /per[ _-]?day|perday|daily|\bRPD\b/i.test(String(e));
 
 /**
  * "Too many requests" / "busy" (429, 503) is a speed limit, not a failure: wait and try again
@@ -257,7 +258,15 @@ export async function synthesize(lines: SpokenLine[], cast: Cast): Promise<strin
     else turns.push({ ...l });
   }
   const parts: Uint8Array[] = [];
-  for (const t of turns) parts.push(await voiceBytes(apiKey, [t], [voiceFor(t.speaker)]));
+  // a two-person talk goes as ONE request (both voices at once): a talk used to cost a request per
+  // line, so a 16-song show ate most of the 100-a-day voice quota. If the audio comes back much too
+  // short for the words (the two-speaker mode dropped someone), it's voiced line by line after all
+  const speakers = cast.filter((c) => turns.some((t) => t.speaker === c.name));
+  if (turns.length > 1 && speakers.length === 2) {
+    const both = await voiceBytes(apiKey, turns, speakers);
+    if (wavSeconds(both) >= expectedSeconds(turns) * 0.5) parts.push(both);
+  }
+  if (!parts.length) for (const t of turns) parts.push(await voiceBytes(apiKey, [t], [voiceFor(t.speaker)]));
   const file = new File(Paths.cache, `voice-${Date.now()}-${Math.round(Math.random() * 1e6)}.wav`);
   file.create();
   await file.write(joinWavs(parts, 0.35));
@@ -265,6 +274,14 @@ export async function synthesize(lines: SpokenLine[], cast: Cast): Promise<strin
 }
 
 // ── bytes ──
+
+/** How long a 16-bit mono WAV plays. */
+function wavSeconds(b: Uint8Array): number {
+  const rate = new DataView(b.buffer, b.byteOffset).getUint32(24, true) || 24000;
+  return Math.max(0, b.length - 44) / (rate * 2);
+}
+/** Roughly how long these lines take to say (about 14 characters a second, Turkish or English). */
+const expectedSeconds = (lines: SpokenLine[]) => lines.reduce((n, l) => n + l.text.length, 0) / 14;
 
 const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 const B64_INDEX = new Map([...B64].map((c, i) => [c, i]));
