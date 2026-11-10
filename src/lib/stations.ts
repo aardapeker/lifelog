@@ -50,12 +50,15 @@ export const STATIONS: Station[] = [
   },
   {
     key: 'neon',
-    wishes: ['Midnight drive', 'Synth & neon', 'Power ballads', 'Dance in the kitchen', 'Make me laugh'],
+    wishes: ['80s pop hits', 'New retro (M83 vibes)', 'Synth-pop & new wave', 'Power ballads', 'Dance floor'],
     name: 'Neon FM',
     freq: '98.3',
     tagline: 'Big hair. Bigger hits. The 80s never ended.',
     emoji: '🌴',
-    music: '80s pop hits only: synth-pop, new wave, big radio singles from 1980–1989, the kind you sing in a convertible',
+    music:
+      'a Flash FM-style pop station: 80s pop hits, synth-pop, new wave and big radio singles from 1980–1989, the kind you ' +
+      'sing in a convertible, plus about a quarter of modern songs made in that 80s spirit (artists like M83, The Midnight, ' +
+      'Carly Rae Jepsen\'s synth era, retro-pop from the 2010s–2020s)',
     host: {
       name: 'Candy Starr',
       gender: 'female',
@@ -150,7 +153,7 @@ export const STATIONS: Station[] = [
   },
   {
     key: 'arabesk',
-    wishes: ['Heartbreak', 'Damar şarkılar', 'Old 45s', 'Ferry at night', 'Make me laugh'],
+    wishes: ['Damar', 'Ayrılık acısı', 'Eski plaklar (70s–80s)', 'Fantezi', 'Gurbet & hasret'],
     name: 'Tuzla Arabesk FM',
     freq: '90.5',
     tagline: 'Derdin varsa, şarkımız var.',
