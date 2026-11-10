@@ -156,7 +156,12 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
     .map((n) => noteSong(n))
     .filter((x): x is NonNullable<typeof x> => !!x)
     .map((x) => ({ id: x.id, uri: `spotify:track:${x.id}`, name: x.name, artist: x.artist }));
-  const welcome = favs ? drawFavourites([journalSongs, liked, spotifyFavs], await playsThisMonth(db), favs, fresh) : [];
+  // a genre station only plays the favourites that belong to its genre (Arabesk FM doesn't play your rock
+  // songs): it gets a few more to choose from, and the writer keeps those that fit, up to `favs`
+  const strict = station.key !== 'friend';
+  const welcome = favs
+    ? drawFavourites([journalSongs, liked, spotifyFavs], await playsThisMonth(db), strict ? favs * 3 : favs, fresh)
+    : [];
   const duo = !!station.sidekick;
   const names = duo ? `"${station.host.name}" or "${station.sidekick!.name}"` : `"${station.host.name}"`;
 
@@ -177,6 +182,11 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
       (station.key === 'friend' ? 'Use their taste and their day. ' : 'Stay true to the station\'s style. ') +
       (prefs.hits ? `DEEP CUTS: at most ${prefs.hits} song${prefs.hits > 1 ? 's' : ''} per show may be big, obvious hits` : 'DEEP CUTS: no big, obvious hits at all') +
       (welcome.length ? "; the listener's favourites listed below come on top of that" : '') +
+      (strict
+        ? '. GENRE IS STRICT: every single song must clearly belong to this station\'s music (no rock on an arabesk ' +
+          'station, no pop on a rock station, and so on). If the song-language choice, a wish, a twist or a favourite ' +
+          'would break the genre, the genre wins'
+        : '') +
       '. Every other ' +
       'song must be a lesser-known track, album cut, B-side or forgotten gem that still fits perfectly. Never repeat ' +
       'a song from the "already played" list. Surprise them. ' +
@@ -210,7 +220,9 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
       `Now: ${formatDate(Date.now())}, ${shiftFor(shifts, Date.now())} shift week${city ? `, in ${city}` : ''}.\n` +
       (twist ? `Tonight's twist for the playlist: ${twist}.\n` : '') +
       (welcome.length
-        ? `Their favourites for tonight (play ALL of these, spread through the show, and greet them like old friends): ${welcome.map(songLine).join('; ')}\n`
+        ? strict
+          ? `Their favourites (play up to ${favs} of these, ONLY ones that truly belong to this station's genre; skip the rest without mentioning them; greet the ones you play like old friends): ${welcome.map(songLine).join('; ')}\n`
+          : `Their favourites for tonight (play ALL of these, spread through the show, and greet them like old friends): ${welcome.map(songLine).join('; ')}\n`
         : '') +
       (played.length
         ? `Already played on the radio (do NOT pick these): ${played
