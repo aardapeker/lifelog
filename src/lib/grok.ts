@@ -117,6 +117,9 @@ export function completeGrok(opts: CompleteOptions): Promise<string> {
       model: opts.model,
       max_tokens: opts.maxTokens ?? 1500,
       ...(opts.temperature !== undefined ? { temperature: Math.min(2, opts.temperature) } : {}),
+      // JSON mode: the API itself keeps the reply valid JSON (like Gemini's), so a long radio
+      // script can't come back with a stray comma or brace
+      ...(opts.json ? { response_format: { type: 'json_object' } } : {}),
       messages: [
         { role: 'system', content: opts.json ? `${opts.system}\n\nReply with a single JSON object and nothing else.` : opts.system },
         { role: 'user', content: opts.prompt },
