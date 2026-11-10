@@ -34,7 +34,18 @@ const VOICED_SHOWS = 3; // the newest shows keep their voices (~20 MB each), so 
 const keepMax = (days: number) => (days <= 1 ? 12 : days <= 3 ? 24 : days <= 7 ? 40 : 60);
 
 /** A show you heard lately: its whole script is kept, so it can be resumed or replayed without writing it again. */
-export type PastShow = { id: string; show: Show; index: number; savedAt: number; done: boolean };
+export type PastShow = { id: string; show: Show; index: number; savedAt: number; done: boolean; kept?: boolean };
+
+/**
+ * What Recent shows keeps: shows you saved (🔖) always, with their voices; the others for the days
+ * picked in Settings, at most `keepMax` of them. Returns the list and whose voices to keep.
+ */
+export function trimHistory(all: PastShow[], days: number): { list: PastShow[]; voiced: string[] } {
+  let others = 0;
+  const list = all.filter((h) => h.kept || (Date.now() - h.savedAt < days * DAY_MS && ++others <= keepMax(days)));
+  const recent = list.filter((h) => !h.kept).slice(0, VOICED_SHOWS);
+  return { list, voiced: list.filter((h) => h.kept || recent.includes(h)).map((h) => h.id) };
+}
 
 /*
  * The radio's engine lives here, mounted once at the root of the app, so a show keeps running
@@ -129,11 +140,11 @@ function useRadioEngine() {
   const keepDays = useRef(1);
   const writeHistory = useCallback(
     (next: PastShow[]) => {
-      const fresh = next.filter((h) => Date.now() - h.savedAt < keepDays.current * DAY_MS).slice(0, keepMax(keepDays.current));
-      historyRef.current = fresh;
-      setHistory(fresh);
-      setSetting(db, HISTORY_KEY, JSON.stringify(fresh)).catch(() => {});
-      pruneShowVoices(fresh.slice(0, VOICED_SHOWS).map((h) => h.id));
+      const { list, voiced } = trimHistory(next, keepDays.current);
+      historyRef.current = list;
+      setHistory(list);
+      setSetting(db, HISTORY_KEY, JSON.stringify(list)).catch(() => {});
+      pruneShowVoices(voiced);
     },
     [db],
   );
@@ -142,10 +153,10 @@ function useRadioEngine() {
     try {
       keepDays.current = (await getRadioPrefs(db)).keepDays;
       const all = JSON.parse(await getSetting(db, HISTORY_KEY, '[]')) as PastShow[];
-      const fresh = all.filter((h) => Date.now() - h.savedAt < keepDays.current * DAY_MS).slice(0, keepMax(keepDays.current));
       if (liveId.current && historyRef.current.length) return; // a show is on air: the list in memory is newer
-      historyRef.current = fresh;
-      setHistory(fresh);
+      const { list } = trimHistory(all, keepDays.current);
+      historyRef.current = list;
+      setHistory(list);
     } catch {}
   }, [db]);
   useEffect(() => {
@@ -166,6 +177,12 @@ function useRadioEngine() {
     if (phase === 'onair' && show) record({ index });
   }, [phase, show, index, record]);
   const forgetShow = (id: string) => writeHistory(historyRef.current.filter((h) => h.id !== id));
+  /** 🔖 Saves a show for good, with its voices (or lets it go back to the normal Recent shows rules). */
+  const keepShow = (id: string, kept: boolean) =>
+    writeHistory(historyRef.current.map((h) => (h.id === id ? { ...h, kept } : h)));
+  const [liveKey, setLiveKey] = useState<string | null>(null); // liveId, for the screen
+  const liveKept = !!history.find((h) => h.id === liveKey)?.kept;
+  const keepLive = () => liveKey && keepShow(liveKey, !liveKept);
 
   // the engine runs on refs: timers and speech callbacks must see the latest values
   // talked: the last slot whose talk already played (so resuming starts just the song)
@@ -414,6 +431,7 @@ function useRadioEngine() {
       preview.current?.stop();
       const s = await buildShow(db, station, wish, length);
       liveId.current = String(Date.now());
+      setLiveKey(liveId.current);
       writeHistory([{ id: liveId.current, show: s, index: 0, savedAt: Date.now(), done: false }, ...historyRef.current]);
       live.current = { show: s, index: 0, speaking: false, paused: false, startedAt: 0, voice, talked: -1, overlapping: false };
       clips.current = new Map();
@@ -526,6 +544,7 @@ function useRadioEngine() {
     try {
       preview.current?.stop();
       liveId.current = id;
+      setLiveKey(id);
       record({ index: at, done: false });
       live.current = { show: s, index: at, speaking: false, paused: false, startedAt: Date.now(), voice, talked: again ? -1 : at, overlapping: false };
       clips.current = new Map();
@@ -662,7 +681,7 @@ function useRadioEngine() {
     [],
   );
 
-  return { history, loadHistory, playPast, forgetShow, banned, ban, miniCollapsed, setMiniCollapsed, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
+  return { history, loadHistory, playPast, forgetShow, keepShow, liveKept, keepLive, banned, ban, miniCollapsed, setMiniCollapsed, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
 }
 
 export type RadioEngine = ReturnType<typeof useRadioEngine>;

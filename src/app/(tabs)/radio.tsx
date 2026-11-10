@@ -144,7 +144,7 @@ export default function RadioScreen() {
   }, []);
   const [allShows, setAllShows] = useState(false); // Recent shows: the newest 3, or all of them
   const [recast, setRecast] = useState(false); // the full voice lists, only on purpose
-  const { history, loadHistory, playPast, forgetShow, banned, ban, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, stop, current } = useRadio();
+  const { history, loadHistory, playPast, forgetShow, keepShow, liveKept, keepLive, banned, ban, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, stop, current } = useRadio();
   useEffect(() => setRecast(false), [stationKey]); // a new station opens with its cast folded
   useFocusEffect(useCallback(() => { loadHistory(); }, [loadHistory])); // Settings may have changed how long shows are kept
 
@@ -196,7 +196,7 @@ export default function RadioScreen() {
                       <View style={{ flex: 1 }}>
                         <Text style={styles.stationName} numberOfLines={1}>{h.show.title}</Text>
                         <Text style={styles.stationTag}>
-                          {h.show.station.name} · {ago(h.savedAt)} ·{' '}
+                          {h.kept ? 'Saved · ' : ''}{h.show.station.name} · {ago(h.savedAt)} ·{' '}
                           {open ? `song ${h.index + 1} of ${h.show.slots.length}` : 'finished'}
                         </Text>
                         <View style={styles.resumeRow}>
@@ -210,9 +210,25 @@ export default function RadioScreen() {
                           )}
                         </View>
                       </View>
-                      <Pressable onPress={() => forgetShow(h.id)} hitSlop={10} accessibilityLabel="Remove from recent shows">
-                        <Ionicons name="close" size={18} color={colors.muted} />
-                      </Pressable>
+                      <View style={styles.pastIcons}>
+                        <Pressable onPress={() => keepShow(h.id, !h.kept)} hitSlop={10} accessibilityLabel={h.kept ? 'Unsave show' : 'Save show'}>
+                          <Ionicons name={h.kept ? 'bookmark' : 'bookmark-outline'} size={18} color={h.kept ? colors.text : colors.muted} />
+                        </Pressable>
+                        <Pressable
+                          onPress={() =>
+                            h.kept
+                              ? Alert.alert('Delete this saved show?', 'Its script and voices are deleted from your phone.', [
+                                  { text: 'Keep it', style: 'cancel' },
+                                  { text: 'Delete', style: 'destructive', onPress: () => forgetShow(h.id) },
+                                ])
+                              : forgetShow(h.id)
+                          }
+                          hitSlop={10}
+                          accessibilityLabel="Delete show"
+                        >
+                          <Ionicons name="close" size={18} color={colors.muted} />
+                        </Pressable>
+                      </View>
                     </View>
                   );
                 })}
@@ -223,7 +239,9 @@ export default function RadioScreen() {
                 )}
               </>
             )}
-            <View style={styles.dial}>
+            {/* with Recent shows above, the stations get their own title, so the two lists don't run together */}
+            {history.length > 0 && <Text style={styles.label}>Stations</Text>}
+            <View style={[styles.dial, history.length > 0 && { marginTop: 0 }]}>
               {STATIONS.map((st) => {
                 const on = st.key === stationKey;
                 return (
@@ -401,7 +419,9 @@ export default function RadioScreen() {
               </PressScale>
             ))}
             <View style={styles.after}>
-              <PillButton label="Save as playlist" onPress={save} ghost />
+              {/* 🔖 keeps this show for good, script and voices, so it can be played again any time for free */}
+              <PillButton label={liveKept ? 'Show saved ✓' : 'Save show'} onPress={keepLive} ghost={liveKept} />
+              <PillButton label="Save to Spotify" onPress={save} ghost />
               {phase === 'done' && <PillButton label="New show" onPress={() => setPhase('pick')} />}
             </View>
           </>
@@ -447,8 +467,9 @@ const styles = StyleSheet.create({
   dial: { gap: 10, marginTop: 22 },
   voiceFor: { fontFamily: fonts.sans, fontSize: 13, color: colors.text, marginBottom: 8 },
   voiceRow: { gap: 8, paddingRight: 24 },
-  resume: { flexDirection: 'row', gap: 12, padding: 14, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', marginBottom: 10 },
-  resumeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' },
+  resume: { flexDirection: 'row', gap: 14, padding: 16, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', marginBottom: 10 },
+  pastIcons: { gap: 16, alignItems: 'center' },
+  resumeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, flexWrap: 'wrap' },
   recast: { alignSelf: 'flex-start', marginBottom: 18 },
   recastText: { fontFamily: fonts.sans, fontSize: 13, color: colors.muted, textDecorationLine: 'underline' },
   station: {

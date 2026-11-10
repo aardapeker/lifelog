@@ -789,6 +789,8 @@ function RadioSection() {
             'The newest 3 shows also keep their voices (~20 MB each), so playing them again costs nothing.',
             'Older shows keep only the script; playing one voices the talks again, which uses some of the daily voice quota.',
             'Keeping shows is free: a few KB each on your phone. After the time you pick here, they are deleted.',
+            'Tap Save show (or 🔖 in Recent shows) to keep a show for good, with all its voices. Saved shows ignore the time here.',
+            'Settings → Usage shows how much room the radio takes on your phone.',
           ]}
         />
       </View>

@@ -3,6 +3,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors, fonts, inputColors, radius } from '../lib/theme';
+import { bytesLabel, radioStorage, type RadioStorage } from '../lib/radioStorage';
 import { FEATURES, getBudget, lira, setBudget, usageReport, usdToTry, type UsageReport } from '../lib/usage';
 import { Glass } from './Glass';
 import { IconTile } from './IconTile';
@@ -28,10 +29,12 @@ export function UsageSection() {
   const [budget, setBudgetState] = useState(0);
   const [draft, setDraft] = useState('');
   const [since, setSince] = useState<number | null>(null);
+  const [disk, setDisk] = useState<RadioStorage | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       usageReport(db).then(setR).catch(() => {});
+      radioStorage(db).then(setDisk).catch(() => {});
       usdToTry(db).then(setFx).catch(() => {});
       getBudget(db).then((b) => {
         setBudgetState(b);
@@ -152,6 +155,8 @@ export function UsageSection() {
         </View>
       )}
 
+      {disk && disk.total > 0 && <StoragePanel d={disk} />}
+
       <View style={styles.panel}>
         <Text style={styles.panelTitle}>Monthly budget</Text>
         {budget > 0 && fx && (
@@ -190,6 +195,57 @@ export function UsageSection() {
       <Text style={styles.small}>
         {fx ? `$1 = ₺${fx.rate.toFixed(2)} (European Central Bank, ${fx.day}). ` : 'No exchange rate yet, so dollars. '}
         {since ? `Counting since ${dayLabel(since)}.` : 'Counting starts with the next AI call.'}
+      </Text>
+    </View>
+  );
+}
+
+/** What the radio keeps on the phone: one stacked bar, then every saved show by size. */
+function StoragePanel({ d }: { d: RadioStorage }) {
+  const savedBytes = d.saved.reduce((n, x) => n + x.bytes, 0);
+  const parts = [
+    { label: `Saved shows (${d.saved.length})`, bytes: savedBytes, color: colors.text },
+    { label: 'Voices of the newest 3 shows', bytes: d.recentBytes, color: '#8C8B8B' },
+    { label: 'Voice previews', bytes: d.samplesBytes, color: '#5E5D5D' },
+    { label: 'Scripts', bytes: d.scriptsBytes, color: colors.line },
+  ].filter((p) => p.bytes > 0);
+  const biggest = Math.max(...d.saved.map((x) => x.bytes), 1);
+  return (
+    <View style={styles.panel}>
+      <View style={styles.line}>
+        <Text style={[styles.panelTitle, { marginBottom: 0 }]}>Radio on your phone</Text>
+        <Text style={styles.lineValue}>{bytesLabel(d.total)}</Text>
+      </View>
+      <View style={[styles.track, styles.stack]}>
+        {parts.map((p) => (
+          <View key={p.label} style={{ width: `${Math.max(1.5, (p.bytes / d.total) * 100)}%`, backgroundColor: p.color }} />
+        ))}
+      </View>
+      {parts.map((p) => (
+        <View key={p.label} style={styles.line}>
+          <View style={[styles.dot, { backgroundColor: p.color }]} />
+          <Text style={styles.lineText}>{p.label}</Text>
+          <Text style={styles.lineValue}>{bytesLabel(p.bytes)}</Text>
+        </View>
+      ))}
+      {d.saved.length > 0 && (
+        <>
+          <Text style={[styles.panelTitle, { marginTop: 18 }]}>Saved shows</Text>
+          {d.saved.map((x) => (
+            <View key={x.id} style={styles.featRow}>
+              <Text style={[styles.featLabel, { width: 150, flex: 0 }]} numberOfLines={1}>
+                {x.emoji} {x.title}
+              </Text>
+              <View style={styles.track}>
+                <View style={[styles.fill, { width: `${Math.max(2, (x.bytes / biggest) * 100)}%` }]} />
+              </View>
+              <Text style={styles.featValue}>{bytesLabel(x.bytes)}</Text>
+            </View>
+          ))}
+        </>
+      )}
+      <Text style={[styles.hint, { marginTop: 10 }]}>
+        {d.free ? `${bytesLabel(d.free)} free on your phone. ` : ''}Delete a saved show on the Radio tab (Recent shows, ✕).
       </Text>
     </View>
   );
@@ -234,6 +290,8 @@ const styles = StyleSheet.create({
   featLabel: { flex: 1, fontFamily: fonts.sansRegular, fontSize: 13, color: colors.text },
   track: { flex: 1, height: 8, borderRadius: 4, backgroundColor: colors.raised, overflow: 'hidden' },
   fill: { height: 8, borderRadius: 4, backgroundColor: colors.text },
+  stack: { flex: 0, height: 10, flexDirection: 'row', marginTop: 12, marginBottom: 10 },
+  dot: { width: 8, height: 8, borderRadius: 4 },
   featValue: { width: 64, textAlign: 'right', fontFamily: fonts.sans, fontSize: 13, color: colors.text },
   budgetRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 },
   input: {
