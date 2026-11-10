@@ -1,7 +1,8 @@
 import Ionicons from '../../components/Icon';
 import { useKeepAwake } from 'expo-keep-awake';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { Alert, Animated, Easing, Image, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MorphPlayButton, WavyProgress } from '../../components/expressive';
@@ -141,9 +142,11 @@ export default function RadioScreen() {
       hide.remove();
     };
   }, []);
+  const [allShows, setAllShows] = useState(false); // Recent shows: the newest 3, or all of them
   const [recast, setRecast] = useState(false); // the full voice lists, only on purpose
-  const { history, playPast, forgetShow, banned, ban, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, stop, current } = useRadio();
+  const { history, loadHistory, playPast, forgetShow, banned, ban, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, stop, current } = useRadio();
   useEffect(() => setRecast(false), [stationKey]); // a new station opens with its cast folded
+  useFocusEffect(useCallback(() => { loadHistory(); }, [loadHistory])); // Settings may have changed how long shows are kept
 
   return (
     <View style={styles.screen}>
@@ -185,7 +188,7 @@ export default function RadioScreen() {
               // every show of the last day: closed by accident, stopped or finished; its script is kept
               <>
                 <Text style={styles.label}>Recent shows</Text>
-                {history.map((h) => {
+                {(allShows ? history : history.slice(0, 3)).map((h) => {
                   const open = !h.done && h.index < h.show.slots.length;
                   return (
                     <View key={h.id} style={styles.resume}>
@@ -213,6 +216,11 @@ export default function RadioScreen() {
                     </View>
                   );
                 })}
+                {history.length > 3 && (
+                  <Pressable onPress={() => setAllShows((a) => !a)} hitSlop={8} style={styles.recast}>
+                    <Text style={styles.recastText}>{allShows ? 'Show fewer' : `Show all ${history.length}`}</Text>
+                  </Pressable>
+                )}
               </>
             )}
             <View style={styles.dial}>
@@ -482,5 +490,7 @@ function ago(t: number): string {
   const min = Math.round((Date.now() - t) / 60000);
   if (min < 1) return 'just now';
   if (min < 60) return `${min} min ago`;
-  return `${Math.round(min / 60)} h ago`;
+  if (min < 60 * 24) return `${Math.round(min / 60)} h ago`;
+  const days = Math.round(min / 1440);
+  return days === 1 ? 'yesterday' : `${days} days ago`;
 }

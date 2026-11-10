@@ -96,9 +96,10 @@ export type RadioPrefs = {
   spotifyLiked: boolean; // use your Spotify Liked Songs as favourites
   twists: boolean; // a random theme per show
   talk: 'short' | 'normal' | 'long'; // how much the hosts say between songs
+  keepDays: number; // how long shows stay in Recent shows (1, 3, 7 or 30)
 };
 
-const PREFS_DEFAULT: RadioPrefs = { hits: 2, favourites: 'sometimes', spotifyLiked: true, twists: true, talk: 'normal' };
+const PREFS_DEFAULT: RadioPrefs = { hits: 2, favourites: 'sometimes', spotifyLiked: true, twists: true, talk: 'normal', keepDays: 1 };
 
 export async function getRadioPrefs(db: SQLiteDatabase): Promise<RadioPrefs> {
   try {

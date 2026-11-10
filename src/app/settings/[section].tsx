@@ -734,6 +734,12 @@ const TALKS: { key: RadioPrefs['talk']; label: string }[] = [
   { key: 'normal', label: 'Normal' },
   { key: 'long', label: 'Long' },
 ];
+const KEEPS = [
+  { key: '1', label: '1 day' },
+  { key: '3', label: '3 days' },
+  { key: '7', label: '1 week' },
+  { key: '30', label: '1 month' },
+];
 const FAVS: { key: RadioPrefs['favourites']; label: string }[] = [
   { key: 'never', label: 'Never' },
   { key: 'sometimes', label: 'Sometimes' },
@@ -772,6 +778,9 @@ function RadioSection() {
       <Text style={styles.label}>Big hits per show</Text>
       <Segment options={HITS} value={String(p.hits)} onChange={(v) => update({ hits: Number(v) })} />
       <Text style={styles.hint}>The rest are deep cuts: album tracks, B-sides, forgotten gems.</Text>
+      <Text style={styles.label}>Keep recent shows for</Text>
+      <Segment options={KEEPS} value={String(p.keepDays)} onChange={(v) => update({ keepDays: Number(v) })} />
+      <Text style={styles.hint}>Keeping them is free (a few KB each on your phone). Playing one again only voices the talks again, the script isn't rewritten.</Text>
       <Text style={styles.label}>Your favourites coming back</Text>
       <Segment options={FAVS} value={p.favourites} onChange={(favourites) => update({ favourites })} />
       <Text style={styles.hint}>Songs from your entries, hearted songs and your Spotify Liked Songs go in one bag (a song on several lists gets more tickets); each show draws 2 (4 on Often). Songs that played lately get rarer.</Text>

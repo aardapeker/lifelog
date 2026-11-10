@@ -23,13 +23,14 @@ import {
   type Track,
 } from './spotify';
 import { stationByKey, withVoices, type Lang, type Persona, type VoiceChoices } from './stations';
-import { banSong, bannedSongs, likedSongs, rememberPlayed, toggleLiked } from './songMemory';
+import { banSong, bannedSongs, getRadioPrefs, likedSongs, rememberPlayed, toggleLiked } from './songMemory';
 import { onRadioCommand, publishToWidget } from '../widget/radioBridge';
 import { clearClips, keepSample, playClip, preferVoiceModel, sampleFile, speakRobot, synthesize, type Talking } from './tts';
 
 const HISTORY_KEY = 'radio.history';
-const KEEP_MS = 24 * 60 * 60 * 1000; // shows stay in Recent shows for a day
-const KEEP_MAX = 12;
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** How many shows Recent shows keeps at most, for how many days it keeps them (Settings → Music). */
+const keepMax = (days: number) => (days <= 1 ? 12 : days <= 3 ? 24 : days <= 7 ? 40 : 60);
 
 /** A show you heard lately: its whole script is kept, so it can be resumed or replayed without writing it again. */
 export type PastShow = { id: string; show: Show; index: number; savedAt: number; done: boolean };
@@ -124,25 +125,31 @@ function useRadioEngine() {
   const [history, setHistory] = useState<PastShow[]>([]);
   const historyRef = useRef<PastShow[]>([]);
   const liveId = useRef<string | null>(null); // which Recent shows entry is on air
+  const keepDays = useRef(1);
   const writeHistory = useCallback(
     (next: PastShow[]) => {
-      const fresh = next.filter((h) => Date.now() - h.savedAt < KEEP_MS).slice(0, KEEP_MAX);
+      const fresh = next.filter((h) => Date.now() - h.savedAt < keepDays.current * DAY_MS).slice(0, keepMax(keepDays.current));
       historyRef.current = fresh;
       setHistory(fresh);
       setSetting(db, HISTORY_KEY, JSON.stringify(fresh)).catch(() => {});
     },
     [db],
   );
-  useEffect(() => {
-    getSetting(db, HISTORY_KEY, '[]')
-      .then((v) => {
-        const all = JSON.parse(v) as PastShow[];
-        historyRef.current = all.filter((h) => Date.now() - h.savedAt < KEEP_MS);
-        setHistory(historyRef.current);
-      })
-      .catch(() => {});
-    setSetting(db, 'radio.live', '').catch(() => {}); // the old single "resume" slot
+  /** Reads Recent shows (and how long to keep them); the Radio screen calls it when it opens. */
+  const loadHistory = useCallback(async () => {
+    try {
+      keepDays.current = (await getRadioPrefs(db)).keepDays;
+      const all = JSON.parse(await getSetting(db, HISTORY_KEY, '[]')) as PastShow[];
+      const fresh = all.filter((h) => Date.now() - h.savedAt < keepDays.current * DAY_MS).slice(0, keepMax(keepDays.current));
+      if (liveId.current && historyRef.current.length) return; // a show is on air: the list in memory is newer
+      historyRef.current = fresh;
+      setHistory(fresh);
+    } catch {}
   }, [db]);
+  useEffect(() => {
+    loadHistory();
+    setSetting(db, 'radio.live', '').catch(() => {}); // the old single "resume" slot
+  }, [db, loadHistory]);
   /** Updates the entry on air (and lifts it to the top). */
   const record = useCallback(
     (patch: Partial<PastShow>) => {
@@ -644,7 +651,7 @@ function useRadioEngine() {
     [],
   );
 
-  return { history, playPast, forgetShow, banned, ban, miniCollapsed, setMiniCollapsed, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
+  return { history, loadHistory, playPast, forgetShow, banned, ban, miniCollapsed, setMiniCollapsed, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
 }
 
 export type RadioEngine = ReturnType<typeof useRadioEngine>;
