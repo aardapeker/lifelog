@@ -1,7 +1,7 @@
 import Ionicons, { ICON_STYLES, setIconStyle, useIconStyle } from '../../components/Icon';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { Children, cloneElement, isValidElement, useCallback, useState, type ComponentProps, type ReactNode } from 'react';
+import { Children, cloneElement, isValidElement, useCallback, useEffect, useState, type ComponentProps, type ReactNode } from 'react';
 import { Alert, Animated, KeyboardAvoidingView, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { authenticate, canUseBiometrics } from '../../components/LockGate';
@@ -64,7 +64,7 @@ import {
   type PlannerSettings,
 } from '../../lib/planner';
 import { weekStart } from '../../lib/recap';
-import { getBackgroundModel, getChatConfig, getChatModel, getRadioModel, MODEL_CHOICES, PROVIDERS, saveChatConfig } from '../../lib/chat';
+import { getBackgroundModel, getChatConfig, getChatModel, getJobProvider, getRadioModel, MODEL_CHOICES, PROVIDERS, saveChatConfig, setJobProvider, type Job } from '../../lib/chat';
 import { VOICE_MODELS } from '../../lib/tts';
 import { priceHint } from '../../lib/usage';
 import { getSetting, setSetting } from '../../lib/db';
@@ -865,37 +865,74 @@ function ModelChips({ provider, value, onPick, extra }: { provider: Provider; va
 /** The other jobs: who writes the radio, who does the chores, which voice reads the radio. Saved on tap. */
 function JobModels({ provider }: { provider: Provider }) {
   const db = useSQLiteContext();
+  const [radioOn, setRadioOn] = useState<Provider | ''>(''); // '' = same as chat
+  const [backOn, setBackOn] = useState<Provider | ''>('');
   const [radio, setRadio] = useState('');
   const [background, setBackground] = useState('');
   const [voice, setVoice] = useState(VOICE_MODELS[0].id);
+  const [keys, setKeys] = useState<Record<string, boolean>>({});
+  const radioP = radioOn || provider;
+  const backP = backOn || provider;
 
   useFocusEffect(
     useCallback(() => {
-      getRadioModel(db, provider).then(setRadio);
-      getBackgroundModel(db, provider).then(setBackground);
+      getJobProvider(db, 'radio').then(setRadioOn);
+      getJobProvider(db, 'background').then(setBackOn);
       getSetting(db, 'voiceModel', VOICE_MODELS[0].id).then(setVoice);
-    }, [db, provider]),
+      Promise.all((Object.keys(PROVIDERS) as Provider[]).map(async (p) => [p, !!(await getKey(p))] as const)).then((all) =>
+        setKeys(Object.fromEntries(all)),
+      );
+    }, [db]),
   );
+  useEffect(() => {
+    getRadioModel(db, radioP).then(setRadio);
+  }, [db, radioP]);
+  useEffect(() => {
+    getBackgroundModel(db, backP).then(setBackground);
+  }, [db, backP]);
 
   const save = (key: string, value: string, set: (v: string) => void) => {
     set(value);
     setSetting(db, key, value);
   };
+  /** "Same as chat", then every provider: a job can run on another AI than the chat. */
+  const ProviderChips = ({ job, value, set }: { job: Job; value: Provider | ''; set: (p: Provider | '') => void }) => (
+    <View style={styles.chips}>
+      {(['', ...Object.keys(PROVIDERS)] as (Provider | '')[]).map((p) => (
+        <Chip
+          key={p || 'same'}
+          label={p ? `${PROVIDERS[p].label}${keys[p] ? '' : ' (no key)'}` : 'Same as chat'}
+          active={value === p}
+          onPress={() => {
+            set(p);
+            setJobProvider(db, job, p);
+          }}
+        />
+      ))}
+    </View>
+  );
+  const noKey = (p: Provider | '') => (p && !keys[p] ? ` No ${PROVIDERS[p].label} key yet, so it uses ${PROVIDERS[provider].label} until you add one.` : '');
 
   return (
     <>
       <Label icon="radio-outline">Radio writer</Label>
+      <ProviderChips job="radio" value={radioOn} set={setRadioOn} />
       <ModelChips
-        provider={provider}
+        provider={radioP}
         value={radio}
-        extra={{ id: '', label: 'Same as chat' }}
-        onPick={(m) => save(`radioModel.${provider}`, m, setRadio)}
+        extra={{ id: '', label: radioOn && radioOn !== provider ? 'Its chat model' : 'Same as chat' }}
+        onPick={(m) => save(`radioModel.${radioP}`, m, setRadio)}
       />
-      <Text style={styles.hint}>{radio ? priceHint(radio) : 'Writes the shows with your chat model.'} The cheaper one is a bit less funny.</Text>
+      <Text style={styles.hint}>
+        {radio ? priceHint(radio) : 'Writes the shows with the chat model.'} The cheaper one is a bit less funny.{noKey(radioOn)}
+      </Text>
 
       <Label icon="cog-outline">Background jobs</Label>
-      <ModelChips provider={provider} value={background} onPick={(m) => save(`backgroundModel.${provider}`, m, setBackground)} />
-      <Text style={styles.hint}>Facts, photo captions, recaps, check-ins. {priceHint(background)}.</Text>
+      <ProviderChips job="background" value={backOn} set={setBackOn} />
+      <ModelChips provider={backP} value={background} onPick={(m) => save(`backgroundModel.${backP}`, m, setBackground)} />
+      <Text style={styles.hint}>
+        Facts, photo captions, check-ins, milestones. {priceHint(background)}. Claude Haiku is the cheapest of all.{noKey(backOn)}
+      </Text>
 
       <Label icon="mic-outline">Radio voice (Gemini)</Label>
       <View style={styles.chips}>
@@ -903,7 +940,7 @@ function JobModels({ provider }: { provider: Provider }) {
           <Chip key={v.id} label={v.label} active={v.id === voice} onPress={() => save('voiceModel', v.id, setVoice)} />
         ))}
       </View>
-      <Text style={styles.hint}>{priceHint(voice)}. The other voice models stay as backups when a limit runs out.</Text>
+      <Text style={styles.hint}>{priceHint(voice)}. The other one is the backup when a daily limit runs out.</Text>
     </>
   );
 }

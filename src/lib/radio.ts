@@ -1,5 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { getChatConfig, getRadioModel, parseJsonReply, PROVIDERS } from './chat';
+import { getRadioConfig, parseJsonReply } from './chat';
 import { getCheckinSettings, shiftFor } from './checkins';
 import { aboutUser, renderNotes } from './context';
 import { getSetting } from './db';
@@ -112,8 +112,8 @@ const persona = (p: Persona, role: string) => `- ${p.name} (${role}): ${p.bio}`;
 
 export async function buildShow(db: SQLiteDatabase, station: Station, wish: string, length = 8): Promise<Show> {
   const SHOW_LENGTH = length;
-  const chat = await getChatConfig(db);
-  if (!chat.apiKey) throw new Error('Add an AI key in Settings first.');
+  const writer = await getRadioConfig(db); // Settings → AI: its own provider and model, or the chat's
+  if (!writer.apiKey) throw new Error('Add an AI key in Settings first.');
   const [about, recent, taste, shifts, city, played, liked] = await Promise.all([
     aboutUser(db),
     recentNotes(db, 7, 8),
@@ -147,11 +147,10 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
   const duo = !!station.sidekick;
   const names = duo ? `"${station.host.name}" or "${station.sidekick!.name}"` : `"${station.host.name}"`;
 
-  const writer = (await getRadioModel(db, chat.provider)) || chat.model; // Settings → AI Models
-  const reply = await PROVIDERS[chat.provider].complete({
+  const reply = await writer.adapter.complete({
     feature: 'radio',
-    apiKey: chat.apiKey,
-    model: writer,
+    apiKey: writer.apiKey,
+    model: writer.model,
     json: true,
     // a ceiling, not a cost (only what's written is billed). Roomy: Turkish takes Claude about twice the
     // tokens of English, and a 16-song Turkish show ran out of room with the old, tighter number

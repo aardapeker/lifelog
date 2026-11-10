@@ -136,12 +136,39 @@ export async function getRadioModel(db: SQLiteDatabase, provider: Provider): Pro
   return getSetting(db, `radioModel.${provider}`, '');
 }
 
-/** Same provider as the chat, but its cheap model. Null when no key is saved. */
+export type Job = 'radio' | 'background';
+
+/**
+ * Which provider a job runs on (Settings → AI): '' = the same as the chat. A job set to a provider
+ * whose key isn't saved quietly uses the chat's provider, so nothing breaks.
+ */
+export async function getJobProvider(db: SQLiteDatabase, job: Job): Promise<Provider | ''> {
+  const saved = await getSetting(db, `${job}Provider`, '');
+  return isProvider(saved) ? saved : '';
+}
+export const setJobProvider = (db: SQLiteDatabase, job: Job, p: Provider | '') => setSetting(db, `${job}Provider`, p);
+
+async function jobProvider(db: SQLiteDatabase, job: Job) {
+  const chat = await getChatConfig(db);
+  const own = await getJobProvider(db, job);
+  const key = own && own !== chat.provider ? await getKey(own) : null;
+  return key && own ? { chat, provider: own, apiKey: key as string | null } : { chat, provider: chat.provider, apiKey: chat.apiKey };
+}
+
+/** The cheap model for facts, captions, recaps, check-ins: on its own provider, or the chat's. Null when no key is saved. */
 export async function getBackgroundConfig(db: SQLiteDatabase) {
-  const { provider, apiKey } = await getChatConfig(db);
+  const { provider, apiKey } = await jobProvider(db, 'background');
   if (!apiKey) return null;
   const adapter = PROVIDERS[provider];
   return { provider, apiKey, model: await getBackgroundModel(db, provider), adapter };
+}
+
+/** Who writes the radio shows: its own provider and model, or the chat's. */
+export async function getRadioConfig(db: SQLiteDatabase) {
+  const { chat, provider, apiKey } = await jobProvider(db, 'radio');
+  const own = await getRadioModel(db, provider);
+  const model = own || (provider === chat.provider ? chat.model : await getChatModel(db, provider));
+  return { provider, apiKey, model, adapter: PROVIDERS[provider] };
 }
 
 /** Parses a JSON object out of a model reply, tolerating ```json fences or chatter around it. */
