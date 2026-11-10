@@ -871,6 +871,7 @@ function JobModels({ provider }: { provider: Provider }) {
   const [background, setBackground] = useState('');
   const [voice, setVoice] = useState(VOICE_MODELS[0].id);
   const [keys, setKeys] = useState<Record<string, boolean>>({});
+  const [chatModel, setChatModel] = useState(''); // what "Chat model" means right now
   const radioP = radioOn || provider;
   const backP = backOn || provider;
 
@@ -886,7 +887,9 @@ function JobModels({ provider }: { provider: Provider }) {
   );
   useEffect(() => {
     getRadioModel(db, radioP).then(setRadio);
+    getChatModel(db, radioP).then(setChatModel);
   }, [db, radioP]);
+  const modelName = (id: string) => MODEL_CHOICES[radioP]?.find((m) => m.id === id)?.label ?? id;
   useEffect(() => {
     getBackgroundModel(db, backP).then(setBackground);
   }, [db, backP]);
@@ -922,7 +925,7 @@ function JobModels({ provider }: { provider: Provider }) {
       <ModelChips
         provider={radioP}
         value={radio}
-        extra={{ id: '', label: radioOn && radioOn !== provider ? 'Its default' : 'Chat model' }}
+        extra={{ id: '', label: `${radioOn && radioOn !== provider ? 'Default' : 'Chat model'}${chatModel ? ` (${modelName(chatModel)})` : ''}` }}
         onPick={(m) => save(`radioModel.${radioP}`, m, setRadio)}
       />
       <Text style={styles.hint}>

@@ -503,8 +503,8 @@ function useRadioEngine() {
   };
 
   // the lock screen / notification buttons drive the show too
-  const controls = useRef({ togglePause, skip, previous });
-  controls.current = { togglePause, skip, previous };
+  const controls = useRef({ togglePause, skip, previous, toggleHeart: (_t: Track) => {} });
+  controls.current = { togglePause, skip, previous, toggleHeart: (t: Track) => toggleHeart(t) };
   useEffect(
     () =>
       onRemote({
@@ -668,14 +668,20 @@ function useRadioEngine() {
       paused,
       talking: speaking ? `${st.sidekick ? `${st.host.name} & ${st.sidekick.name}` : st.host.name} on the mic` : null,
       position: `${Math.min(index + 1, n)}/${n}`,
+      liked: hearts.has(slot.track.id),
     });
-  }, [phase, show, index, paused, speaking]);
+  }, [phase, show, index, paused, speaking, hearts]);
   useEffect(
     () =>
       onRadioCommand((c) => {
         if (!live.current.show) return;
         if (c === 'toggle') controls.current.togglePause();
         else if (c === 'next') controls.current.skip();
+        else if (c === 'like') {
+          const s = live.current.show;
+          const t = s?.slots[Math.min(live.current.index, s.slots.length - 1)]?.track;
+          if (t) controls.current.toggleHeart(t);
+        }
         else controls.current.previous();
       }),
     [],

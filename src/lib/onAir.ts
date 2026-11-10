@@ -25,6 +25,9 @@ let lastPlaying = true;
 let lastTime = 0;
 let expectedChange = false; // our own play/pause, not a button press
 let armed = false; // buttons count only once the silence has really started (loading looks like "paused")
+let lastIndex = 0; // which silent track is on: it changing is a ⏭ press (or the silence running out)
+let changedAt = 0; // when the track last changed: the reload right after looks like a pause + play
+const SETTLE_MS = 2500;
 
 async function silence(): Promise<string> {
   const file = new File(Paths.cache, 'radio-silence-60s.wav');
@@ -43,24 +46,40 @@ export async function goOnAir(title: string, station: string): Promise<void> {
   keeper = createAudioPlaylist({ sources: [uri, uri], updateInterval: 1000, loop: 'all' });
   lastPlaying = true;
   lastTime = 0;
+  lastIndex = 0;
+  changedAt = 0;
   armed = false;
+  /**
+   * ⏭ on the lock screen moves the silent playlist to its other track. Seen either through the
+   * trackChanged event or the status' index (whichever comes first; the other is ignored), so
+   * one tap is always one skip. The silence running out on its own (near its end) isn't a tap.
+   */
+  const trackMoved = (index: number) => {
+    if (index === lastIndex) return;
+    lastIndex = index;
+    changedAt = Date.now();
+    if (armed && lastTime < TRACK_SECONDS - 3) remote?.next();
+    lastTime = 0;
+  };
   keeper.addListener('playlistStatusUpdate', (s) => {
     beat();
+    trackMoved(s.currentIndex);
     if (!armed) {
       armed = s.playing;
       lastPlaying = true;
     } else if (s.playing !== lastPlaying) {
-      if (!expectedChange) (s.playing ? remote?.play : remote?.pause)?.();
-      expectedChange = false;
-      lastPlaying = s.playing;
+      // switching tracks reloads the silence: it reads as "paused, then playing" for a moment. That
+      // used to pause the song we had just skipped to (and play it again), so ⏭ needed several taps
+      const reloading = s.isBuffering || !s.isLoaded || Date.now() - changedAt < SETTLE_MS;
+      if (!reloading) {
+        if (!expectedChange) (s.playing ? remote?.play : remote?.pause)?.();
+        expectedChange = false;
+        lastPlaying = s.playing;
+      }
     }
     lastTime = s.currentTime;
   });
-  keeper.addListener('trackChanged', () => {
-    // a silent track running out on its own isn't a button press
-    if (armed && lastTime < TRACK_SECONDS - 3) remote?.next();
-    lastTime = 0;
-  });
+  keeper.addListener('trackChanged', (e) => trackMoved(e.currentIndex));
   keeper.play();
   try {
     keeper.setActiveForLockScreen(true, { title, artist: station }, { showNextTrack: true, showSeekForward: false, showSeekBackward: false });

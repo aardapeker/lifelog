@@ -2,7 +2,7 @@ import type { WidgetTaskHandlerProps } from 'react-native-android-widget';
 import { LifelogWidget } from './LifelogWidget';
 import { sendRadioCommand, widgetRadio, type RadioCommand } from './radioBridge';
 
-const COMMANDS: Record<string, RadioCommand> = { RADIO_PREV: 'prev', RADIO_TOGGLE: 'toggle', RADIO_NEXT: 'next' };
+const COMMANDS: Record<string, RadioCommand> = { RADIO_PREV: 'prev', RADIO_TOGGLE: 'toggle', RADIO_NEXT: 'next', RADIO_LIKE: 'like' };
 
 /**
  * Android asks for the widget's look when it's added, resized or updated, and passes taps on

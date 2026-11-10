@@ -16,9 +16,10 @@ export type WidgetRadio = {
   paused: boolean;
   talking: string | null; // "Candy Starr & Rico on the mic" while the hosts talk
   position: string; // "4/8"
+  liked: boolean; // the song is hearted in Lifelog
 };
 
-export type RadioCommand = 'prev' | 'toggle' | 'next';
+export type RadioCommand = 'prev' | 'toggle' | 'next' | 'like';
 
 let now: WidgetRadio | null = null;
 const listeners = new Set<(c: RadioCommand) => void>();
