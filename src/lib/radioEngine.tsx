@@ -25,10 +25,11 @@ import {
 import { stationByKey, withVoices, type Lang, type Persona, type VoiceChoices } from './stations';
 import { banSong, bannedSongs, getRadioPrefs, likedSongs, rememberPlayed, toggleLiked } from './songMemory';
 import { onRadioCommand, publishToWidget } from '../widget/radioBridge';
-import { clearClips, keepSample, playClip, preferVoiceModel, sampleFile, speakRobot, synthesize, type Talking } from './tts';
+import { clearClips, keepSample, playClip, preferVoiceModel, pruneShowVoices, sampleFile, showVoiceFile, speakRobot, synthesize, type Talking } from './tts';
 
 const HISTORY_KEY = 'radio.history';
 const DAY_MS = 24 * 60 * 60 * 1000;
+const VOICED_SHOWS = 3; // the newest shows keep their voices (~20 MB each), so playing them again is free
 /** How many shows Recent shows keeps at most, for how many days it keeps them (Settings → Music). */
 const keepMax = (days: number) => (days <= 1 ? 12 : days <= 3 ? 24 : days <= 7 ? 40 : 60);
 
@@ -132,6 +133,7 @@ function useRadioEngine() {
       historyRef.current = fresh;
       setHistory(fresh);
       setSetting(db, HISTORY_KEY, JSON.stringify(fresh)).catch(() => {});
+      pruneShowVoices(fresh.slice(0, VOICED_SHOWS).map((h) => h.id));
     },
     [db],
   );
@@ -182,9 +184,18 @@ function useRadioEngine() {
     // index slots.length is the goodbye after the last song
     const lines = i === s.slots.length ? s.outro : s.slots[i].talk;
     if (!lines.length) return;
+    // the newest shows keep their voices: a talk already made is played from the phone, for free
+    const id = liveId.current;
+    const saved = id ? showVoiceFile(id, i) : null;
+    if (saved?.exists) {
+      clips.current.set(i, Promise.resolve(saved.uri));
+      return;
+    }
     clips.current.set(
       i,
-      synthesize(lines, castOf(s.station)).catch((e) => {
+      synthesize(lines, castOf(s.station))
+        .then((uri) => (saved && liveId.current === id ? keepSample(uri, saved) : uri))
+        .catch((e) => {
         // say why it sounds robotic, instead of failing silently
         setStatus({ kind: 'err', msg: `${e instanceof Error ? e.message : e} Using the phone's voice for now.` });
         // forget the failure: when its turn comes, it's voiced again (a speed limit is usually gone by then)

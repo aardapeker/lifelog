@@ -389,6 +389,24 @@ export function keepSample(made: string, saved: File): string {
   }
 }
 
+const showVoicesDir = () => new Directory(Paths.document, 'show-voices');
+
+/** Where talk i of a kept show is saved (the newest few shows keep their voices: replays cost nothing). */
+export function showVoiceFile(showId: string, i: number): File {
+  const dir = new Directory(showVoicesDir(), showId.replace(/[^\w-]+/g, ''));
+  if (!dir.exists) dir.create({ intermediates: true });
+  return new File(dir, `${i}.wav`);
+}
+
+/** Deletes the saved voices of every show except these (a show's voices are ~20 MB). */
+export function pruneShowVoices(keep: string[]): void {
+  try {
+    const root = showVoicesDir();
+    if (!root.exists) return;
+    for (const d of root.list()) if (d instanceof Directory && !keep.includes(d.name)) d.delete();
+  } catch {}
+}
+
 /** Deletes the voice clips left in the cache. */
 export function clearClips(): void {
   try {
