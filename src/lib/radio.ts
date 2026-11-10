@@ -21,8 +21,6 @@ export type Slot = { track: Track; talk: SpokenLine[]; label: string | null; ove
 export type Show = { title: string; lang: string; station: Station; slots: Slot[]; outro: SpokenLine[] };
 
 /** Quick ideas for the "anything else?" box. */
-export const WISHES = ['On the way to work', 'After the shift', 'Focus', 'Rainy day', 'Make me laugh'];
-
 /**
  * Draws the favourites for one show. Every list a song is on is one more ticket in the bag (in your
  * journal + Spotify Liked + hearted here = 3 tickets), and every play in the last 30 days halves its

@@ -19,6 +19,7 @@ export type Station = {
   sidekick: Persona | null;
   ads: string; // the flavour of its commercials
   lang: Lang; // what the hosts speak (you can change it per station)
+  wishes: string[]; // the quick "Anything else?" picks, in the station's spirit
 };
 
 export type Lang = 'auto' | 'en' | 'tr';
@@ -31,6 +32,7 @@ export const LANGS: { key: Lang; label: string }[] = [
 export const STATIONS: Station[] = [
   {
     key: 'friend',
+    wishes: ['On the way to work', 'After the shift', 'Focus', 'Rainy day', 'Make me laugh'],
     name: 'Your Friend',
     freq: '88.0',
     tagline: 'Just your friend and songs for today',
@@ -48,6 +50,7 @@ export const STATIONS: Station[] = [
   },
   {
     key: 'neon',
+    wishes: ['Midnight drive', 'Synth & neon', 'Power ballads', 'Dance in the kitchen', 'Make me laugh'],
     name: 'Neon FM',
     freq: '98.3',
     tagline: 'Big hair. Bigger hits. The 80s never ended.',
@@ -72,6 +75,7 @@ export const STATIONS: Station[] = [
   },
   {
     key: 'nightshift',
+    wishes: ['Keep me awake', '3 a.m. thoughts', 'Empty city streets', 'Ride home at dawn', 'Make me laugh'],
     name: 'Night Shift FM',
     freq: '23.3',
     tagline: 'For the ones awake while the city sleeps.',
@@ -96,6 +100,7 @@ export const STATIONS: Station[] = [
   },
   {
     key: 'rock',
+    wishes: ['Warehouse rage', 'Headbang mode', '90s grunge', 'Guitar solos', 'Make me laugh'],
     name: 'Gebze Rock 104',
     freq: '104.0',
     tagline: 'Loud guitars for loud boxes.',
@@ -120,6 +125,7 @@ export const STATIONS: Station[] = [
   },
   {
     key: 'chill',
+    wishes: ['Rain on the window', 'Study & focus', 'Sunday morning', 'Cat nap', 'Wind down'],
     name: 'Şemistan Chill',
     freq: '91.1',
     tagline: 'Lo-fi, rain and one very opinionated cat.',
@@ -144,6 +150,7 @@ export const STATIONS: Station[] = [
   },
   {
     key: 'arabesk',
+    wishes: ['Heartbreak', 'Damar şarkılar', 'Old 45s', 'Ferry at night', 'Make me laugh'],
     name: 'Tuzla Arabesk FM',
     freq: '90.5',
     tagline: 'Derdin varsa, şarkımız var.',

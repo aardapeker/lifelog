@@ -10,7 +10,7 @@ import { Glass, GlassArea } from '../../components/Glass';
 import { FadeIn, Pulse, PressScale, Shimmer, ShimmerText } from '../../components/motion';
 import { Chip, IconButton, PillButton, StatusLine } from '../../components/ui';
 import type { Palette } from '../../lib/albumColors';
-import { SHOW_LENGTHS, SONG_LANGS, WISHES, type SongLang } from '../../lib/radio';
+import { SHOW_LENGTHS, SONG_LANGS, type SongLang } from '../../lib/radio';
 import { getSetting, setSetting } from '../../lib/db';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useRadio } from '../../lib/radioEngine';
@@ -342,7 +342,7 @@ export default function RadioScreen() {
 
             <Text style={styles.label}>Anything else? (optional)</Text>
             <View style={[styles.chips, { marginBottom: 10 }]}>
-              {WISHES.map((w) => (
+              {station.wishes.map((w) => (
                 <Chip key={w} label={w} active={wish === w} onPress={() => setWish(wish === w ? '' : w)} />
               ))}
             </View>
