@@ -77,9 +77,24 @@ const TWISTS = [
 
 const LANGUAGE: Record<Station['lang'], string> = {
   auto: 'Speak the language of their journal.',
-  en: 'Speak English only (simple, natural, fun; the listener is learning English), and lean towards English-language songs.',
-  tr: 'Sadece Türkçe konuş (doğal, samimi İstanbul Türkçesi). Speak Turkish only, and lean towards Turkish songs.',
+  en: 'Speak English only (simple, natural, fun; the listener is learning English).',
+  tr: 'Sadece Türkçe konuş (doğal, samimi İstanbul Türkçesi). Speak Turkish only.',
 };
+
+/** The songs' language, picked on the Radio screen; 'station' follows the talk language and the station's style. */
+export type SongLang = 'station' | 'tr' | 'en' | 'mix';
+export const SONG_LANGS: { key: SongLang; label: string }[] = [
+  { key: 'station', label: 'Station picks' },
+  { key: 'tr', label: 'Turkish' },
+  { key: 'en', label: 'English' },
+  { key: 'mix', label: 'Mix' },
+];
+function songLangRule(song: SongLang, talk: Station['lang']): string {
+  if (song === 'tr') return ' SONGS: Turkish-language songs only (Turkish artists, sung in Turkish), still true to the station\'s style.';
+  if (song === 'en') return ' SONGS: English-language songs only.';
+  if (song === 'mix') return ' SONGS: a real mix, about half Turkish-language and half English-language songs, alternating so neither runs for long.';
+  return talk === 'tr' ? ' Lean towards Turkish songs.' : talk === 'en' ? ' Lean towards English-language songs.' : '';
+}
 
 /** How much the hosts say before each song (Settings → Radio). */
 const TALK = {
@@ -185,6 +200,7 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
       'Lines are SPOKEN aloud by a voice engine: no emojis, no markdown, no stage directions in brackets, natural speech, ' +
       'short sentences. You may put <laugh> or <short pause> inside a line. ' +
       LANGUAGE[station.lang] +
+      songLangRule((await getSetting(db, 'radio.songLang', 'station')) as SongLang, station.lang) +
       '\n\n' +
       `Return {"title":"show name","lang":"tr or en","songs":[{"title":"…","artist":"…","label":null or "Commercial" or "News",` +
       `"overlap":0,"talk":[{"who":${names},"text":"…"}]}],"outro":[{"who":${names},"text":"…"}]} with ${SHOW_LENGTH} songs. ` +

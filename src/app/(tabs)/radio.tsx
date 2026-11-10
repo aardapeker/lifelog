@@ -10,7 +10,9 @@ import { Glass, GlassArea } from '../../components/Glass';
 import { FadeIn, Pulse, PressScale, Shimmer, ShimmerText } from '../../components/motion';
 import { Chip, IconButton, PillButton, StatusLine } from '../../components/ui';
 import type { Palette } from '../../lib/albumColors';
-import { SHOW_LENGTHS, WISHES } from '../../lib/radio';
+import { SHOW_LENGTHS, SONG_LANGS, WISHES, type SongLang } from '../../lib/radio';
+import { getSetting, setSetting } from '../../lib/db';
+import { useSQLiteContext } from 'expo-sqlite';
 import { useRadio } from '../../lib/radioEngine';
 import { FRIEND_VOICES, LANGS, STATIONS, voicesFor } from '../../lib/stations';
 import { colors, fonts, inputColors, radius, TAB_BAR_SPACE } from '../../lib/theme';
@@ -142,6 +144,15 @@ export default function RadioScreen() {
       hide.remove();
     };
   }, []);
+  const db = useSQLiteContext();
+  const [songLang, setSongLang] = useState<SongLang>('station'); // the songs' language (the talk has its own)
+  useEffect(() => {
+    getSetting(db, 'radio.songLang', 'station').then((v) => setSongLang(v as SongLang)).catch(() => {});
+  }, [db]);
+  const pickSongLang = (v: SongLang) => {
+    setSongLang(v);
+    setSetting(db, 'radio.songLang', v).catch(() => {});
+  };
   const [allShows, setAllShows] = useState(false); // Recent shows: the newest 3, or all of them
   const [recast, setRecast] = useState(false); // the full voice lists, only on purpose
   const { history, loadHistory, playPast, forgetShow, keepShow, liveKept, keepLive, banned, ban, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, stop, current } = useRadio();
@@ -277,10 +288,17 @@ export default function RadioScreen() {
               ))}
             </View>
 
-            <Text style={styles.label}>Language</Text>
+            <Text style={styles.label}>Hosts speak</Text>
             <View style={styles.chips}>
               {LANGS.map((l) => (
                 <Chip key={l.key} label={l.label} active={station.lang === l.key} onPress={() => chooseLang(l.key)} />
+              ))}
+            </View>
+
+            <Text style={styles.label}>Songs</Text>
+            <View style={styles.chips}>
+              {SONG_LANGS.map((l) => (
+                <Chip key={l.key} label={l.label} active={songLang === l.key} onPress={() => pickSongLang(l.key)} />
               ))}
             </View>
 
