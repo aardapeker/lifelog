@@ -39,6 +39,7 @@
     "expo-system-ui": "~58.0.7",
     "expo-task-manager": "~58.0.13",
     "expo-web-browser": "~58.0.7",
+    "jsonrepair": "^3.15.0",
     "pako": "^2.1.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",

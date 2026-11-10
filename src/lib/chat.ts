@@ -3,6 +3,7 @@ import type { Feature } from './usage';
 import { completeClaude, describeImageClaude, streamClaude, testClaude } from './claude';
 import { getSetting, setSetting } from './db';
 import { completeGemini, describeImageGemini, streamGemini, testGemini } from './gemini';
+import { jsonrepair } from 'jsonrepair';
 import { completeGrok, describeImageGrok, streamGrok, testGrok } from './grok';
 import { getKey, type Provider } from './keys';
 
@@ -176,5 +177,16 @@ export function parseJsonReply<T>(text: string): T {
   const start = text.indexOf('{');
   const end = text.lastIndexOf('}');
   if (start === -1 || end === -1) throw new Error('The AI did not return JSON.');
-  return JSON.parse(text.slice(start, end + 1)) as T;
+  const body = text.slice(start, end + 1);
+  try {
+    return JSON.parse(body) as T;
+  } catch {
+    // small models slip on long JSON (a radio script is ~15 KB): a stray comma or brace, an
+    // unescaped quote in a joke. Repair it instead of throwing away a whole written show.
+    try {
+      return JSON.parse(jsonrepair(body)) as T;
+    } catch {
+      throw new Error("The AI's reply came out garbled. Try again (or pick another writer in Settings → AI).");
+    }
+  }
 }
