@@ -3,6 +3,7 @@ import type { Feature } from './usage';
 import { completeClaude, describeImageClaude, streamClaude, testClaude } from './claude';
 import { getSetting, setSetting } from './db';
 import { completeGemini, describeImageGemini, streamGemini, testGemini } from './gemini';
+import { completeGrok, describeImageGrok, streamGrok, testGrok } from './grok';
 import { getKey, type Provider } from './keys';
 
 export type ChatMessage = { role: 'user' | 'assistant'; content: string };
@@ -67,6 +68,15 @@ export const PROVIDERS: Record<Provider, Adapter> = {
     describeImage: describeImageGemini,
     test: testGemini,
   },
+  xai: {
+    label: 'Grok',
+    defaultModel: 'grok-4.3', // the cheaper Grok; 4.7 is one tap away
+    backgroundModel: 'grok-4.3',
+    stream: streamGrok,
+    complete: completeGrok,
+    describeImage: describeImageGrok,
+    test: testGrok,
+  },
 };
 
 export type ChatConfig = { provider: Provider; model: string; apiKey: string | null };
@@ -109,6 +119,10 @@ export const MODEL_CHOICES: Record<Provider, { id: string; label: string }[]> = 
     { id: 'claude-opus-5-5', label: 'Opus 5.5' },
     { id: 'claude-sonnet-5-5', label: 'Sonnet 5.5' },
     { id: 'claude-haiku-5-5', label: 'Haiku 5.5' },
+  ],
+  xai: [
+    { id: 'grok-4.7', label: 'Grok 4.7' },
+    { id: 'grok-4.3', label: 'Grok 4.3' },
   ],
 };
 

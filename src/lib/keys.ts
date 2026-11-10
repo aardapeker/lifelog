@@ -1,7 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 
 // API keys live in Android's encrypted keystore — never in SQLite, never in backups.
-export type Provider = 'anthropic' | 'gemini';
+export type Provider = 'anthropic' | 'gemini' | 'xai';
 
 const storageKey = (p: Provider) => `apikey.${p}`;
 

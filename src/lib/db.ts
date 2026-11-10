@@ -188,7 +188,7 @@ const MIGRATIONS: string[] = [
   CREATE TABLE usage (
     id       INTEGER PRIMARY KEY AUTOINCREMENT,
     at       INTEGER NOT NULL,
-    provider TEXT    NOT NULL,          -- gemini | anthropic
+    provider TEXT    NOT NULL,          -- gemini | anthropic | xai
     model    TEXT    NOT NULL,
     feature  TEXT    NOT NULL,          -- chat, radio, voice, reads, …
     input    INTEGER NOT NULL DEFAULT 0, -- tokens in

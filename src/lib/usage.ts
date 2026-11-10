@@ -42,7 +42,7 @@ export const FEATURES: Record<Feature, { label: string; icon: ComponentProps<typ
 };
 
 // ── prices (USD per 1M tokens, paid tier, standard) ──
-// Checked Nov 2026 on ai.google.dev/gemini-api/docs/pricing and platform.claude.com/docs/en/about-claude/pricing.
+// Checked Nov 2026 on ai.google.dev/gemini-api/docs/pricing, platform.claude.com/docs/en/about-claude/pricing and docs.x.ai.
 // Gemini 3.8 prices double on Jan 1, 2027 (the `from2027` numbers).
 
 type Price = { input: number; output: number; from2027?: { input: number; output: number } };
@@ -58,6 +58,9 @@ const PRICES: { match: RegExp; price: Price }[] = [
   { match: /claude-opus/, price: { input: 4, output: 20 } },
   { match: /claude-sonnet/, price: { input: 2, output: 10 } },
   { match: /claude-haiku/, price: { input: 0.1, output: 0.5 } },
+  { match: /grok-4\.3|grok-4\.20/, price: { input: 1.25, output: 2.5 } }, // docs.x.ai, Nov 2026
+  { match: /grok-build|grok-code/, price: { input: 1, output: 2 } },
+  { match: /grok/, price: { input: 2, output: 6 } }, // grok-4.7, 4.6, 4.5
   { match: /gemini/, price: { input: 0.75, output: 3.75 } }, // unknown Gemini: priced like Flash
 ];
 const FALLBACK: Price = { input: 2, output: 10 };

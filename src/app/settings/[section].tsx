@@ -1225,6 +1225,13 @@ export default function SettingsScreen() {
             hint="Optional. From console.anthropic.com, starts with sk-ant-."
             test={async (key) => PROVIDERS.anthropic.test(key, await getChatModel(db, 'anthropic'))}
           />
+          <View style={styles.divider} />
+          <KeyBlock
+            provider="xai"
+            title="Grok"
+            hint="Optional. From console.x.ai (prepaid credits), starts with xai-."
+            test={async (key) => PROVIDERS.xai.test(key, await getChatModel(db, 'xai'))}
+          />
         </Section>
 
         <UsageSection />

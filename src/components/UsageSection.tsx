@@ -15,7 +15,7 @@ const dayLabel = (ms: number) => {
   const d = new Date(ms);
   return `${DAY_NAMES[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
 };
-const shortModel = (m: string) => m.replace(/^gemini-/, 'Gemini ').replace(/^claude-/, 'Claude ').replace(/-/g, ' ');
+const shortModel = (m: string) => m.replace(/^gemini-/, 'Gemini ').replace(/^claude-/, 'Claude ').replace(/^grok-/, 'Grok ').replace(/-/g, ' ');
 
 /**
  * What the AI costs: counted by the app from every call, priced, in lira.
