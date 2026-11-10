@@ -21,7 +21,7 @@ import {
   likedAccess,
 } from '../../lib/spotify';
 import { bannedSongs, getRadioPrefs, likedSongs, saveRadioPrefs, toggleLiked, unbanSong, type RadioPrefs, type SongRef } from '../../lib/songMemory';
-import { Chip, IconButton, PillButton, SectionTitle, StatusLine, type Status } from '../../components/ui';
+import { Chip, IconButton, InfoButton, PillButton, SectionTitle, StatusLine, type Status } from '../../components/ui';
 import { UsageSection } from '../../components/UsageSection';
 import { IconTile } from '../../components/IconTile';
 import { requestPinWidget } from 'react-native-android-widget';
@@ -778,9 +778,22 @@ function RadioSection() {
       <Text style={styles.label}>Big hits per show</Text>
       <Segment options={HITS} value={String(p.hits)} onChange={(v) => update({ hits: Number(v) })} />
       <Text style={styles.hint}>The rest are deep cuts: album tracks, B-sides, forgotten gems.</Text>
-      <Text style={styles.label}>Keep recent shows for</Text>
+      <View style={styles.labelRow}>
+        <Text style={[styles.label, styles.labelInRow]}>Keep recent shows for</Text>
+        <InfoButton
+          title="Recent shows"
+          points={[
+            'Every radio show is kept with its whole script: closed by accident, stopped, or finished.',
+            'On the Radio tab, Recent shows lets you Resume one where it stopped, or play it again From the start.',
+            'Nothing is written again: the hosts say the same lines and jokes, with the same songs.',
+            'The newest 3 shows also keep their voices (~20 MB each), so playing them again costs nothing.',
+            'Older shows keep only the script; playing one voices the talks again, which uses some of the daily voice quota.',
+            'Keeping shows is free: a few KB each on your phone. After the time you pick here, they are deleted.',
+          ]}
+        />
+      </View>
       <Segment options={KEEPS} value={String(p.keepDays)} onChange={(v) => update({ keepDays: Number(v) })} />
-      <Text style={styles.hint}>Keeping them is free (a few KB each on your phone). Playing one again only voices the talks again, the script isn't rewritten.</Text>
+      <Text style={styles.hint}>Tap ! to see how it works.</Text>
       <Text style={styles.label}>Your favourites coming back</Text>
       <Segment options={FAVS} value={p.favourites} onChange={(favourites) => update({ favourites })} />
       <Text style={styles.hint}>Songs from your entries, hearted songs and your Spotify Liked Songs go in one bag (a song on several lists gets more tickets); each show draws 2 (4 on Often). Songs that played lately get rarer.</Text>
@@ -1282,6 +1295,7 @@ const styles = StyleSheet.create({
   hint: { fontFamily: fonts.sansRegular, fontSize: 13, lineHeight: 19, color: colors.muted, marginTop: 8 },
   // a field's name: room above (a new field starts) and a little below (it belongs to what follows)
   label: { fontFamily: fonts.sans, fontSize: 13, letterSpacing: 0.2, color: colors.muted, marginTop: 24, marginBottom: 10 },
+  labelInRow: { marginTop: 0, marginBottom: 0 },
   stat: { fontFamily: fonts.serif, fontSize: 17, lineHeight: 25, color: colors.text, marginBottom: 6 },
 
   input: {

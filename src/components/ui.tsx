@@ -1,11 +1,46 @@
 import Ionicons from './Icon';
-import type { ComponentProps, ReactNode } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { useState, type ComponentProps, type ReactNode } from 'react';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { colors, fonts, radius } from '../lib/theme';
 import { Glass } from './Glass';
 import { PressScale } from './motion';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
+
+/**
+ * A small "!" next to a setting: tap it and a card explains how the feature works.
+ * `points` are short lines shown as a list under the title.
+ */
+export function InfoButton(props: { title: string; points: string[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Pressable onPress={() => setOpen(true)} hitSlop={10} accessibilityRole="button" accessibilityLabel={`How ${props.title} works`}>
+        <Ionicons name="alert-circle-outline" size={18} color={colors.muted} />
+      </Pressable>
+      <Modal visible={open} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setOpen(false)}>
+        <Pressable style={styles.infoBackdrop} onPress={() => setOpen(false)}>
+          {/* taps on the card itself don't close it */}
+          <Pressable onPress={() => {}} style={styles.infoCardWrap}>
+            <Glass radius={28} fill="rgba(39,38,38,0.97)" style={styles.infoCard}>
+              <View style={styles.infoHead}>
+                <Ionicons name="alert-circle-outline" size={22} color={colors.text} />
+                <Text style={styles.infoTitle}>{props.title}</Text>
+              </View>
+              {props.points.map((t, i) => (
+                <View key={i} style={styles.infoPoint}>
+                  <Text style={styles.infoDot}>•</Text>
+                  <Text style={styles.infoText}>{t}</Text>
+                </View>
+              ))}
+              <PillButton label="Got it" onPress={() => setOpen(false)} full style={{ marginTop: 18 }} />
+            </Glass>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </>
+  );
+}
 
 /** Round icon button, like the back/bell buttons in the reference. */
 export function IconButton(props: {
@@ -105,6 +140,14 @@ export function SectionTitle({ title, right }: { title: string; right?: ReactNod
 }
 
 const styles = StyleSheet.create({
+  infoBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 20 },
+  infoCardWrap: { alignSelf: 'stretch' },
+  infoCard: { padding: 22 },
+  infoHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
+  infoTitle: { flex: 1, fontFamily: fonts.display, fontSize: 19, color: colors.text },
+  infoPoint: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  infoDot: { fontFamily: fonts.sans, fontSize: 14, lineHeight: 21, color: colors.muted },
+  infoText: { flex: 1, fontFamily: fonts.serif, fontSize: 14, lineHeight: 21, color: colors.text },
   round: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   pill: {
     backgroundColor: colors.accent,
