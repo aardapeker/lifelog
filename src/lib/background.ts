@@ -10,6 +10,7 @@ import { writePendingReads } from './reads';
 import { scheduleDayOffReminders } from './planner';
 import { ensureRecap } from './recap';
 import { checkAchievements } from './achievements';
+import { ensureWrapped } from './wrapped';
 
 /**
  * Everything the app does "on its own", run when it opens or after you save.
@@ -41,6 +42,7 @@ async function runAll(db: SQLiteDatabase): Promise<void> {
   await safe(learnFacts(db));
   await safe(learnFromChats(db)); // chats that went quiet become memory (and maybe a Read)
   await safe(ensureRecap(db));
+  await safe(ensureWrapped(db)); // last month's Wrapped, on the 1st
   await safe(planAhead(db)); // a message for each of the next 7 days, in case Android keeps us asleep
   await safe(planCheckins(db)); // fills the next week of break-time check-ins
   await safe(scheduleDayOffReminders(db));

@@ -40,7 +40,7 @@ export async function rememberPlayed(db: SQLiteDatabase, t: Track): Promise<void
 const PLAYS = 'radio.plays';
 const MONTH = 30 * 86_400_000;
 
-async function playTimes(db: SQLiteDatabase): Promise<Record<string, number[]>> {
+export async function playTimes(db: SQLiteDatabase): Promise<Record<string, number[]>> {
   try {
     const all = JSON.parse(await getSetting(db, PLAYS, '{}')) as Record<string, number[]>;
     for (const id of Object.keys(all)) {

@@ -130,6 +130,7 @@ export default function RootLayout() {
         <Stack.Screen name="entry/[id]" options={{ animation: 'fade_from_bottom' }} />
         <Stack.Screen name="note/[id]" options={{ animation: 'none' }} />
         <Stack.Screen name="recap/[id]" />
+        <Stack.Screen name="wrapped/[month]" />
         <Stack.Screen name="goal/[id]" />
         <Stack.Screen name="person/[name]" />
         <Stack.Screen name="plan/[day]" />

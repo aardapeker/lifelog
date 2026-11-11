@@ -78,6 +78,7 @@ export function openNotification(data: Record<string, unknown> | undefined | nul
   else if (data.kind === 'radio') router.navigate('/radio');
   else if (data.kind === 'usage') router.push('/settings/ai');
   else if (data.kind === 'milestone' || data.kind === 'achievement') router.navigate('/insights');
+  else if (data.kind === 'wrapped' && typeof data.month === 'string') router.push(`/wrapped/${data.month}`);
 }
 
 /** Icon and label per kind, for the inbox list. */

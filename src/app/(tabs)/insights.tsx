@@ -35,6 +35,7 @@ import { FadeIn, PressScale, stagger } from '../../components/motion';
 import { useBottomSpace } from '../../components/MiniPlayer';
 import { LifeTimeline } from '../../components/Milestones';
 import { Achievements } from '../../components/Achievements';
+import { WrappedCard } from '../../components/WrappedCard';
 import { TopBar } from '../../components/TopBar';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 
@@ -267,6 +268,11 @@ export default function InsightsScreen() {
       {/* ── your life in milestones ── */}
       <FadeIn style={styles.section} delay={stagger(6, 60)}>
         <LifeTimeline />
+      </FadeIn>
+
+      {/* ── monthly Wrapped ── */}
+      <FadeIn style={styles.section} delay={stagger(7, 60)}>
+        <WrappedCard />
       </FadeIn>
 
       {/* ── silly badges ── */}
