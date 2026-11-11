@@ -128,8 +128,18 @@ export function sameArtist(asked: string, found: string): boolean {
 
 const persona = (p: Persona, role: string) => `- ${p.name} (${role}): ${p.bio}`;
 
-export async function buildShow(db: SQLiteDatabase, station: Station, wish: string, length = 8): Promise<Show> {
+/** What making a show is busy with, for the progress list on the Radio screen. */
+export type BuildStep = 'journal' | 'favourites' | 'writing' | 'songs';
+
+export async function buildShow(
+  db: SQLiteDatabase,
+  station: Station,
+  wish: string,
+  length = 8,
+  onStep: (step: BuildStep, detail?: string) => void = () => {},
+): Promise<Show> {
   const SHOW_LENGTH = length;
+  onStep('journal');
   const writer = await getRadioConfig(db); // Settings → AI: its own provider and model, or the chat's
   if (!writer.apiKey) throw new Error('Add an AI key in Settings first.');
   const [about, recent, taste, shifts, city, played, liked] = await Promise.all([
@@ -153,6 +163,7 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
   const ok = (t: { id: string }) => !banned.some((b) => b.id === t.id);
   const fresh = (t: { id: string }) => ok(t) && !resting.has(t.id);
   const favs = FAVOURITES_PER_SHOW[prefs.favourites];
+  onStep('favourites');
   const spotifyFavs = favs && prefs.spotifyLiked ? (await spotifyLikedSongs(db).catch(() => [])).filter(ok) : [];
   const twist = prefs.twists ? TWISTS[Math.floor(Math.random() * TWISTS.length)] : null;
   // ONE pool of favourites: songs from this week's entries, hearted songs and Spotify Liked Songs.
@@ -170,6 +181,7 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
   const duo = !!station.sidekick;
   const names = duo ? `"${station.host.name}" or "${station.sidekick!.name}"` : `"${station.host.name}"`;
 
+  onStep('writing');
   const reply = await writer.adapter.complete({
     feature: 'radio',
     apiKey: writer.apiKey,
@@ -258,7 +270,9 @@ export async function buildShow(db: SQLiteDatabase, station: Station, wish: stri
       .filter((l) => l.text?.trim())
       .map((l) => ({ speaker: cast.includes(l.who ?? '') ? l.who! : cast[0], text: l.text!.trim() }));
   const slots: Slot[] = [];
-  for (const s of plan.songs ?? []) {
+  const wanted = plan.songs ?? [];
+  for (const [k, s] of wanted.entries()) {
+    onStep('songs', `${k + 1}/${wanted.length}`);
     const track = await findTrack(s.title, s.artist).catch(() => null);
     if (!track || !ok(track) || slots.some((x) => x.track.id === track.id)) continue;
     // Spotify found a different artist's song with that title: the talk would name the wrong singer

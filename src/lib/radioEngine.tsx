@@ -64,6 +64,11 @@ type Phase = 'pick' | 'building' | 'onair' | 'done';
 function useRadioEngine() {
   const db = useSQLiteContext();
   const [phase, setPhase] = useState<Phase>('pick');
+  // what making the show is busy with: the steps so far, the last one still running
+  const [steps, setSteps] = useState<{ key: string; detail?: string }[]>([]);
+  const step = useCallback((key: string, detail?: string) => {
+    setSteps((all) => (all.at(-1)?.key === key ? [...all.slice(0, -1), { key, detail }] : [...all, { key, detail }]));
+  }, []);
   const [stationKey, setStationKey] = useState('neon');
   const [choices, setChoices] = useState<VoiceChoices>({});
   const [trying, setTrying] = useState<string | null>(null); // voice being previewed
@@ -424,6 +429,7 @@ function useRadioEngine() {
   };
 
   const start = async () => {
+    setSteps([]);
     setPhase('building');
     setStatus({ kind: 'idle' });
     bannedSongs(db).then((b) => setBanned(new Set(b.map((x) => x.id)))).catch(() => {}); // Settings may have let some back
@@ -431,7 +437,7 @@ function useRadioEngine() {
     likedSongs(db).then((l) => setHearts(new Set(l.map((x) => x.id)))).catch(() => {}); // hearts changed in Settings
     try {
       preview.current?.stop();
-      const s = await buildShow(db, station, wish, length);
+      const s = await buildShow(db, station, wish, length, step);
       liveId.current = String(Date.now());
       setLiveKey(liveId.current);
       writeHistory([{ id: liveId.current, show: s, index: 0, savedAt: Date.now(), done: false }, ...historyRef.current]);
@@ -439,6 +445,7 @@ function useRadioEngine() {
       clips.current = new Map();
       retried.current = new Set();
       if (voice) {
+        step('voice');
         prepare(0);
         await clips.current.get(0); // the opening line is ready before we go on air
       }
@@ -551,7 +558,9 @@ function useRadioEngine() {
       live.current = { show: s, index: at, speaking: false, paused: false, startedAt: Date.now(), voice, talked: again ? -1 : at, overlapping: false };
       clips.current = new Map();
       retried.current = new Set();
+      setSteps([]);
       if (again && voice) {
+        step('voice');
         prepare(0);
         await clips.current.get(0); // the opening line is ready before we go on air
       }
@@ -689,7 +698,7 @@ function useRadioEngine() {
     [],
   );
 
-  return { history, loadHistory, playPast, forgetShow, keepShow, liveKept, keepLive, banned, ban, miniCollapsed, setMiniCollapsed, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
+  return { steps, history, loadHistory, playPast, forgetShow, keepShow, liveKept, keepLive, banned, ban, miniCollapsed, setMiniCollapsed, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
 }
 
 export type RadioEngine = ReturnType<typeof useRadioEngine>;

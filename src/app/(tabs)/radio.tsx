@@ -7,7 +7,8 @@ import { Alert, Animated, Easing, Image, Keyboard, Pressable, ScrollView, StyleS
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MorphPlayButton, WavyProgress } from '../../components/expressive';
 import { Glass, GlassArea } from '../../components/Glass';
-import { FadeIn, Pulse, PressScale, Shimmer, ShimmerText } from '../../components/motion';
+import { FadeIn, Pulse, PressScale } from '../../components/motion';
+import { BuildProgress } from '../../components/BuildProgress';
 import { Chip, IconButton, PillButton, StatusLine } from '../../components/ui';
 import type { Palette } from '../../lib/albumColors';
 import { SHOW_LENGTHS, songLangOf, songLangsFor, type SongLang } from '../../lib/radio';
@@ -155,7 +156,7 @@ export default function RadioScreen() {
   };
   const [allShows, setAllShows] = useState(false); // Recent shows: the newest 3, or all of them
   const [recast, setRecast] = useState(false); // the full voice lists, only on purpose
-  const { history, loadHistory, playPast, forgetShow, keepShow, liveKept, keepLive, banned, ban, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, stop, current } = useRadio();
+  const { steps, history, loadHistory, playPast, forgetShow, keepShow, liveKept, keepLive, banned, ban, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, stop, current } = useRadio();
   useEffect(() => setRecast(false), [stationKey]); // a new station opens with its cast folded
   useFocusEffect(useCallback(() => { loadHistory(); }, [loadHistory])); // Settings may have changed how long shows are kept
 
@@ -361,13 +362,8 @@ export default function RadioScreen() {
         )}
 
         {phase === 'building' && (
-          <View>
-            <Text style={[styles.showTitle, { marginBottom: 16 }]}>{station.host.name} is warming up the mic…</Text>
-            <Shimmer style={styles.cover} />
-            <Shimmer style={{ height: 26, width: '70%', marginBottom: 10 }} />
-            <Shimmer style={{ width: '40%', marginBottom: 24 }} />
-            <ShimmerText lines={4} />
-          </View>
+          // what's happening, step by step (no fake skeleton)
+          <BuildProgress steps={steps} station={station} />
         )}
 
         {(phase === 'onair' || phase === 'done') && show && current && (
