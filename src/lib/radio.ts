@@ -204,7 +204,13 @@ export async function buildShow(
     .join(' or ');
 
   const songLang = songLangRule(songLangOf(station, await getSetting(db, 'radio.songLang', 'station')), station.lang);
-  const notesText = `Recent journal:\n${renderNotes(recent) || '(nothing yet)'}`;
+  // an entry's "listening to …" is a strong hint to the music director: hide it when that song is
+  // banned, or the AI keeps picking it every show and the app keeps dropping it
+  const unbanned = (notes: typeof recent) => notes.map((n) => {
+    const song = noteSong(n);
+    return song && !ok(song) ? { ...n, song: null } : n;
+  });
+  const notesText = `Recent journal:\n${renderNotes(unbanned(recent)) || '(nothing yet)'}`;
 
   // ── 1. the playlist: the AI picks the songs (and spares), nothing else ──
   onStep('picking');
@@ -355,7 +361,7 @@ export async function buildShow(
       `\n${notesText}` +
       (throwbacks.length
         ? `\n\nThrowbacks: a few random OLDER entries. Use one or two for a callback ("remember that day in September when…"), ` +
-          `always saying roughly when it was:\n${renderNotes(throwbacks)}`
+          `always saying roughly when it was:\n${renderNotes(unbanned(throwbacks))}`
         : ''),
   });
   const plan = parseJsonReply<{
