@@ -9,6 +9,7 @@ import { albumColors, type Palette } from './albumColors';
 import { getSetting, setSetting } from './db';
 import { goOffAir, goOnAir, onBeat, onRemote, setOnAirPlaying, updateOnAir, waitMs } from './onAir';
 import { buildShow, castOf, type Show } from './radio';
+import { countShow } from './achievements';
 import {
   nudgeSpotify,
   pausePlayback,
@@ -438,6 +439,7 @@ function useRadioEngine() {
     try {
       preview.current?.stop();
       const s = await buildShow(db, station, wish, length, step);
+      countShow(db, station.key).catch(() => {}); // for the radio achievements
       liveId.current = String(Date.now());
       setLiveKey(liveId.current);
       writeHistory([{ id: liveId.current, show: s, index: 0, savedAt: Date.now(), done: false }, ...historyRef.current]);

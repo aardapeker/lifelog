@@ -9,6 +9,7 @@ import { captionPending } from './photos';
 import { writePendingReads } from './reads';
 import { scheduleDayOffReminders } from './planner';
 import { ensureRecap } from './recap';
+import { checkAchievements } from './achievements';
 
 /**
  * Everything the app does "on its own", run when it opens or after you save.
@@ -34,6 +35,7 @@ export function runBackgroundJobs(db: SQLiteDatabase, opts: { soft?: boolean } =
 async function runAll(db: SQLiteDatabase): Promise<void> {
   const safe = (p: Promise<unknown>) => p.catch((e) => console.warn('background job failed', e));
   await safe(deliverDue(db));
+  await safe(checkAchievements(db)); // silly badges: a few counts, no AI
   await safe(captionPending(db)); // captions first, so they get embedded right after
   await safe(indexPending(db));
   await safe(learnFacts(db));
