@@ -26,27 +26,57 @@ function labelOf(key: string, st: Station, tr: boolean): string {
   return (L[key] ?? [key, key])[tr ? 1 : 0];
 }
 
-/** Little lines for the long wait while the script is written, changing every few seconds. */
+/** Each station's own jokes for the long wait: [English, Turkish]. */
+const FUNNY: Record<string, [string, string][]> = {
+  friend: [
+    ['Pretending to listen to your problems', 'Dertlerini dinliyormuş gibi yapılıyor'],
+    ["Checking if you drank water today (you didn't)", 'Bugün su içtin mi diye bakılıyor (içmedin)'],
+    ['Practising a supportive voice', 'Destekleyici ses tonu prova ediliyor'],
+  ],
+  neon: [
+    ['Candy is teasing her hair to 1987 levels', 'Candy saçlarını 1987 seviyesine kabartıyor'],
+    ['Rico is ironing the shoulder pads', 'Rico vatkaları ütülüyor'],
+    ['Rewinding the cassette with a pencil', 'Kaset kalemle geri sarılıyor'],
+    ['Looking for the convertible keys', 'Üstü açık arabanın anahtarı aranıyor'],
+  ],
+  nightshift: [
+    ['Max is on his fourth coffee', 'Max dördüncü kahvesinde'],
+    ['Deniz is staring at the city lights, dramatically', 'Deniz şehrin ışıklarına dramatik dramatik bakıyor'],
+    ['Waiting for the servis that is always 7 minutes late', 'Her zaman 7 dakika geç kalan servis bekleniyor'],
+    ['Counting boxes until sunrise', 'Güneş doğana kadar koli sayılıyor'],
+  ],
+  rock: [
+    ['Riff is tuning a guitar that was already in tune', 'Riff zaten akortlu gitarı akort ediyor'],
+    ['Turning the amp up to 11', 'Amfi 11’e açılıyor'],
+    ['Selin is hiding the drummer’s energy drinks', 'Selin davulcunun enerji içeceklerini saklıyor'],
+    ['Looking for the guitar pick inside the guitar', 'Gitarın içine düşen pena aranıyor'],
+  ],
+  chill: [
+    ['Şemistan is sitting on the keyboard', 'Şemistan klavyenin üstüne oturdu'],
+    ['Ece is waiting for the rain to start', 'Ece yağmurun başlamasını bekliyor'],
+    ['Şemistan knocked the mic off the table. Again.', 'Şemistan mikrofonu masadan düşürdü. Yine.'],
+    ['Negotiating with the cat for the chair', 'Sandalye için kediyle pazarlık yapılıyor'],
+  ],
+  arabesk: [
+    ['Kemal is staring out the window, sighing', 'Kemal camdan dışarı bakıp iç çekiyor'],
+    ['Cengiz is brewing the tea, demli', 'Cengiz çayı demliyor, tavşan kanı'],
+    ['Kemal lit a cigarette, then remembered he quit', 'Kemal sigara yaktı, sonra bıraktığını hatırladı'],
+    ['Wiping a single tear off the microphone', 'Mikrofondaki tek damla gözyaşı siliniyor'],
+    ['Blaming fate (kader) for the delay', 'Gecikme için kader suçlanıyor'],
+  ],
+};
+
+/** Little lines for the long wait while the script is written: real work and jokes, shuffled. */
 function asides(st: Station, tr: boolean): string[] {
   const host = st.host.name;
   const side = st.sidekick?.name;
-  return tr
-    ? [
-        'Bu haftanın notlarına bakılıyor',
-        `${host} açılış cümlesini düşünüyor`,
-        side ? `${side} sahte bir reklam yazıyor` : 'Sahte bir reklam yazılıyor',
-        'Şakalar deneniyor, kötüleri atılıyor',
-        'Şarkı sırası ayarlanıyor',
-        'Haberler hayatından seçiliyor',
-      ]
-    : [
-        'Looking at this week’s notes',
-        `${host} is thinking of an opening line`,
-        side ? `${side} is writing a fake ad` : 'Writing a fake ad',
-        'Testing jokes, throwing out the bad ones',
-        'Putting the songs in order',
-        'Picking the news from your life',
-      ];
+  const work = tr
+    ? ['Bu haftanın notlarına bakılıyor', `${host} açılış cümlesini düşünüyor`, side ? `${side} sahte bir reklam yazıyor` : 'Sahte bir reklam yazılıyor', 'Şakalar deneniyor, kötüleri atılıyor']
+    : ['Looking at this week’s notes', `${host} is thinking of an opening line`, side ? `${side} is writing a fake ad` : 'Writing a fake ad', 'Testing jokes, throwing out the bad ones'];
+  const jokes = (FUNNY[st.key] ?? FUNNY.friend).map(([en, trk]) => (tr ? trk : en));
+  // alternate: a real step, a joke, a real step… (jokes in random order, so it's not the same every show)
+  const mixed = [...jokes].sort(() => Math.random() - 0.5);
+  return work.flatMap((w, i) => (mixed[i] ? [w, mixed[i]] : [w])).concat(mixed.slice(work.length));
 }
 
 /** Four dots in a square, lighting up one after another. */
