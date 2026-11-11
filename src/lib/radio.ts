@@ -275,12 +275,18 @@ export async function buildShow(
   };
   const wanted = pick.songs ?? [];
   const spares = [...(pick.spares ?? [])];
-  for (const [k, planned] of wanted.entries()) {
-    onStep('songs', `${k + 1}/${wanted.length}`);
+  // the counter shows songs really FOUND (not just looked up), and how many a spare had to replace
+  let replaced = 0;
+  const found = () => `${tracks.length}/${wanted.length} found${replaced ? ` · ${replaced} swapped for a spare` : ''}`;
+  for (const planned of wanted) {
+    onStep('songs', found());
     let track = await usable(planned);
+    if (!track) replaced++;
     while (!track && spares.length) track = await usable(spares.shift()!);
+    if (!track) replaced--; // not even a spare worked: this one is simply missing
     if (track) tracks.push(track);
   }
+  onStep('songs', found());
   if (!tracks.length) throw new Error("Couldn't find those songs on Spotify. Try again?");
   // your turn: the talks are written for the order you leave it in
   if (review) tracks = (await review(tracks)).filter(Boolean);
