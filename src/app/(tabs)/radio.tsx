@@ -156,7 +156,7 @@ export default function RadioScreen() {
   };
   const [allShows, setAllShows] = useState(false); // Recent shows: the newest 3, or all of them
   const [recast, setRecast] = useState(false); // the full voice lists, only on purpose
-  const { steps, history, loadHistory, playPast, forgetShow, keepShow, liveKept, keepLive, banned, ban, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, stop, current } = useRadio();
+  const { replay, steps, history, loadHistory, playPast, forgetShow, keepShow, liveKept, keepLive, banned, ban, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, stop, current } = useRadio();
   useEffect(() => setRecast(false), [stationKey]); // a new station opens with its cast folded
   useFocusEffect(useCallback(() => { loadHistory(); }, [loadHistory])); // Settings may have changed how long shows are kept
 
@@ -404,13 +404,16 @@ export default function RadioScreen() {
               <Text style={[styles.text, { marginTop: 18 }]}>That's the show. Spotify keeps playing from here.</Text>
             )}
 
-            <Text style={styles.label}>{index + 1 < show.slots.length ? 'Up next' : 'Tonight’s set'}</Text>
+            <Text style={styles.label}>
+              {phase === 'done' ? 'Tonight’s set · tap a song to play from there' : index + 1 < show.slots.length ? 'Up next' : 'Tonight’s set'}
+            </Text>
             {show.slots.map((s, i) => (
               <PressScale
                 key={s.track.id}
                 scaleTo={0.98}
                 style={[styles.row, i === index && styles.rowNow]}
-                onPress={() => phase === 'onair' && i !== index && jumpTo(i, false)}
+                // on air: jump to it; after the show: play the show again from that song
+                onPress={() => (phase === 'onair' ? i !== index && jumpTo(i, false) : replay(i))}
                 accessibilityLabel={`Play ${s.track.name}`}
               >
                 <Text style={styles.rowNum}>{i + 1}</Text>
@@ -437,7 +440,8 @@ export default function RadioScreen() {
               {/* 🔖 keeps this show for good, script and voices, so it can be played again any time for free */}
               <PillButton label={liveKept ? 'Show saved ✓' : 'Save show'} onPress={keepLive} ghost={liveKept} />
               <PillButton label="Save to Spotify" onPress={save} ghost />
-              {phase === 'done' && <PillButton label="New show" onPress={() => setPhase('pick')} />}
+              {phase === 'done' && <PillButton label="Play again" onPress={() => replay()} />}
+              {phase === 'done' && <PillButton label="New show" onPress={() => setPhase('pick')} ghost />}
             </View>
           </>
         )}

@@ -540,13 +540,14 @@ function useRadioEngine() {
    * Plays a show from Recent shows. The script is kept, so nothing is written again; only the talks
    * still ahead are voiced. `fromStart` false: picks up where it was, and if Spotify is still playing
    * our queue (the app was closed mid-show) it just catches up, without stopping the music.
+   * `from`: start at that song, with its talk (a finished show's set list: tap a song to play from there).
    */
-  const playPast = async (id: string, fromStart: boolean) => {
+  const playPast = async (id: string, fromStart: boolean, from?: number) => {
     const h = historyRef.current.find((x) => x.id === id);
     if (!h) return;
     const s = h.show;
-    const again = fromStart || h.done;
-    const at = again ? 0 : h.index;
+    const again = fromStart || h.done || from !== undefined; // with the talk before the first song
+    const at = from ?? (again ? 0 : h.index);
     setStationKey(s.station.key);
     setStatus({ kind: 'idle' });
     setPhase('building');
@@ -555,14 +556,14 @@ function useRadioEngine() {
       liveId.current = id;
       setLiveKey(id);
       record({ index: at, done: false });
-      live.current = { show: s, index: at, speaking: false, paused: false, startedAt: Date.now(), voice, talked: again ? -1 : at, overlapping: false };
+      live.current = { show: s, index: at, speaking: false, paused: false, startedAt: Date.now(), voice, talked: again ? at - 1 : at, overlapping: false };
       clips.current = new Map();
       retried.current = new Set();
       setSteps([]);
       if (again && voice) {
         step('voice');
-        prepare(0);
-        await clips.current.get(0); // the opening line is ready before we go on air
+        prepare(at);
+        await clips.current.get(at); // its talk is ready before we go on air
       }
       setShow(s);
       setIndex(at);
@@ -592,6 +593,11 @@ function useRadioEngine() {
       setPhase('pick');
       fail(e);
     }
+  };
+
+  /** The show that just ended (or stopped in a tunnel): again from the top, or from one of its songs. */
+  const replay = (from?: number) => {
+    if (liveKey) playPast(liveKey, true, from);
   };
 
   const save = async () => {
@@ -698,7 +704,7 @@ function useRadioEngine() {
     [],
   );
 
-  return { steps, history, loadHistory, playPast, forgetShow, keepShow, liveKept, keepLive, banned, ban, miniCollapsed, setMiniCollapsed, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
+  return { replay, steps, history, loadHistory, playPast, forgetShow, keepShow, liveKept, keepLive, banned, ban, miniCollapsed, setMiniCollapsed, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
 }
 
 export type RadioEngine = ReturnType<typeof useRadioEngine>;
