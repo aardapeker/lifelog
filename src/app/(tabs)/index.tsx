@@ -19,7 +19,6 @@ import {
   greeting,
   groupByDay,
   listNotes,
-  noteSong,
   onThisDay,
   type DaySection,
   type Note,
@@ -44,7 +43,6 @@ function EntryCard({ note, label, photos }: { note: Note; label: string; photos?
     <PressScale style={styles.card} scaleTo={0.97} onPress={() => router.push(`/entry/${note.id}`)}>
       <Text style={styles.cardTime}>
         {label}
-        {noteSong(note) ? `  ·  ♪ ${noteSong(note)!.name}` : ''}
       </Text>
       {!!note.body && (
         <Text style={styles.cardBody} numberOfLines={5}>

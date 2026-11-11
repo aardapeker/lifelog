@@ -3,13 +3,13 @@ import { openWrite } from '../../lib/write';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState, type ReactNode } from 'react';
-import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { articleStyles, paragraphs } from '../../components/Article';
 import { FadeIn, PressScale } from '../../components/motion';
 import { PhotoViewer } from '../../components/PhotoViewer';
 import { IconButton, InfoTile } from '../../components/ui';
-import { entryTitle, formatDate, formatTime, getNote, noteSong, type Note } from '../../lib/notes';
+import { entryTitle, formatDate, formatTime, getNote, type Note } from '../../lib/notes';
 import { listPhotos, photoUri, type Photo } from '../../lib/photos';
 import { colors, fonts, radius } from '../../lib/theme';
 
@@ -81,7 +81,6 @@ export default function EntryScreen() {
   );
 
   const edit = () => openWrite({ id: Number(id) });
-  const song = note ? noteSong(note) : null;
   const blocks = note ? paragraphs(note.body) : [];
   const words = note?.body.split(/\s+/).filter(Boolean).length ?? 0;
   const [first, ...rest] = photos;
@@ -102,27 +101,6 @@ export default function EntryScreen() {
               {formatTime(note.created_at)}
               {note.mood_label ? ` · feeling ${note.mood_label}` : ''}
             </Text>
-
-            {song && (
-              <PressScale
-                style={styles.song}
-                scaleTo={0.97}
-                onPress={() => Linking.openURL(`spotify:track:${song.id}`).catch(() => {})}
-                accessibilityLabel={`Open ${song.name} in Spotify`}
-              >
-                {song.image ? <Image source={{ uri: song.image }} style={styles.songCover} /> : <Ionicons name="musical-notes" size={22} color={colors.muted} />}
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.songSmall}>Playing while you wrote</Text>
-                  <Text style={styles.songName} numberOfLines={1}>
-                    {song.name}
-                  </Text>
-                  <Text style={styles.songSmall} numberOfLines={1}>
-                    {song.artist}
-                  </Text>
-                </View>
-                <Ionicons name="play-circle" size={30} color={colors.text} />
-              </PressScale>
-            )}
 
             <View style={articleStyles.tiles}>
               <InfoTile label="Reading" value={`${Math.max(1, Math.round(words / 200))} min`} />
@@ -169,10 +147,6 @@ function PhotoTile({ p, onPress, hero }: { p: Photo; onPress: () => void; hero?:
 }
 
 const styles = StyleSheet.create({
-  song: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 22, padding: 12, borderRadius: radius.md, backgroundColor: colors.raised },
-  songCover: { width: 52, height: 52, borderRadius: 10 },
-  songName: { fontFamily: fonts.sans, fontSize: 16, color: colors.text, marginVertical: 2 },
-  songSmall: { fontFamily: fonts.sansRegular, fontSize: 12, color: colors.muted },
   hero: { marginTop: 8 },
   photoWrap: { marginTop: 10, marginBottom: 14 },
   photo: { width: '100%', aspectRatio: 4 / 3, borderRadius: radius.md, backgroundColor: colors.raised },

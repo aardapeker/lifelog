@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   Alert,
   BackHandler,
-  Linking,
   Image,
   KeyboardAvoidingView,
   Pressable,
@@ -24,8 +23,7 @@ import { IconButton, InfoTile, PillButton } from './ui';
 import { runBackgroundJobs } from '../lib/background';
 import { getSetting, setSetting } from '../lib/db';
 import { fixGrammar } from '../lib/grammar';
-import { deleteNote, entryTitle, formatTime, getNote, noteSong, saveNote, setNoteSong, type NoteSong } from '../lib/notes';
-import { currentSong, playTracks, spotifyConnected } from '../lib/spotify';
+import { deleteNote, entryTitle, formatTime, getNote, saveNote } from '../lib/notes';
 import { deleteNotePhotos, deletePhotoFile, importPhoto, listPhotos, photoUri, pickPhoto, syncPhotos } from '../lib/photos';
 import { takePendingShare } from '../lib/share';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../lib/theme';
@@ -71,8 +69,6 @@ export function NoteEditor({
   const savedPhotos = useRef<string[]>([]); // what the database had when we opened
   const savedBody = useRef(''); // the text the database had when we opened
   const [restored, setRestored] = useState(false);
-  const [song, setSong] = useState<NoteSong | null>(null); // what was playing when this was written
-  const savedSong = useRef<string | null>(null);
   const draftKey = `draft.${noteId ?? 'new'}`;
   const recorder = useAudioRecorder(VOICE_RECORDING);
 
@@ -84,19 +80,11 @@ export function NoteEditor({
           savedBody.current = n.body;
           setBody(n.body);
           setCreatedAt(n.created_at);
-          savedSong.current = noteSong(n)?.id ?? null;
-          setSong(noteSong(n));
         }
         const ps = await listPhotos(db, noteId);
         savedPhotos.current = ps.map((p) => p.file);
         setPhotos(ps.map((p) => p.file));
         setCaptions(Object.fromEntries(ps.map((p) => [p.file, p.caption])));
-      }
-      // a new entry remembers the song you're listening to (Spotify)
-      if (noteId === null && (await spotifyConnected())) {
-        currentSong()
-          .then((t) => t && setSong(t))
-          .catch(() => {});
       }
       // writing that never got saved (app closed, phone died, another entry opened): bring it back
       const draft = await loadDraft();
@@ -222,8 +210,7 @@ export function NoteEditor({
 
   const changed = () =>
     body !== savedBody.current ||
-    photos.join() !== savedPhotos.current.join() ||
-    (noteId !== null && (song?.id ?? null) !== savedSong.current);
+    photos.join() !== savedPhotos.current.join();
   const changedRef = useRef(changed); // for the back button, which is registered once
   changedRef.current = changed;
 
@@ -259,7 +246,6 @@ export function NoteEditor({
     }
     const savedId = await saveNote(db, noteId, text);
     await syncPhotos(db, savedId, photos);
-    if ((song?.id ?? null) !== savedSong.current) await setNoteSong(db, savedId, song);
     await clearDraft();
     haptic.success();
     runBackgroundJobs(db).catch(() => {}); // captions, search index, facts: never block saving
@@ -378,26 +364,6 @@ export function NoteEditor({
 
       <ScrollView style={styles.sheet} contentContainerStyle={styles.sheetContent} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>{entryTitle(createdAt)}</Text>
-        {song && (
-          <View style={styles.song}>
-            <Pressable
-              style={{ flex: 1 }}
-              onPress={() =>
-                playTracks([`spotify:track:${song.id}`]).catch(() =>
-                  Linking.openURL(`https://open.spotify.com/track/${song.id}`).catch(() => {}),
-                )
-              }
-              accessibilityLabel="Play this song"
-            >
-              <Text style={styles.songText} numberOfLines={1}>
-                ♪ {song.name} · {song.artist}
-              </Text>
-            </Pressable>
-            <Pressable onPress={() => setSong(null)} hitSlop={10} accessibilityLabel="Remove the song">
-              <Ionicons name="close" size={16} color={colors.muted} />
-            </Pressable>
-          </View>
-        )}
         {restored && (
           <Pressable onPress={() => setRestored(false)}>
             <Text style={styles.restored}>Brought back what you didn't get to save. Tap to hide.</Text>
@@ -482,17 +448,6 @@ export function NoteEditor({
 }
 
 const styles = StyleSheet.create({
-  song: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: colors.raised,
-    borderRadius: radius.pill,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    marginBottom: 14,
-  },
-  songText: { fontFamily: fonts.sans, fontSize: 13, color: colors.text },
   restored: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.muted, marginTop: -8, marginBottom: 14 },
   screen: { flex: 1, backgroundColor: colors.bg },
   bar: {

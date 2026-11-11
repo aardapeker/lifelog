@@ -92,7 +92,7 @@ export async function unbanSong(db: SQLiteDatabase, id: string): Promise<void> {
 
 export type RadioPrefs = {
   hits: number; // big, well-known hits per show (0-4)
-  favourites: 'never' | 'sometimes' | 'often'; // hearted, journal and Spotify Liked songs coming back
+  favourites: 'never' | 'sometimes' | 'often'; // hearted and Spotify Liked songs coming back
   spotifyLiked: boolean; // use your Spotify Liked Songs as favourites
   twists: boolean; // a random theme per show
   talk: 'short' | 'normal' | 'long'; // how much the hosts say between songs

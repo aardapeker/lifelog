@@ -3,7 +3,7 @@ import { getRadioConfig, parseJsonReply } from './chat';
 import { getCheckinSettings, shiftFor } from './checkins';
 import { aboutUser, renderNotes } from './context';
 import { getSetting } from './db';
-import { formatDate, noteSong, olderNotes, recentNotes } from './notes';
+import { formatDate, olderNotes, recentNotes } from './notes';
 import { bannedSongs, FAVOURITES_PER_SHOW, getRadioPrefs, likedSongs, playedSongs, playsThisMonth, songLine } from './songMemory';
 import { findTrack, musicTaste, spotifyLikedSongs, type Track } from './spotify';
 import { STATIONS, type Persona, type Station } from './stations';
@@ -32,10 +32,9 @@ function pickGuest(station: Station): (Persona & { from: string }) | undefined {
   return { ...who, from: `${from.name} ${from.freq}` };
 }
 
-/** Quick ideas for the "anything else?" box. */
 /**
- * Draws the favourites for one show. Every list a song is on is one more ticket in the bag (in your
- * journal + Spotify Liked + hearted here = 3 tickets), and every play in the last 30 days halves its
+ * Draws the favourites for one show. Every list a song is on is one more ticket in the bag (Spotify
+ * Liked + hearted here = 2 tickets), and every play in the last 30 days halves its
  * chances, so a song you love comes back often but can't take over every show.
  */
 export function drawFavourites<T extends { id: string }>(
@@ -184,17 +183,13 @@ export async function buildShow(
   onStep('favourites');
   const spotifyFavs = favs && prefs.spotifyLiked ? (await spotifyLikedSongs(db).catch(() => [])).filter(ok) : [];
   const twist = prefs.twists ? TWISTS[Math.floor(Math.random() * TWISTS.length)] : null;
-  // ONE pool of favourites: songs from this week's entries, hearted songs and Spotify Liked Songs.
-  // The app draws a random few (Settings → Radio: 2 sometimes, 4 often) and the show plays exactly those.
-  const journalSongs = recent
-    .map((n) => noteSong(n))
-    .filter((x): x is NonNullable<typeof x> => !!x)
-    .map((x) => ({ id: x.id, uri: `spotify:track:${x.id}`, name: x.name, artist: x.artist }));
+  // ONE pool of favourites: hearted songs and Spotify Liked Songs. The app draws a random few
+  // (Settings → Radio: 2 sometimes, 4 often) and the show plays exactly those.
   // a genre station only plays the favourites that belong to its genre (Arabesk FM doesn't play your rock
   // songs): it gets a few more to choose from, and the writer keeps those that fit, up to `favs`
   const strict = station.key !== 'friend';
   const welcome = favs
-    ? drawFavourites([journalSongs, liked, spotifyFavs], await playsThisMonth(db), strict ? favs * 3 : favs, fresh)
+    ? drawFavourites([liked, spotifyFavs], await playsThisMonth(db), strict ? favs * 3 : favs, fresh)
     : [];
   const duo = !!station.sidekick;
   const guest = pickGuest(station);
@@ -204,13 +199,7 @@ export async function buildShow(
     .join(' or ');
 
   const songLang = songLangRule(songLangOf(station, await getSetting(db, 'radio.songLang', 'station')), station.lang);
-  // an entry's "listening to …" is a strong hint to the music director: hide it when that song is
-  // banned, or the AI keeps picking it every show and the app keeps dropping it
-  const unbanned = (notes: typeof recent) => notes.map((n) => {
-    const song = noteSong(n);
-    return song && !ok(song) ? { ...n, song: null } : n;
-  });
-  const notesText = `Recent journal:\n${renderNotes(unbanned(recent)) || '(nothing yet)'}`;
+  const notesText = `Recent journal:\n${renderNotes(recent) || '(nothing yet)'}`;
 
   // ── 1. the playlist: the AI picks the songs (and spares), nothing else ──
   onStep('picking');
@@ -361,7 +350,7 @@ export async function buildShow(
       `\n${notesText}` +
       (throwbacks.length
         ? `\n\nThrowbacks: a few random OLDER entries. Use one or two for a callback ("remember that day in September when…"), ` +
-          `always saying roughly when it was:\n${renderNotes(unbanned(throwbacks))}`
+          `always saying roughly when it was:\n${renderNotes(throwbacks)}`
         : ''),
   });
   const plan = parseJsonReply<{

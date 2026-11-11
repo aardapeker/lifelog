@@ -3,7 +3,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import type { Tool } from './chat';
 import { getSetting } from './db';
 import { listFacts } from './facts';
-import { formatDate, noteSong, recentNotes, type Note } from './notes';
+import { formatDate, recentNotes, type Note } from './notes';
 import { musicTaste, spotifyConnected } from './spotify';
 import { hybridSearch } from './search';
 
@@ -14,8 +14,7 @@ export function renderNotes(notes: Note[]): string {
   return notes
     .map((n) => {
       const body = n.body.length > MAX_NOTE_CHARS ? `${n.body.slice(0, MAX_NOTE_CHARS)}…` : n.body;
-      const song = noteSong(n);
-      return `[${formatDate(n.created_at)}]${song ? ` (listening to "${song.name}" by ${song.artist})` : ''}\n${body}`;
+      return `[${formatDate(n.created_at)}]\n${body}`;
     })
     .join('\n\n---\n\n');
 }
