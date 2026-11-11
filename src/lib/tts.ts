@@ -185,6 +185,41 @@ async function withRetry<T>(call: () => Promise<T>): Promise<T> {
   throw new Error('unreachable');
 }
 
+/** Audio is billed at 25 tokens a second: count the seconds in the WAV. */
+function recordVoice(model: string, lines: SpokenLine[], cast: Cast, bytes: Uint8Array) {
+  recordUsage({
+    provider: 'gemini',
+    model,
+    feature: 'voice',
+    input: textTokens(lines.map((l) => l.text).join(' ') + cast.map((c) => c.style).join(' ')),
+    output: wavSeconds(bytes) * 25,
+  });
+}
+
+let duoMisses = 0; // two-voice requests that failed for a reason other than limits
+/**
+ * One request with both voices. A try only: if it fails (a model refusing the two-speaker setup,
+ * say), nothing is marked as failed or resting, and the talk is voiced line by line as before.
+ * After a few such misses it stops trying for this session.
+ */
+async function tryDuo(apiKey: string, lines: SpokenLine[], cast: Cast): Promise<Uint8Array | null> {
+  if (duoMisses >= 3) return null;
+  for (const route of routesInOrder()) {
+    if (spent.get(route.model) === today() || Date.now() - (resting.get(route.model) ?? 0) < REST_MS) continue;
+    try {
+      const bytes = await withRetry(() => route.call(apiKey, route.model, lines, cast)); // a per-minute limit: wait and retry
+      recordVoice(route.model, lines, cast, bytes);
+      return bytes;
+    } catch (e) {
+      if (offline(e)) return null;
+      if (dailyLimit(e)) spent.set(route.model, today());
+      if (/\b429\b/.test(String(e))) continue; // a limit, not the two-speaker setup
+      duoMisses++;
+    }
+  }
+  return null;
+}
+
 /** One voice, one or more lines: tries every route (remembering what works) and returns WAV bytes. */
 async function voiceBytes(apiKey: string, lines: SpokenLine[], cast: Cast): Promise<Uint8Array> {
   if (failure && Date.now() - failure.at < 20_000) throw new Error(failure.message);
@@ -198,15 +233,7 @@ async function voiceBytes(apiKey: string, lines: SpokenLine[], cast: Cast): Prom
     if (!allResting && !failedHere.has(route.model) && Date.now() - (resting.get(route.model) ?? 0) < REST_MS) continue;
     try {
       const bytes = await withRetry(() => route.call(apiKey, route.model, lines, cast));
-      // audio is billed at 25 tokens a second: count the seconds in the WAV (16-bit mono)
-      const rate = new DataView(bytes.buffer, bytes.byteOffset).getUint32(24, true) || 24000;
-      recordUsage({
-        provider: 'gemini',
-        model: route.model,
-        feature: 'voice',
-        input: textTokens(lines.map((l) => l.text).join(' ') + cast.map((c) => c.style).join(' ')),
-        output: (Math.max(0, bytes.length - 44) / (rate * 2)) * 25,
-      });
+      recordVoice(route.model, lines, cast, bytes);
       worksVia.set(route.model, route.call);
       resting.delete(route.model);
       failure = null;
@@ -263,8 +290,9 @@ export async function synthesize(lines: SpokenLine[], cast: Cast): Promise<strin
   // short for the words (the two-speaker mode dropped someone), it's voiced line by line after all
   const speakers = cast.filter((c) => turns.some((t) => t.speaker === c.name));
   if (turns.length > 1 && speakers.length === 2) {
-    const both = await voiceBytes(apiKey, turns, speakers);
-    if (wavSeconds(both) >= expectedSeconds(turns) * 0.5) parts.push(both);
+    const both = await tryDuo(apiKey, turns, speakers);
+    if (both && wavSeconds(both) >= expectedSeconds(turns) * 0.5) parts.push(both);
+    else if (both) duoMisses++; // came back too short: someone was dropped
   }
   if (!parts.length) for (const t of turns) parts.push(await voiceBytes(apiKey, [t], [voiceFor(t.speaker)]));
   const file = new File(Paths.cache, `voice-${Date.now()}-${Math.round(Math.random() * 1e6)}.wav`);
