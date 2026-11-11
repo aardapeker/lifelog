@@ -18,6 +18,7 @@ function labelOf(key: string, st: Station, tr: boolean): string {
   const L: Record<string, [string, string]> = {
     journal: ['Reading your journal', 'Günlüğün okunuyor'],
     favourites: ['Digging through your favourites', 'Favori şarkıların karıştırılıyor'],
+    picking: [`${host} is picking the records`, `${host} plakları seçiyor`],
     writing: [`${host} is writing the show`, `${host} programı yazıyor`],
     songs: ['Finding the songs on Spotify', "Şarkılar Spotify'da aranıyor"],
     voice: [`${host} & ${side} are warming up the mic`, `${host} ve ${side} mikrofonu ısıtıyor`],
@@ -203,7 +204,7 @@ export function BuildProgress({ steps, station }: { steps: { key: string; detail
   }, []);
   const secs = Math.max(0, Math.floor((now - since) / 1000));
   const lines = useMemo(() => asides(station, tr), [station, tr]);
-  const aside = current?.key === 'writing' ? lines[Math.floor(secs / 6) % lines.length] : current?.detail;
+  const aside = current?.key === 'writing' || current?.key === 'picking' ? lines[Math.floor(secs / 6) % lines.length] : current?.detail;
   const clock = secs >= 5 ? `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}` : '';
 
   return (

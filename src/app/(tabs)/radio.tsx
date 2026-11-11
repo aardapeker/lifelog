@@ -156,7 +156,7 @@ export default function RadioScreen() {
   };
   const [allShows, setAllShows] = useState(false); // Recent shows: the newest 3, or all of them
   const [recast, setRecast] = useState(false); // the full voice lists, only on purpose
-  const { replay, steps, history, loadHistory, playPast, forgetShow, keepShow, liveKept, keepLive, banned, ban, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, stop, current } = useRadio();
+  const { draft, reviewFirst, setReviewFirst, moveDraft, dropDraft, writeDraft, cancelDraft, replay, steps, history, loadHistory, playPast, forgetShow, keepShow, liveKept, keepLive, banned, ban, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, stop, current } = useRadio();
   useEffect(() => setRecast(false), [stationKey]); // a new station opens with its cast folded
   useFocusEffect(useCallback(() => { loadHistory(); }, [loadHistory])); // Settings may have changed how long shows are kept
 
@@ -289,6 +289,12 @@ export default function RadioScreen() {
               ))}
             </View>
 
+            <Text style={styles.label}>Playlist</Text>
+            <View style={styles.chips}>
+              <Chip label="Let me check it first" active={reviewFirst} onPress={() => setReviewFirst(true)} />
+              <Chip label="Surprise me" active={!reviewFirst} onPress={() => setReviewFirst(false)} />
+            </View>
+
             <Text style={styles.label}>Hosts speak</Text>
             <View style={styles.chips}>
               {LANGS.map((l) => (
@@ -359,6 +365,42 @@ export default function RadioScreen() {
               {...inputColors}
             />
           </FadeIn>
+        )}
+
+        {phase === 'review' && draft && (
+          // the songs are picked and found on Spotify: reorder or drop some, then the hosts write the talks
+          <View>
+            <Text style={styles.reviewTitle}>Tonight's playlist</Text>
+            <Text style={styles.reviewHint}>
+              Move songs up or down, or drop one. The hosts write their talks for this exact order.
+            </Text>
+            {draft.map((t, i) => (
+              <View key={t.id} style={styles.row}>
+                <Text style={styles.rowNum}>{i + 1}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rowName} numberOfLines={1}>
+                    {t.name}
+                  </Text>
+                  <Text style={styles.rowArtist} numberOfLines={1}>
+                    {t.artist}
+                  </Text>
+                </View>
+                <Pressable onPress={() => moveDraft(i, -1)} hitSlop={6} disabled={i === 0} accessibilityLabel={`Move ${t.name} up`}>
+                  <Ionicons name="chevron-up" size={22} color={i === 0 ? colors.line : colors.text} />
+                </Pressable>
+                <Pressable onPress={() => moveDraft(i, 1)} hitSlop={6} disabled={i === draft.length - 1} accessibilityLabel={`Move ${t.name} down`}>
+                  <Ionicons name="chevron-down" size={22} color={i === draft.length - 1 ? colors.line : colors.text} />
+                </Pressable>
+                <Pressable onPress={() => dropDraft(i)} hitSlop={6} disabled={draft.length === 1} accessibilityLabel={`Drop ${t.name}`}>
+                  <Ionicons name="close" size={20} color={colors.muted} />
+                </Pressable>
+              </View>
+            ))}
+            <View style={styles.after}>
+              <PillButton label="Write the show" onPress={writeDraft} />
+              <PillButton label="Back" onPress={cancelDraft} ghost />
+            </View>
+          </View>
         )}
 
         {phase === 'building' && (
@@ -487,6 +529,8 @@ const styles = StyleSheet.create({
   voiceFor: { fontFamily: fonts.sans, fontSize: 13, color: colors.text, marginBottom: 8 },
   voiceRow: { gap: 8, paddingRight: 24 },
   resume: { flexDirection: 'row', gap: 14, padding: 16, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', marginBottom: 10 },
+  reviewTitle: { fontFamily: fonts.display, fontSize: 26, color: colors.text, marginBottom: 6 },
+  reviewHint: { fontFamily: fonts.sansRegular, fontSize: 14, lineHeight: 20, color: colors.muted, marginBottom: 14 },
   pastIcons: { gap: 16, alignItems: 'center' },
   resumeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, flexWrap: 'wrap' },
   recast: { alignSelf: 'flex-start', marginBottom: 18 },

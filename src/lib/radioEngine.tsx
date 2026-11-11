@@ -60,7 +60,7 @@ async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | undefined>
 
 const END_MARGIN_MS = 2500; // stop this close to the end, so Spotify doesn't drift into its own autoplay
 
-type Phase = 'pick' | 'building' | 'onair' | 'done';
+type Phase = 'pick' | 'building' | 'review' | 'onair' | 'done';
 
 function useRadioEngine() {
   const db = useSQLiteContext();
@@ -429,6 +429,43 @@ function useRadioEngine() {
     }
   };
 
+  // ── the playlist check between picking the songs and writing the talks ──
+  const [draft, setDraft] = useState<Track[] | null>(null);
+  const [reviewFirst, setReviewFirstState] = useState(true);
+  useEffect(() => {
+    getSetting(db, 'radio.review', '1').then((v) => setReviewFirstState(v === '1')).catch(() => {});
+  }, [db]);
+  const setReviewFirst = (on: boolean) => {
+    setReviewFirstState(on);
+    setSetting(db, 'radio.review', on ? '1' : '0').catch(() => {});
+  };
+  const decide = useRef<{ ok: (t: Track[]) => void; no: (e: Error) => void } | null>(null);
+  const review = (tracks: Track[]) =>
+    new Promise<Track[]>((ok, no) => {
+      decide.current = { ok, no };
+      setDraft(tracks);
+      setPhase('review');
+    });
+  const moveDraft = (i: number, by: -1 | 1) =>
+    setDraft((d) => {
+      if (!d || i + by < 0 || i + by >= d.length) return d;
+      const next = [...d];
+      [next[i], next[i + by]] = [next[i + by], next[i]];
+      return next;
+    });
+  const dropDraft = (i: number) => setDraft((d) => (d && d.length > 1 ? d.filter((_, k) => k !== i) : d));
+  const writeDraft = () => {
+    if (!draft) return;
+    setPhase('building');
+    decide.current?.ok(draft);
+    decide.current = null;
+  };
+  const cancelDraft = () => {
+    decide.current?.no(new Error('cancelled'));
+    decide.current = null;
+    setDraft(null);
+  };
+
   const start = async () => {
     setSteps([]);
     setPhase('building');
@@ -438,7 +475,8 @@ function useRadioEngine() {
     likedSongs(db).then((l) => setHearts(new Set(l.map((x) => x.id)))).catch(() => {}); // hearts changed in Settings
     try {
       preview.current?.stop();
-      const s = await buildShow(db, station, wish, length, step);
+      const s = await buildShow(db, station, wish, length, step, reviewFirst ? review : undefined);
+      setDraft(null);
       countShow(db, station.key).catch(() => {}); // for the radio achievements
       liveId.current = String(Date.now());
       setLiveKey(liveId.current);
@@ -462,7 +500,8 @@ function useRadioEngine() {
       playSlot(0);
     } catch (e) {
       setPhase('pick');
-      fail(e);
+      setDraft(null);
+      if (!(e instanceof Error && e.message === 'cancelled')) fail(e); // "Back" from the playlist isn't an error
     }
   };
 
@@ -706,7 +745,7 @@ function useRadioEngine() {
     [],
   );
 
-  return { replay, steps, history, loadHistory, playPast, forgetShow, keepShow, liveKept, keepLive, banned, ban, miniCollapsed, setMiniCollapsed, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
+  return { draft, reviewFirst, setReviewFirst, moveDraft, dropDraft, writeDraft, cancelDraft, replay, steps, history, loadHistory, playPast, forgetShow, keepShow, liveKept, keepLive, banned, ban, miniCollapsed, setMiniCollapsed, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
 }
 
 export type RadioEngine = ReturnType<typeof useRadioEngine>;
