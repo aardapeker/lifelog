@@ -33,6 +33,15 @@ type Row = ChatMessage & { id: number | string; key?: string }; // key stays the
 const HISTORY = 20; // how many past messages are sent with each request
 const STARTERS = ['How was my week?', 'What have I been worried about?', 'Remind me what I planned'];
 
+/** 🔥 Roast mode: the friend roasts your week from the journal, the way a best friend would. */
+const ROAST_ASK = '🔥 Roast my week';
+const ROAST =
+  '\n\nROAST MODE, for this reply only: the listener asked you to roast their week. Go through what they actually ' +
+  'wrote in the last 7 days and roast it like a stand-up comedian who is also their best friend: specific callbacks, ' +
+  'exaggeration, running gags (their cat, their servis, their sleep, their excuses), 6 to 10 punchy lines. ' +
+  'Lovingly: never about their body, their money troubles, their health or anyone they lost; nothing that would ' +
+  'actually hurt. End with one genuinely warm line that shows you are proud of them. Same language as their journal.';
+
 /**
  * APIs want user/assistant turns to alternate and start with the user. Check-ins and daily messages
  * start a chat with the friend talking, so a stand-in user turn goes first: dropping them would make
@@ -133,6 +142,7 @@ export default function ChatScreen() {
 
   const send = async (override?: string) => {
     const text = (override ?? input).trim();
+    const roast = text === ROAST_ASK;
     if (!text || busy) return;
     const { provider, model, apiKey } = await getChatConfig(db);
     if (!apiKey) {
@@ -155,7 +165,7 @@ export default function ChatScreen() {
     setMessages([...history, { id: pendingId, key: pendingId, role: 'assistant', content: '' }]);
 
     try {
-      const system = await buildSystemPrompt(db);
+      const system = (await buildSystemPrompt(db)) + (roast ? ROAST : '');
       const reply = await PROVIDERS[provider].stream({
         apiKey,
         model,
@@ -215,6 +225,7 @@ export default function ChatScreen() {
             </Text>
           )}
         </View>
+        {tab === 'chat' && <IconButton icon="flame-outline" label="Roast my week" onPress={() => send(ROAST_ASK)} />}
         {tab === 'chat' && <IconButton icon="time-outline" label="Chat history" onPress={() => router.push('/chats')} />}
         {tab === 'chat' && !isEmptyNew && <IconButton icon="create-outline" label="New chat" onPress={startNew} />}
         <Bell />
@@ -248,7 +259,7 @@ export default function ChatScreen() {
             <Text style={styles.bigTitle}>{"I've Read\nYour Journal"}</Text>
             <Text style={styles.muted}>Ask me anything about your days, or just tell me how the shift went.</Text>
             <View style={styles.starters}>
-              {STARTERS.map((q) => (
+              {[...STARTERS, ROAST_ASK].map((q) => (
                 <Chip key={q} label={q} onPress={() => send(q)} />
               ))}
             </View>
