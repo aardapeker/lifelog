@@ -151,6 +151,9 @@ export async function buildShow(
   onStep: (step: BuildStep, detail?: string) => void = () => {},
 ): Promise<Show> {
   const SHOW_LENGTH = length;
+  // spare songs: when Spotify can't find a song (or finds another artist's), a spare takes its place,
+  // so a 16-song show is 16 songs and not 13
+  const SPARES = Math.max(3, Math.ceil(length / 3));
   onStep('journal');
   const writer = await getRadioConfig(db); // Settings → AI: its own provider and model, or the chat's
   if (!writer.apiKey) throw new Error('Add an AI key in Settings first.');
@@ -205,7 +208,7 @@ export async function buildShow(
     json: true,
     // a ceiling, not a cost (only what's written is billed). Roomy: Turkish takes Claude about twice the
     // tokens of English, and a 16-song Turkish show ran out of room with the old, tighter number
-    maxTokens: 4000 + SHOW_LENGTH * TALK[prefs.talk].tokens * 2,
+    maxTokens: 4000 + (SHOW_LENGTH + SPARES) * TALK[prefs.talk].tokens * 2,
     system:
       `You write a private radio show on "${station.name} ${station.freq}" (${station.tagline}) for ONE listener, ` +
       `in the spirit of the radio stations in classic open-world crime games: larger-than-life hosts, absurd humour, ` +
@@ -224,6 +227,8 @@ export async function buildShow(
       'song must be a lesser-known track, album cut, B-side or forgotten gem that still fits perfectly. Never repeat ' +
       'a song from the "already played" list. Surprise them. ' +
       `\n\nBefore every song the hosts talk${duo ? ` as a back-and-forth (${TALK[prefs.talk].duo}; the sidekick gets the punchlines)` : ` (${TALK[prefs.talk].solo})`}. ` +
+      'TALK LENGTH IS THE SAME FOR EVERY SONG, from the first to the last: a long show has more talks, not shorter ' +
+      'ones. Do not rush or shrink the talks towards the end. ' +
       'FACTS: when the hosts name a song or artist, it must be exactly the one in that "songs" entry (the song just ' +
       'played is the previous entry). Never invent facts about artists (who sang what, years, gossip); if unsure, ' +
       'joke about the listener\'s life instead. ' +
@@ -256,7 +261,10 @@ export async function buildShow(
       '\n\n' +
       `Return {"title":"show name","lang":"tr or en","songs":[{"title":"…","artist":"…","label":null or "Commercial" or "News",` +
       `"overlap":0,"talk":[{"who":${names},"text":"…"}]}],"outro":[{"who":${names},"text":"…"}]} with ${SHOW_LENGTH} songs. ` +
-      '"outro" is said after the last song: wrap up the show, a callback or two, a warm goodbye (2 to 4 lines).\n\n' +
+      '"outro" is said after the last song: wrap up the show, a callback or two, a warm goodbye (2 to 4 lines). ' +
+      `Also add "spares": ${SPARES} more songs in the same shape (no label, overlap 0), used only if a song can't be ` +
+      'found on Spotify. A spare\'s talk must stand on its own: it introduces the spare song and never names the ' +
+      'song before it.\n\n' +
       about,
     temperature: 1.1, // song picking wants surprise; the talks stay readable at this level
     lightThinking: true, // jokes don't need deep reasoning, and thinking tokens are the priciest part
@@ -289,6 +297,7 @@ export async function buildShow(
     lang?: string;
     songs?: { title: string; artist: string; label?: string | null; overlap?: number; talk?: { who?: string; text?: string }[] }[];
     outro?: { who?: string; text?: string }[];
+    spares?: { title: string; artist: string; talk?: { who?: string; text?: string }[] }[];
   }>(reply);
 
   const cast = [station.host.name, station.sidekick?.name, guest?.name].filter(Boolean) as string[];
@@ -298,17 +307,31 @@ export async function buildShow(
       .map((l) => ({ speaker: cast.includes(l.who ?? '') ? l.who! : cast[0], text: l.text!.trim() }));
   const slots: Slot[] = [];
   const wanted = plan.songs ?? [];
-  for (const [k, s] of wanted.entries()) {
-    onStep('songs', `${k + 1}/${wanted.length}`);
+  const spares = [...(plan.spares ?? [])];
+  /** The song on Spotify, or null when it can't be used (not found, another artist, banned, a repeat). */
+  const usable = async (s: { title: string; artist: string }) => {
     const track = await findTrack(s.title, s.artist).catch(() => null);
-    if (!track || !ok(track) || slots.some((x) => x.track.id === track.id)) continue;
+    if (!track || !ok(track) || slots.some((x) => x.track.id === track.id)) return null;
     // Spotify found a different artist's song with that title: the talk would name the wrong singer
-    if (!sameArtist(s.artist, track.artist)) continue;
+    if (!sameArtist(s.artist, track.artist)) return null;
     // the AI ignored the memory: skip a repeat, unless it's a favourite that has rested long enough
-    if (resting.has(track.id)) continue;
+    if (resting.has(track.id)) return null;
     if (played.some((p) => p.id === track.id) && !liked.some((l) => l.id === track.id) && !welcome.some((w) => w.id === track.id)) {
-      continue;
+      return null;
     }
+    return track;
+  };
+  for (const [k, planned] of wanted.entries()) {
+    onStep('songs', `${k + 1}/${wanted.length}`);
+    let s: (typeof wanted)[number] = planned;
+    let track = await usable(s);
+    // a planned song didn't work out: the next spare that does takes its place (with its own talk)
+    while (!track && spares.length) {
+      const spare = spares.shift()!;
+      s = { ...spare, label: null, overlap: 0 };
+      track = await usable(s);
+    }
+    if (!track) continue;
     const talk = lines(s.talk);
     const overlap = slots.length && !s.label ? Math.max(0, Math.min(12, Math.round(Number(s.overlap) || 0))) : 0;
     slots.push({ track, talk, label: s.label === 'Commercial' || s.label === 'News' ? s.label : null, overlap });
