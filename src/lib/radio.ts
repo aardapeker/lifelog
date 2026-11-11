@@ -6,7 +6,7 @@ import { getSetting } from './db';
 import { formatDate, noteSong, olderNotes, recentNotes } from './notes';
 import { bannedSongs, FAVOURITES_PER_SHOW, getRadioPrefs, likedSongs, playedSongs, playsThisMonth, songLine } from './songMemory';
 import { findTrack, musicTaste, spotifyLikedSongs, type Track } from './spotify';
-import type { Persona, Station } from './stations';
+import { STATIONS, type Persona, type Station } from './stations';
 import type { SpokenLine } from './tts';
 
 /*
@@ -18,7 +18,19 @@ import type { SpokenLine } from './tts';
 /** overlap: seconds the talk before this song may run over the END of the previous one (0 = wait for it). */
 export type Slot = { track: Track; talk: SpokenLine[]; label: string | null; overlap: number };
 /** outro: the goodbye after the last song. */
-export type Show = { title: string; lang: string; station: Station; slots: Slot[]; outro: SpokenLine[] };
+/** `guest`: a host from another station who wandered into this show (a crossover), with their voice. */
+export type Show = { title: string; lang: string; station: Station; slots: Slot[]; outro: SpokenLine[]; guest?: Persona & { from: string } };
+
+const CROSSOVER_CHANCE = 1 / 8;
+/** Sometimes a host from another station barges in: Kederli Kemal lost on Neon FM, Max Volt on Şemistan Chill… */
+function pickGuest(station: Station): (Persona & { from: string }) | undefined {
+  if (Math.random() >= CROSSOVER_CHANCE) return undefined;
+  const others = STATIONS.filter((s) => s.key !== station.key && s.key !== 'friend');
+  const from = others[Math.floor(Math.random() * others.length)];
+  const pool = [from.host, from.sidekick].filter((p): p is Persona => !!p);
+  const who = pool[Math.floor(Math.random() * pool.length)];
+  return { ...who, from: `${from.name} ${from.freq}` };
+}
 
 /** Quick ideas for the "anything else?" box. */
 /**
@@ -179,7 +191,11 @@ export async function buildShow(
     ? drawFavourites([journalSongs, liked, spotifyFavs], await playsThisMonth(db), strict ? favs * 3 : favs, fresh)
     : [];
   const duo = !!station.sidekick;
-  const names = duo ? `"${station.host.name}" or "${station.sidekick!.name}"` : `"${station.host.name}"`;
+  const guest = pickGuest(station);
+  const names = [station.host.name, station.sidekick?.name, guest?.name]
+    .filter(Boolean)
+    .map((n) => `"${n}"`)
+    .join(' or ');
 
   onStep('writing');
   const reply = await writer.adapter.complete({
@@ -213,10 +229,21 @@ export async function buildShow(
       'joke about the listener\'s life instead. ' +
       'The first talk opens the show with a station ID. Make it about THIS listener: callbacks to what they wrote, ' +
       'their shift, their cat, their plans. Teasing is welcome, cruelty is not. ' +
+      // the sponsor of the day: something small and real from the journal, sold like a big brand
+      'The first talk ends with "this show is brought to you by…" and a FAKE SPONSOR made from one small, real thing in ' +
+      'their journal (the servis that is always late, their alarm clock, the cat\'s food bowl), with an absurd slogan. ' +
       (station.ads.startsWith('none')
-        ? ''
-        : `Before every third song (3, 6, 9…), instead of a normal intro, do a break: one fake commercial (${station.ads}) or a short ` +
-          'news bulletin (their weather, their week, their goals, read like breaking news), then lead into the song. ') +
+        ? 'Once, around the middle of the show, the host interrupts with BREAKING NEWS from their life (see below). '
+        : `Before every third song (3, 6, 9…), instead of a normal intro, do a break: one fake commercial (${station.ads}) or ` +
+          'BREAKING NEWS from their life, then lead into the song. ') +
+      'BREAKING NEWS is a tiny, real event from their journal reported with full TV-news drama ("BREAKING: local man opens ' +
+      '1,051 boxes, beating his target by ONE. Experts are shocked."): a dramatic opening, a fake expert or eyewitness ' +
+      'quote, and a deadpan ending. Label that song "News". ' +
+      (guest
+        ? `CROSSOVER: somewhere in the middle of the show, ${guest.name} from another station (${guest.from}) wanders into ` +
+          `the studio by mistake: ${guest.bio} They stay for one or two talks, completely in their own character and ` +
+          `style, clash comically with the hosts, then leave (or get escorted out). Their lines use "who":"${guest.name}". `
+        : '') +
       'Like a real DJ, sometimes talk over the END of a song: for each song after the first, set "overlap" to the ' +
       'seconds (4 to 12) the talk before it may run over the outro of the PREVIOUS song, but only when that previous ' +
       'song fades out or ends on a long instrumental tail; use 0 when it ends abruptly, on a big final line or a ' +
@@ -264,7 +291,7 @@ export async function buildShow(
     outro?: { who?: string; text?: string }[];
   }>(reply);
 
-  const cast = [station.host.name, station.sidekick?.name].filter(Boolean) as string[];
+  const cast = [station.host.name, station.sidekick?.name, guest?.name].filter(Boolean) as string[];
   const lines = (raw?: { who?: string; text?: string }[]) =>
     (raw ?? [])
       .filter((l) => l.text?.trim())
@@ -294,9 +321,10 @@ export async function buildShow(
     station,
     slots,
     outro: lines(plan.outro),
+    guest,
   };
 }
 
 /** The voices a show needs, for the speech engine. */
-export const castOf = (station: Station) =>
-  [station.host, station.sidekick].filter((p): p is Persona => !!p).map((p) => ({ name: p.name, voice: p.voice, style: p.style }));
+export const castOf = (station: Station, guest?: Persona) =>
+  [station.host, station.sidekick, guest].filter((p): p is Persona => !!p).map((p) => ({ name: p.name, voice: p.voice, style: p.style }));

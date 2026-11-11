@@ -215,7 +215,7 @@ function useRadioEngine() {
     }
     clips.current.set(
       i,
-      synthesize(lines, castOf(s.station))
+      synthesize(lines, castOf(s.station, s.guest))
         .then((uri) => (saved && liveId.current === id ? keepSample(uri, saved) : uri))
         .catch((e) => {
         // say why the hosts went quiet, instead of failing silently (no robot voice: the talk is skipped)
