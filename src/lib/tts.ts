@@ -1,7 +1,6 @@
 import { fetch } from 'expo/fetch';
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { Directory, File, Paths } from 'expo-file-system';
-import * as Speech from 'expo-speech';
 import { jsonHeaders } from './gemini';
 import { onBeat, waitMs } from './heartbeat';
 import { getKey } from './keys';
@@ -10,14 +9,14 @@ import { recordUsage, textTokens } from './usage';
 /*
  * A voice that sounds like a person: Gemini's text-to-speech (same Gemini key as everything else).
  * The style is plain English ("warm late-night radio DJ"), the language is detected from the text.
- * If there's no key or the call fails, Android's own (robotic) voice steps in, so the show goes on.
+ * If there's no key or the call fails, the talk is skipped with a message (no robot voice), so the show goes on.
  */
 
 const BASE = 'https://generativelanguage.googleapis.com/v1beta';
 // newest first; the first one that works on this key is remembered for the session
 // only the two cheap voice models: the 3.1 preview (3x the price) and the 2.5 preview used to step in
 // when their daily limits ran out, and quietly became the biggest part of the bill. When both are used
-// up, the phone's own voice reads the talks until the quota resets.
+// up, the hosts skip their talks (with a message) until the quota resets.
 const MODELS = ['gemini-3.8-flash-tts', 'gemini-3.8-flash-lite-tts'];
 
 export type VoiceStyle = { voice: string; style: string };
@@ -257,11 +256,11 @@ async function voiceBytes(apiKey: string, lines: SpokenLine[], cast: Cast): Prom
   failure = {
     at: Date.now(),
     message: errors.some(offline)
-      ? '📶 No internet right now. The phone reads the talk until the connection is back.'
+      ? '📶 No internet right now, so the hosts skip their talk. The music goes on.'
       : errors.some(credits)
       ? '💳 Out of Gemini credits for the voices. Top up in AI Studio → Billing.'
       : allSpent
-        ? `🎙️ Today's voices are used up. The phone reads the talks until ${voiceQuotaReset()}, when they're back.`
+        ? `🎙️ Today's voices are used up, so the hosts are quiet until ${voiceQuotaReset()}. The music goes on.`
         : `Natural voice failed. ${errors.join(' | ')}`,
   };
   throw new Error(failure.message);
@@ -435,12 +434,8 @@ export const radioAudioMode = (duck = false) =>
   }).catch(() => {});
 
 /** Android's built-in voice, the fallback. */
-export function speakRobot(text: string, language: string): Talking {
-  let settle: (finished: boolean) => void = () => {};
-  const done = new Promise<boolean>((r) => (settle = r));
-  Speech.speak(text, { language, onDone: () => settle(true), onError: () => settle(true), onStopped: () => settle(false) });
-  return { done, stop: () => Speech.stop() };
-}
+/** A talk that couldn't be voiced: the hosts skip it (no robot voice) and the music goes on. */
+export const skipTalk = (): Talking => ({ done: Promise.resolve(true), stop: () => {} });
 
 /** Where a voice sample for this station, persona, voice and language is kept (made once, replayed for free). */
 export function sampleFile(station: string, persona: string, voice: string, lang: string): File {
@@ -450,7 +445,6 @@ export function sampleFile(station: string, persona: string, voice: string, lang
   return new File(dir, `${safe(station)}-${safe(persona)}-${safe(voice)}-${safe(lang)}.wav`);
 }
 
-/** Moves a freshly made clip into the samples folder; if that fails, the clip still plays from the cache. */
 /**
  * A kept clip worth playing: there, and more than a WAV header. Anything else (the empty files an
  * earlier build left behind) is deleted, so it gets voiced again instead of playing silence.
@@ -464,6 +458,7 @@ export function playable(f: File): boolean {
   return false;
 }
 
+/** Moves a freshly made clip into the samples folder; if that fails, the clip still plays from the cache. */
 export function keepSample(made: string, saved: File): string {
   try {
     // moveSync, not copy: in this SDK copy() is async, and deleting the clip right after it left an

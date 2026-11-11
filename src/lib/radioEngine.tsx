@@ -25,7 +25,7 @@ import {
 import { stationByKey, withVoices, type Lang, type Persona, type VoiceChoices } from './stations';
 import { banSong, bannedSongs, getRadioPrefs, likedSongs, rememberPlayed, toggleLiked } from './songMemory';
 import { onRadioCommand, publishToWidget } from '../widget/radioBridge';
-import { clearClips, keepSample, playable, playClip, preferVoiceModel, pruneShowVoices, sampleFile, showVoiceFile, speakRobot, synthesize, type Talking } from './tts';
+import { clearClips, keepSample, playable, playClip, preferVoiceModel, pruneShowVoices, sampleFile, showVoiceFile, skipTalk, synthesize, type Talking } from './tts';
 
 const HISTORY_KEY = 'radio.history';
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -213,8 +213,9 @@ function useRadioEngine() {
       synthesize(lines, castOf(s.station))
         .then((uri) => (saved && liveId.current === id ? keepSample(uri, saved) : uri))
         .catch((e) => {
-        // say why it sounds robotic, instead of failing silently
-        setStatus({ kind: 'err', msg: `${e instanceof Error ? e.message : e} Using the phone's voice for now.` });
+        // say why the hosts went quiet, instead of failing silently (no robot voice: the talk is skipped)
+        const why = e instanceof Error ? e.message : String(e);
+        setStatus({ kind: 'err', msg: /music goes on/.test(why) ? why : `⚠️ Couldn't voice this talk, so the hosts skip it. ${why}` });
         // forget the failure: when its turn comes, it's voiced again (a speed limit is usually gone by then)
         if (!retried.current.has(i)) {
           retried.current.add(i);
@@ -265,7 +266,7 @@ function useRadioEngine() {
         await withTimeout(pausePlayback(), 3000);
         const uri = await withTimeout(clips.current.get(s.slots.length) ?? Promise.resolve(null), 15000);
         if (!live.current.speaking) return;
-        const t = uri ? playClip(uri) : speakRobot(s.outro.map((l) => l.text).join(' '), s.lang);
+        const t = uri ? playClip(uri) : skipTalk();
         talking.current = t;
         await t.done;
         live.current.speaking = false;
@@ -301,7 +302,7 @@ function useRadioEngine() {
       // the hosts only talk over a song when the show planned it (a fading outro); otherwise
       // whatever Spotify is playing (e.g. after ⏭ mid-song) stops first
       if (!overlap) await withTimeout(pausePlayback(), 3000);
-      // a talk that isn't recorded yet gets 15 s (with a spinner); after that the phone's own voice reads it,
+      // a talk that isn't recorded yet gets 15 s (with a spinner); after that it's skipped and the song starts,
       // so the show never stalls
       const clip = clips.current.get(i) ?? Promise.resolve(null);
       let uri = await withTimeout(clip, 300);
@@ -311,7 +312,8 @@ function useRadioEngine() {
         setStatus({ kind: 'idle' });
       }
       if (live.current.index !== i || !live.current.speaking) return; // skipped or paused while it was loading
-      const t = uri ? playClip(uri, overlap) : speakRobot(talk.map((l) => l.text).join(' '), s.lang);
+      if (!uri && !retried.current.has(i)) setStatus({ kind: 'err', msg: "⏳ This talk wasn't ready in time, so the hosts skip it. The music goes on." });
+      const t = uri ? playClip(uri, overlap) : skipTalk();
       talking.current = t;
       if (await t.done) start();
     })();
