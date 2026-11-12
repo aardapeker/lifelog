@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BuildProgress } from '../components/BuildProgress';
 import { MorphPlayButton, WavyProgress } from '../components/expressive';
-import { Glass } from '../components/Glass';
+import { Glass, GlassArea } from '../components/Glass';
 import Ionicons from '../components/Icon';
 import { FadeIn, Pulse } from '../components/motion';
 import { AlbumGlow, Ban, GlowingCover, Heart, KeepAwake, showName } from '../components/radioParts';
@@ -25,6 +25,8 @@ export default function OnAirScreen() {
 
   return (
     <View style={styles.screen}>
+      {/* everything sits in a blur area, so the player panel is real frosted glass over the cover's colours */}
+      <GlassArea>
       <AlbumGlow palette={palette} image={phase === 'onair' || phase === 'done' ? (current?.track.image ?? null) : null} />
       {phase === 'onair' && <KeepAwake />}
 
@@ -102,14 +104,14 @@ export default function OnAirScreen() {
             <Text style={styles.showName} numberOfLines={1}>
               {show.station.emoji} {showName(show)}
             </Text>
-            <FadeIn key={current.track.id}>
+            <FadeIn key={current.track.id} style={styles.coverBox}>
               {current.track.image && (
                 <GlowingCover uri={current.track.image} glow={palette?.glow ?? null} live={phase === 'onair' && !paused} talking={speaking} />
               )}
             </FadeIn>
 
             {/* the player: song, progress, controls */}
-            <Glass radius={28} style={styles.player} fill="rgba(29, 28, 28, 0.45)">
+            <Glass blur radius={28} style={styles.player} fill="rgba(40, 38, 38, 0.32)">
               <View style={styles.titleRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.trackName} numberOfLines={2}>
@@ -148,7 +150,7 @@ export default function OnAirScreen() {
 
             {/* what the hosts said before this song */}
             {current.talk.length > 0 && (
-              <Glass radius={22} style={styles.talk} fill="rgba(29, 28, 28, 0.35)">
+              <Glass radius={22} style={styles.talk} fill="rgba(20, 19, 19, 0.38)">
                 <Text style={styles.talkHead}>
                   {current.label === 'News' ? '📰 NEWS' : current.label === 'Commercial' ? '📢 COMMERCIAL BREAK' : '🎙️ ON THE MIC'}
                 </Text>
@@ -175,6 +177,7 @@ export default function OnAirScreen() {
         )}
         <StatusLine status={status} />
       </ScrollView>
+      </GlassArea>
     </View>
   );
 }
@@ -198,7 +201,8 @@ const styles = StyleSheet.create({
   barTitle: { fontFamily: fonts.sans, fontSize: 15, color: colors.text, marginTop: 2 },
   content: { paddingHorizontal: 22, paddingTop: 8 },
   showName: { fontFamily: fonts.serifItalic, fontSize: 15, color: colors.muted, marginBottom: 14, textAlign: 'center' },
-  player: { padding: 18, marginTop: 22 },
+  coverBox: { width: '82%', alignSelf: 'center', marginTop: 6 }, // like a record sleeve, with room around it
+  player: { padding: 18, marginTop: 26 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 6 },
   trackName: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 24, lineHeight: 30, color: colors.text },
   trackArtist: { fontFamily: fonts.sans, fontSize: 15, color: colors.muted, marginTop: 3 },

@@ -1,9 +1,11 @@
 import { router } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Glass, GlassArea } from '../components/Glass';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '../components/Icon';
 import { PressScale } from '../components/motion';
-import { AlbumGlow, duration, Heart, showName } from '../components/radioParts';
+import { duration, Heart, showName, withAlpha } from '../components/radioParts';
 import { IconButton, PillButton } from '../components/ui';
 import { useRadio } from '../lib/radioEngine';
 import { colors, fonts, radius } from '../lib/theme';
@@ -14,12 +16,20 @@ import { colors, fonts, radius } from '../lib/theme';
  */
 export default function PlaylistScreen() {
   const insets = useSafeAreaInsets();
-  const { show, index, phase, palette, current, hearts, banned, toggleHeart, ban, jumpTo, replay, keepLive, liveKept, save } = useRadio();
+  const { show, index, phase, palette, current, paused, hearts, banned, toggleHeart, ban, jumpTo, replay, keepLive, liveKept, save, togglePause, skip } = useRadio();
   const close = () => (router.canGoBack() ? router.back() : router.replace('/onair'));
 
+  const glow = palette?.glow ?? 'rgb(150, 90, 190)';
   return (
     <View style={styles.screen}>
-      <AlbumGlow palette={palette} image={current?.track.image ?? null} />
+      <GlassArea>
+      {/* the song's colour at the top, fading into black (like the light from the cover) */}
+      <LinearGradient
+        colors={[withAlpha(glow, 0.75), withAlpha(glow, 0.25), 'rgba(0,0,0,0)']}
+        locations={[0, 0.35, 0.7]}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
       <View style={[styles.bar, { paddingTop: insets.top + 8 }]}>
         <IconButton icon="chevron-down" label="Close" onPress={close} />
         <View style={{ flex: 1, alignItems: 'center' }}>
@@ -32,7 +42,7 @@ export default function PlaylistScreen() {
       </View>
 
       {show ? (
-        <ScrollView contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 40 }]}>
+        <ScrollView contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 130 }]}>
           {phase === 'done' && <Text style={styles.hint}>Tap a song to play the show again from there.</Text>}
           {show.slots.map((s, i) => {
             const now = i === index && phase === 'onair';
@@ -41,7 +51,7 @@ export default function PlaylistScreen() {
               <PressScale
                 key={s.track.id}
                 scaleTo={0.98}
-                style={[styles.row, now && styles.rowNow]}
+                style={[styles.row, i > 0 && styles.divider, now && styles.rowNow]}
                 onPress={() => {
                   if (phase === 'onair') {
                     if (i !== index) jumpTo(i, false);
@@ -87,12 +97,32 @@ export default function PlaylistScreen() {
           <Text style={styles.hint}>No show on air.</Text>
         </View>
       )}
+
+      {/* the song on air, floating on frosted glass at the bottom */}
+      {phase === 'onair' && current && (
+        <Glass blur radius={24} style={[styles.mini, { bottom: insets.bottom + 16 }]} fill="rgba(30, 29, 29, 0.45)">
+          <View style={styles.miniRow}>
+            {current.track.image ? <Image source={{ uri: current.track.image }} style={styles.miniCover} /> : <View style={styles.miniCover} />}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.name} numberOfLines={1}>
+                {current.track.name}
+              </Text>
+              <Text style={styles.artist} numberOfLines={1}>
+                {current.track.artist}
+              </Text>
+            </View>
+            <IconButton icon={paused ? 'play' : 'pause'} label={paused ? 'Play' : 'Pause'} onPress={togglePause} />
+            <IconButton icon="play-skip-forward" label="Next song" onPress={skip} />
+          </View>
+        </Glass>
+      )}
+      </GlassArea>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1, backgroundColor: '#0B0B0B' },
   bar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 10 },
   barSmall: { fontFamily: fonts.sans, fontSize: 11, letterSpacing: 1.2, color: colors.muted },
   barTitle: { fontFamily: fonts.sans, fontSize: 15, color: colors.text, marginTop: 2 },
@@ -100,6 +130,10 @@ const styles = StyleSheet.create({
   hint: { fontFamily: fonts.sansRegular, fontSize: 14, color: colors.muted, marginBottom: 10, marginLeft: 6 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 10, borderRadius: radius.md },
   rowNow: { backgroundColor: 'rgba(255,255,255,0.10)' },
+  divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.12)', borderRadius: 0 },
+  mini: { position: 'absolute', left: 14, right: 14 },
+  miniRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10 },
+  miniCover: { width: 50, height: 50, borderRadius: 12, backgroundColor: colors.raised },
   cover: { width: 58, height: 58, borderRadius: 14, backgroundColor: colors.raised },
   name: { fontFamily: fonts.sans, fontSize: 16, color: colors.text },
   gone: { color: colors.muted, textDecorationLine: 'line-through' },
