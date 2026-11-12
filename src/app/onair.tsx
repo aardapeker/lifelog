@@ -42,26 +42,15 @@ export default function OnAirScreen() {
       <GlassArea>
       <AlbumGlow palette={palette} image={phase === 'onair' || phase === 'done' ? (current?.track.image ?? null) : null} />
       {phase === 'onair' && <KeepAwake />}
+      {/* like the reference: the cover's colours melt into darkness at the bottom… */}
+      <LinearGradient
+        colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.85)']}
+        locations={[0, 0.6, 1]}
+        style={[StyleSheet.absoluteFill, { top: '45%' }]}
+        pointerEvents="none"
+      />
 
-      <View style={[styles.bar, { paddingTop: insets.top + 8 }]}>
-        <IconButton icon="chevron-down" label="Close" onPress={close} />
-        <View style={styles.barMid}>
-          <View style={styles.onAir}>
-            {phase === 'onair' && !paused && <Pulse style={styles.dot} />}
-            <Text style={styles.barSmall}>{phase === 'onair' ? 'ON AIR' : phase === 'done' ? 'THAT WAS' : 'PREPARING'}</Text>
-          </View>
-          <Text style={styles.barTitle} numberOfLines={1}>
-            {(show ?? { station }).station.name} {(show ?? { station }).station.freq}
-          </Text>
-        </View>
-        {show && (phase === 'onair' || phase === 'done') ? (
-          <IconButton icon="list" label="Playlist" onPress={() => router.push('/playlist')} />
-        ) : (
-          <View style={{ width: 44 }} />
-        )}
-      </View>
-
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 74, paddingBottom: insets.bottom + 40 }]}>
         {phase === 'building' && <BuildProgress steps={steps} station={station} />}
 
         {phase === 'review' && draft && (
@@ -209,6 +198,32 @@ export default function OnAirScreen() {
         )}
         <StatusLine status={status} />
       </ScrollView>
+
+      {/* …and the same soft fade at the top, under the header, instead of a hard edge where the page
+          scrolls: the bar floats over the page (so the cover's glow isn't cut off at a line) */}
+      <LinearGradient
+        colors={['rgba(0,0,0,0.6)', 'rgba(0,0,0,0.25)', 'rgba(0,0,0,0)']}
+        locations={[0, 0.55, 1]}
+        style={[styles.topFade, { height: insets.top + 110 }]}
+        pointerEvents="none"
+      />
+      <View style={[styles.bar, { paddingTop: insets.top + 8 }]}>
+        <IconButton icon="chevron-down" label="Close" onPress={close} />
+        <View style={styles.barMid}>
+          <View style={styles.onAir}>
+            {phase === 'onair' && !paused && <Pulse style={styles.dot} />}
+            <Text style={styles.barSmall}>{phase === 'onair' ? 'ON AIR' : phase === 'done' ? 'THAT WAS' : 'PREPARING'}</Text>
+          </View>
+          <Text style={styles.barTitle} numberOfLines={1}>
+            {(show ?? { station }).station.name} {(show ?? { station }).station.freq}
+          </Text>
+        </View>
+        {show && (phase === 'onair' || phase === 'done') ? (
+          <IconButton icon="list" label="Playlist" onPress={() => router.push('/playlist')} />
+        ) : (
+          <View style={{ width: 44 }} />
+        )}
+      </View>
       </GlassArea>
     </View>
   );
@@ -225,7 +240,8 @@ function Tap({ icon, label, onPress, small }: { icon: string; label: string; onP
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 8 },
+  bar: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 8 },
+  topFade: { position: 'absolute', top: 0, left: 0, right: 0 },
   barMid: { flex: 1, alignItems: 'center', paddingHorizontal: 8 },
   onAir: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.danger },
