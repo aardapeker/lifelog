@@ -71,6 +71,7 @@ class SpotifyRemoteModule : Module() {
     AsyncFunction("pause") { promise: Promise -> runCommand(promise) { it.playerApi.pause() } }
     AsyncFunction("resume") { promise: Promise -> runCommand(promise) { it.playerApi.resume() } }
     AsyncFunction("skipNext") { promise: Promise -> runCommand(promise) { it.playerApi.skipNext() } }
+    AsyncFunction("seekTo") { ms: Double, promise: Promise -> runCommand(promise) { it.playerApi.seekTo(ms.toLong()) } }
     AsyncFunction("switchToPhone") { promise: Promise -> runCommand(promise) { it.connectApi.connectSwitchToLocalDevice() } }
 
     AsyncFunction("getState") { promise: Promise ->

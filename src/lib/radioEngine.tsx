@@ -19,6 +19,7 @@ import {
   resumePlayback,
   sameTrack,
   savePlaylist,
+  seekTo,
   spotifyReport,
   wakeSpotify,
   type Track,
@@ -370,6 +371,16 @@ function useRadioEngine() {
   /** Watches Spotify: when the song is about to end, the next one gets its intro. */
   const ticking = useRef(false);
   const timing = useRef({ checkedAt: 0, endsAt: 0 }); // go easy on Spotify's API: look often only near the end
+  /** The progress bar: jump to a spot in the song (not while the hosts talk, the song isn't on yet). */
+  const seek = useCallback(async (frac: number) => {
+    const l = live.current;
+    const dur = l.show?.slots[l.index]?.track.durationMs;
+    if (!dur || l.speaking) return;
+    const ms = Math.round(Math.max(0, Math.min(0.97, frac)) * dur); // not past the end: that's what ⏭ is for
+    setProgress(ms / dur);
+    timing.current = { checkedAt: Date.now(), endsAt: Date.now() + dur - ms }; // the next talk follows the new end
+    await seekTo(ms).catch((e) => setStatus({ kind: 'err', msg: e instanceof Error ? e.message : String(e) }));
+  }, []);
   const tick = useCallback(async () => {
     const l = live.current;
     if (ticking.current || !l.show || l.paused || Date.now() - l.startedAt < 4000) return;
@@ -745,7 +756,7 @@ function useRadioEngine() {
     [],
   );
 
-  return { draft, reviewFirst, setReviewFirst, moveDraft, dropDraft, writeDraft, cancelDraft, replay, steps, history, loadHistory, playPast, forgetShow, keepShow, liveKept, keepLive, banned, ban, miniCollapsed, setMiniCollapsed, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
+  return { seek, draft, reviewFirst, setReviewFirst, moveDraft, dropDraft, writeDraft, cancelDraft, replay, steps, history, loadHistory, playPast, forgetShow, keepShow, liveKept, keepLive, banned, ban, miniCollapsed, setMiniCollapsed, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
 }
 
 export type RadioEngine = ReturnType<typeof useRadioEngine>;

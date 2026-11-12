@@ -21,6 +21,7 @@ declare class SpotifyRemoteModule extends NativeModule<Events> {
   pause(): Promise<boolean>;
   resume(): Promise<boolean>;
   skipNext(): Promise<boolean>;
+  seekTo(ms: number): Promise<boolean>;
   switchToPhone(): Promise<boolean>;
   getState(): Promise<RemoteState>;
   disconnect(): void;

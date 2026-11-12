@@ -330,6 +330,12 @@ export async function resumePlayback(): Promise<void> {
   await api('/me/player/play', { method: 'PUT' });
 }
 
+/** Jumps to a spot in the song that's playing (the progress bar). */
+export async function seekTo(ms: number): Promise<void> {
+  if ((await remoteReady(false)) && typeof SpotifyRemote!.seekTo === 'function') return void (await SpotifyRemote!.seekTo(ms));
+  await api(`/me/player/seek?position_ms=${Math.max(0, Math.round(ms))}`, { method: 'PUT' });
+}
+
 export type Playback = { isPlaying: boolean; progressMs: number; track: Track | null };
 
 export async function playbackState(): Promise<Playback | null> {

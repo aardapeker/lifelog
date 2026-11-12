@@ -1,12 +1,14 @@
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useState } from 'react';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BuildProgress } from '../components/BuildProgress';
-import { MorphPlayButton, WavyProgress } from '../components/expressive';
+import { SeekBar } from '../components/expressive';
 import { Glass, GlassArea } from '../components/Glass';
 import Ionicons from '../components/Icon';
-import { FadeIn, Pulse } from '../components/motion';
-import { AlbumGlow, Ban, GlowingCover, Heart, KeepAwake, showName } from '../components/radioParts';
+import { FadeIn, PressScale, Pulse } from '../components/motion';
+import { AlbumGlow, Ban, GlowingCover, Heart, KeepAwake, showName, withAlpha } from '../components/radioParts';
 import { IconButton, PillButton, StatusLine } from '../components/ui';
 import { useRadio } from '../lib/radioEngine';
 import { colors, fonts, radius } from '../lib/theme';
@@ -22,6 +24,17 @@ export default function OnAirScreen() {
   const { phase, show, current, palette, paused, speaking, progress, station, steps, draft, status, hearts, voice } = r;
 
   const close = () => (router.canGoBack() ? router.back() : router.replace('/radio'));
+  const [talkOpen, setTalkOpen] = useState(true);
+  /** ⋯ : the show's less frequent actions. */
+  const more = () =>
+    Alert.alert(show ? showName(show) : 'The show', undefined, [
+      { text: r.liveKept ? 'Unsave the show' : 'Save the show (with its voices)', onPress: r.keepLive },
+      { text: 'Save the songs to Spotify', onPress: r.save },
+      phase === 'onair'
+        ? { text: 'End the show', style: 'destructive', onPress: r.stop }
+        : { text: 'Play it again', onPress: () => r.replay() },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
 
   return (
     <View style={styles.screen}>
@@ -110,11 +123,19 @@ export default function OnAirScreen() {
               )}
             </FadeIn>
 
-            {/* the player: song, progress, controls */}
-            <Glass blur radius={28} style={styles.player} fill="rgba(40, 38, 38, 0.32)">
+            {/* the player: frosted glass tinted with the cover's colours, the song, a seekable waveform, the controls */}
+            <Glass blur radius={28} style={styles.player} fill="rgba(30, 29, 29, 0.18)">
+              <LinearGradient
+                colors={[withAlpha(palette?.glow ?? 'rgb(120, 110, 130)', 0.42), withAlpha(palette?.deep ?? 'rgb(40, 36, 44)', 0.55)]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+                pointerEvents="none"
+              />
               <View style={styles.titleRow}>
+                {current.track.image && <Image source={{ uri: current.track.image }} style={styles.thumb} />}
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.trackName} numberOfLines={2}>
+                  <Text style={styles.trackName} numberOfLines={1}>
                     {current.track.name}
                   </Text>
                   <Text style={styles.trackArtist} numberOfLines={1}>
@@ -122,34 +143,45 @@ export default function OnAirScreen() {
                   </Text>
                 </View>
               </View>
-              {phase === 'onair' && <WavyProgress progress={progress} playing={!paused && !speaking} />}
               {phase === 'onair' ? (
-                <View style={styles.controls}>
-                  <Ban name={current.track.name} onBan={() => r.ban(current.track)} size={22} />
-                  <IconButton icon="play-skip-back" label="Previous" onPress={r.previous} size={50} />
-                  <MorphPlayButton playing={!paused} onPress={r.togglePause} />
-                  <IconButton icon="play-skip-forward" label="Next song" onPress={r.skip} size={50} />
-                  <Heart on={hearts.has(current.track.id)} onPress={() => r.toggleHeart(current.track)} size={26} />
-                </View>
+                <>
+                  <SeekBar
+                    progress={progress}
+                    durationMs={current.track.durationMs}
+                    seed={current.track.id}
+                    onSeek={r.seek}
+                    disabled={speaking} // while the hosts talk, the song isn't on yet
+                  />
+                  <View style={styles.controls}>
+                    <Ban name={current.track.name} onBan={() => r.ban(current.track)} size={22} />
+                    <Tap icon="play-back" label="Previous" onPress={r.previous} />
+                    <PressScale onPress={r.togglePause} scaleTo={0.9} style={styles.play} accessibilityLabel={paused ? 'Play' : 'Pause'}>
+                      <Ionicons name={paused ? 'play' : 'pause'} size={26} color={colors.text} />
+                    </PressScale>
+                    <Tap icon="play-forward" label="Next song" onPress={r.skip} />
+                    <Heart on={hearts.has(current.track.id)} onPress={() => r.toggleHeart(current.track)} size={24} />
+                  </View>
+                </>
               ) : (
                 <Text style={styles.done}>That's the show. Spotify keeps playing from here.</Text>
               )}
             </Glass>
 
-            {/* the small things: hosts on/off, keep the show, end it */}
-            <View style={styles.extras}>
-              <Extra icon={voice ? 'mic' : 'mic-off'} label={voice ? 'Hosts on' : 'Hosts off'} onPress={r.toggleVoice} />
-              <Extra icon={r.liveKept ? 'bookmark' : 'bookmark-outline'} label={r.liveKept ? 'Saved' : 'Save show'} onPress={r.keepLive} />
-              <Extra icon="logo-spotify" label="To Spotify" onPress={r.save} />
-              {phase === 'onair' ? (
-                <Extra icon="stop" label="End" onPress={r.stop} />
-              ) : (
-                <Extra icon="refresh" label="Play again" onPress={() => r.replay()} />
-              )}
+            {/* under the player: hosts on/off · what's on the mic · more */}
+            <View style={styles.under}>
+              <Tap icon={voice ? 'mic-outline' : 'mic-off-outline'} label={voice ? 'Hosts on (tap to mute them)' : 'Hosts off'} onPress={r.toggleVoice} small />
+              <Pressable style={styles.pill} onPress={() => setTalkOpen((o) => !o)} accessibilityLabel="What the hosts said">
+                <Text style={styles.pillText} numberOfLines={1}>
+                  {current.talk[0]
+                    ? `${current.label === 'News' ? '📰' : current.label === 'Commercial' ? '📢' : '🎙️'} ${current.talk[0].text.replace(/<[^>]+>/g, '').trim()}`
+                    : '🎵 Just the music'}
+                </Text>
+              </Pressable>
+              <Tap icon="ellipsis-horizontal" label="More" onPress={more} small />
             </View>
 
-            {/* what the hosts said before this song */}
-            {current.talk.length > 0 && (
+            {/* what the hosts said before this song (the pill folds it) */}
+            {talkOpen && current.talk.length > 0 && (
               <Glass radius={22} style={styles.talk} fill="rgba(20, 19, 19, 0.38)">
                 <Text style={styles.talkHead}>
                   {current.label === 'News' ? '📰 NEWS' : current.label === 'Commercial' ? '📢 COMMERCIAL BREAK' : '🎙️ ON THE MIC'}
@@ -182,12 +214,12 @@ export default function OnAirScreen() {
   );
 }
 
-function Extra({ icon, label, onPress }: { icon: string; label: string; onPress: () => void }) {
+/** A plain icon button (no circle), like a music app's controls. */
+function Tap({ icon, label, onPress, small }: { icon: string; label: string; onPress: () => void; small?: boolean }) {
   return (
-    <Pressable onPress={onPress} style={styles.extra} hitSlop={6} accessibilityLabel={label}>
-      <Ionicons name={icon as never} size={20} color={colors.text} />
-      <Text style={styles.extraText}>{label}</Text>
-    </Pressable>
+    <PressScale onPress={onPress} scaleTo={0.85} hitSlop={10} accessibilityLabel={label} style={styles.tap}>
+      <Ionicons name={icon as never} size={small ? 22 : 28} color={colors.text} />
+    </PressScale>
   );
 }
 
@@ -203,14 +235,26 @@ const styles = StyleSheet.create({
   showName: { fontFamily: fonts.serifItalic, fontSize: 15, color: colors.muted, marginBottom: 14, textAlign: 'center' },
   coverBox: { width: '82%', alignSelf: 'center', marginTop: 6 }, // like a record sleeve, with room around it
   player: { padding: 18, marginTop: 26 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 6 },
-  trackName: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 24, lineHeight: 30, color: colors.text },
-  trackArtist: { fontFamily: fonts.sans, fontSize: 15, color: colors.muted, marginTop: 3 },
-  controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  thumb: { width: 46, height: 46, borderRadius: 12 },
+  trackName: { fontFamily: fonts.display, letterSpacing: -0.3, fontSize: 19, lineHeight: 24, color: colors.text },
+  trackArtist: { fontFamily: fonts.sans, fontSize: 14, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
+  controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, paddingHorizontal: 4 },
+  tap: { padding: 4 },
+  play: {
+    width: 76,
+    height: 54,
+    borderRadius: 27,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
+  },
+  under: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16, paddingHorizontal: 6 },
+  pill: { flex: 1, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.10)' },
+  pillText: { fontFamily: fonts.sansRegular, fontSize: 13, color: 'rgba(255,255,255,0.75)' },
   done: { fontFamily: fonts.sansRegular, fontSize: 15, lineHeight: 22, color: colors.muted, marginTop: 10 },
-  extras: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 16 },
-  extra: { alignItems: 'center', gap: 4, minWidth: 64 },
-  extraText: { fontFamily: fonts.sansRegular, fontSize: 12, color: colors.muted },
   talk: { padding: 18, marginTop: 18 },
   talkHead: { fontFamily: fonts.sans, fontSize: 11, letterSpacing: 1.2, color: colors.muted, marginBottom: 4 },
   line: { fontFamily: fonts.serifItalic, fontSize: 16, lineHeight: 24, color: colors.muted, marginTop: 8 },
