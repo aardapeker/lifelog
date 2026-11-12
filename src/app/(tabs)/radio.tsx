@@ -7,7 +7,7 @@ import { Glass, GlassArea } from '../../components/Glass';
 import { FadeIn, Pulse, PressScale, stagger } from '../../components/motion';
 import { ago, showName } from '../../components/radioParts';
 import { StationArt } from '../../components/StationArt';
-import { Chip, IconButton } from '../../components/ui';
+import { Chip } from '../../components/ui';
 import { useRadio } from '../../lib/radioEngine';
 import { STATIONS } from '../../lib/stations';
 import { colors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
@@ -19,8 +19,9 @@ import { Avatar, Bell } from '../../components/TopBar';
  */
 export default function RadioHome() {
   const insets = useSafeAreaInsets();
-  const [tab, setTab] = useState<'stations' | 'recent'>('stations');
-  const { history, loadHistory, playPast, forgetShow, keepShow, phase, show, current, paused, voice, toggleVoice } = useRadio();
+  const [tab, setTab] = useState<'stations' | 'recent' | 'saved'>('stations');
+  const { history, loadHistory, playPast, forgetShow, keepShow, phase, show, current, paused } = useRadio();
+  const saved = history.filter((h) => h.kept); // 🔖 kept for good
   useFocusEffect(useCallback(() => { loadHistory(); }, [loadHistory])); // Settings may have changed how long shows are kept
 
   const live = phase === 'building' || phase === 'review' || phase === 'onair';
@@ -35,10 +36,7 @@ export default function RadioHome() {
         <View style={styles.bar}>
           <Avatar size={44} />
           <Text style={styles.barTitle}>Radio</Text>
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            <IconButton icon={voice ? 'mic' : 'mic-off'} label={voice ? 'Host talks' : 'Host is quiet'} onPress={toggleVoice} />
-            <Bell />
-          </View>
+          <Bell />
         </View>
 
         <Glass blur radius={28} style={styles.sheet}>
@@ -77,7 +75,8 @@ export default function RadioHome() {
 
             <View style={styles.tabs}>
               <Chip label="Stations" active={tab === 'stations'} onPress={() => setTab('stations')} />
-              <Chip label={history.length ? `Recent shows · ${history.length}` : 'Recent shows'} active={tab === 'recent'} onPress={() => setTab('recent')} />
+              <Chip label={history.length ? `Recent · ${history.length}` : 'Recent'} active={tab === 'recent'} onPress={() => setTab('recent')} />
+              <Chip label={saved.length ? `Saved · ${saved.length}` : 'Saved'} active={tab === 'saved'} onPress={() => setTab('saved')} />
             </View>
 
             {tab === 'stations' ? (
@@ -90,10 +89,14 @@ export default function RadioHome() {
                   </FadeIn>
                 ))}
               </View>
-            ) : history.length === 0 ? (
-              <Text style={styles.empty}>No shows yet. Pick a station and go on air: every show you hear is kept here for a while.</Text>
+            ) : (tab === 'saved' ? saved : history).length === 0 ? (
+              <Text style={styles.empty}>
+                {tab === 'saved'
+                  ? 'No saved shows yet. Tap Save show in the player (or 🔖 on a recent show) to keep one for good, with its voices.'
+                  : 'No shows yet. Pick a station and go on air: every show you hear is kept here for a while.'}
+              </Text>
             ) : (
-              history.map((h) => {
+              (tab === 'saved' ? saved : history).map((h) => {
                 const open = !h.done && h.index < h.show.slots.length;
                 const cover = h.show.slots[Math.min(h.index, h.show.slots.length - 1)]?.track.image;
                 return (
