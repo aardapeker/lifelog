@@ -75,7 +75,7 @@ export function openNotification(data: Record<string, unknown> | undefined | nul
   if (data.kind === 'checkin') router.navigate('/chat');
   else if (data.kind === 'planner' && typeof data.day === 'string') router.push(`/plan/${data.day}`);
   else if (data.kind === 'read' && data.id !== undefined) router.push(`/read/${data.id}`);
-  else if (data.kind === 'radio') router.navigate('/radio');
+  else if (data.kind === 'radio') router.push('/onair'); // "radio paused": straight to the player
   else if (data.kind === 'usage') router.push('/settings/ai');
   else if (data.kind === 'milestone' || data.kind === 'achievement') router.navigate('/insights');
   else if (data.kind === 'wrapped' && typeof data.month === 'string') router.push(`/wrapped/${data.month}`);

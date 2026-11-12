@@ -100,7 +100,7 @@ function RadioWidget({ radio, tall }: { radio: WidgetRadio; tall: boolean }) {
     return (
       <FlexWidget
         clickAction="OPEN_URI"
-        clickActionData={{ uri: 'lifelog://radio' }}
+        clickActionData={{ uri: 'lifelog://onair' }}
         style={{
           height: 'match_parent',
           width: 'match_parent',
@@ -125,7 +125,7 @@ function RadioWidget({ radio, tall }: { radio: WidgetRadio; tall: boolean }) {
   return (
     <FlexWidget
       clickAction="OPEN_URI"
-      clickActionData={{ uri: 'lifelog://radio' }}
+      clickActionData={{ uri: 'lifelog://onair' }}
       style={{
         height: 'match_parent',
         width: 'match_parent',
