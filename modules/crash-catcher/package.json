@@ -1,0 +1,7 @@
+{
+  "name": "crash-catcher",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Writes down native (Android) crashes so Lifelog can show what happened on the next open",
+  "main": "index.ts"
+}

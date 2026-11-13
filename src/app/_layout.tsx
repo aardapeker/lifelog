@@ -22,7 +22,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { Alert } from 'react-native';
 import { isBackupFileName } from '../lib/backup';
-import { clearCrash, lastCrash } from '../lib/crashLog';
+import { clearCrash, lastCrash, nativeCrash } from '../lib/crashLog';
 import { RadioProvider } from '../lib/radioEngine';
 import { setPendingBackup, setPendingShare } from '../lib/share';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -95,6 +95,11 @@ export default function RootLayout() {
   // Lifelog closed because of an error last time: say what it was (screenshot it for a fix)
   useEffect(() => {
     if (!loaded) return;
+    const native = nativeCrash(); // crashes inside Android (the JS log can't see those)
+    if (native) {
+      setTimeout(() => Alert.alert('Lifelog closed last time (Android)', `${native.slice(0, 1800)}\n\nScreenshot this for Claude 📸`, [{ text: 'OK' }]), 1200);
+      return;
+    }
     const crash = lastCrash();
     if (!crash) return;
     clearCrash();

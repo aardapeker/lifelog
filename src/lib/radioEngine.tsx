@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import { breadcrumb } from './crashLog';
 import { notify } from './notify';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -69,6 +70,7 @@ function useRadioEngine() {
   // what making the show is busy with: the steps so far, the last one still running
   const [steps, setSteps] = useState<{ key: string; detail?: string }[]>([]);
   const step = useCallback((key: string, detail?: string) => {
+    breadcrumb(`radio: ${key}${detail ? ` (${detail})` : ''}`); // where it was, if Android crashes the app
     setSteps((all) => (all.at(-1)?.key === key ? [...all.slice(0, -1), { key, detail }] : [...all, { key, detail }]));
   }, []);
   const [stationKey, setStationKey] = useState('neon');
@@ -467,6 +469,7 @@ function useRadioEngine() {
   const dropDraft = (i: number) => setDraft((d) => (d && d.length > 1 ? d.filter((_, k) => k !== i) : d));
   const writeDraft = () => {
     if (!draft) return;
+    breadcrumb(`radio: Write the show tapped (${draft.length} songs)`);
     setPhase('building');
     decide.current?.ok(draft);
     decide.current = null;
@@ -500,14 +503,18 @@ function useRadioEngine() {
         prepare(0);
         await clips.current.get(0); // the opening line is ready before we go on air
       }
+      breadcrumb('radio: showing the player');
       setShow(s);
       setPaused(false);
       setPhase('onair');
+      breadcrumb('radio: on-air notification');
       await goOnAir(s.title, `${s.station.name} ${s.station.freq}`);
       // make sure Spotify is awake on the phone now, while Lifelog is on screen and allowed to open it
       // the direct line to the Spotify app wakes it by itself; the old way opens Spotify on screen
+      breadcrumb('radio: waking Spotify');
       if (!(await remoteReady())) await wakeSpotify(s.slots[0].track.uri).catch(() => null);
       poll.current = onBeat(tick); // ~every second, even while you're in Spotify
+      breadcrumb('radio: first song');
       playSlot(0);
     } catch (e) {
       setPhase('pick');
@@ -638,6 +645,7 @@ function useRadioEngine() {
         }
       }
       // Spotify stopped (or a replay): the song starts, with its talk unless we already heard it
+      breadcrumb('radio: waking Spotify');
       if (!(await remoteReady())) await wakeSpotify(s.slots[at].track.uri).catch(() => null);
       poll.current = onBeat(tick);
       playSlot(at);
