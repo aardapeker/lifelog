@@ -57,6 +57,12 @@ class CrashCatcherModule : Module() {
           if (last != null && last.timestamp > seen && isBad(last.reason)) {
             parts.add("Android: ${reasonName(last.reason)} at ${stamp(last.timestamp)}" + (last.description?.let { "\n$it" } ?: "") +
               (if (last.reason == ApplicationExitInfo.REASON_LOW_MEMORY || last.pss > 0) "\nmemory: ${last.pss / 1024} MB" else ""))
+            // a native crash leaves a tombstone (Android 12+): the library and function names in it say what broke
+            if (Build.VERSION.SDK_INT >= 31 && last.reason == ApplicationExitInfo.REASON_CRASH_NATIVE) {
+              try {
+                last.traceInputStream?.use { parts.add("Where (native):\n" + tombstoneClues(it.readBytes())) }
+              } catch (_: Throwable) {}
+            }
           }
           if (last != null) p.edit().putLong("exitSeen", last.timestamp).commit()
         } catch (_: Throwable) {}
@@ -72,6 +78,29 @@ class CrashCatcherModule : Module() {
       crashFile(c).delete()
       null
     }
+  }
+
+  /**
+   * The tombstone is a protobuf; instead of a protobuf parser, pull out its readable strings and keep
+   * the telling ones: the abort message, the signal, and the libraries and functions of the stack.
+   */
+  private fun tombstoneClues(bytes: ByteArray): String {
+    val strings = mutableListOf<String>()
+    val run = StringBuilder()
+    for (b in bytes) {
+      val ch = b.toInt() and 0xff
+      if (ch in 0x20..0x7e) run.append(ch.toChar())
+      else {
+        if (run.length >= 5) strings.add(run.toString())
+        run.setLength(0)
+      }
+    }
+    if (run.length >= 5) strings.add(run.toString())
+    val telling = strings.filter {
+      it.contains(".so") || it.contains("::") || it.startsWith("SIG") || it.startsWith("SEGV") || it.startsWith("BUS_") ||
+        it.contains("abort", true) || it.contains("assert", true) || it.contains("hermes", true) || it.contains("Exception")
+    }.map { it.substringAfterLast('/').take(160) }
+    return telling.distinct().take(28).joinToString("\n")
   }
 
   private fun isBad(reason: Int) = when (reason) {

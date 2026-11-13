@@ -97,7 +97,7 @@ export default function RootLayout() {
     if (!loaded) return;
     const native = nativeCrash(); // crashes inside Android (the JS log can't see those)
     if (native) {
-      setTimeout(() => Alert.alert('Lifelog closed last time (Android)', `${native.slice(0, 1800)}\n\nScreenshot this for Claude 📸`, [{ text: 'OK' }]), 1200);
+      setTimeout(() => Alert.alert('Lifelog closed last time (Android)', `${native.slice(0, 3000)}\n\nScreenshot this for Claude 📸`, [{ text: 'OK' }]), 1200);
       return;
     }
     const crash = lastCrash();
