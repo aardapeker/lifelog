@@ -93,7 +93,7 @@ export default function PlaylistScreen() {
 
       {/* the song on air, floating on frosted glass at the bottom */}
       {phase === 'onair' && current && (
-        <Glass blur radius={24} style={[styles.mini, { bottom: insets.bottom + 16 }]} fill="rgba(30, 29, 29, 0.45)">
+        <Glass blur radius={24} style={[styles.mini, { bottom: insets.bottom + 16 }]} fill="rgba(24, 23, 23, 0.9)">
           <View style={styles.miniRow}>
             {current.track.image ? <Image source={{ uri: current.track.image }} style={styles.miniCover} /> : <View style={styles.miniCover} />}
             <View style={{ flex: 1 }}>

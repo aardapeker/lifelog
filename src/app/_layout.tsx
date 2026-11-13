@@ -23,6 +23,7 @@ import { useEffect } from 'react';
 import { Alert } from 'react-native';
 import { isBackupFileName } from '../lib/backup';
 import { clearCrash, lastCrash, nativeCrash } from '../lib/crashLog';
+import { showCrash } from '../lib/crashReport';
 import { RadioProvider } from '../lib/radioEngine';
 import { setPendingBackup, setPendingShare } from '../lib/share';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -96,23 +97,11 @@ export default function RootLayout() {
   useEffect(() => {
     if (!loaded) return;
     const native = nativeCrash(); // crashes inside Android (the JS log can't see those)
-    if (native) {
-      setTimeout(() => Alert.alert('Lifelog closed last time (Android)', `${native.slice(0, 3000)}\n\nScreenshot this for Claude 📸`, [{ text: 'OK' }]), 1200);
-      return;
-    }
-    const crash = lastCrash();
-    if (!crash) return;
-    clearCrash();
-    if (Date.now() - crash.at > 2 * 86_400_000) return;
-    setTimeout(
-      () =>
-        Alert.alert(
-          'Lifelog closed last time',
-          `${crash.message}\n\n${crash.where}\n\n${new Date(crash.at).toLocaleString()}`,
-          [{ text: 'OK' }],
-        ),
-      1200,
-    );
+    const crash = native ? null : lastCrash();
+    if (crash) clearCrash();
+    if (!native && (!crash || Date.now() - crash.at > 2 * 86_400_000)) return;
+    const report = native ?? `${crash!.message}\n\n${crash!.where}\n\n${new Date(crash!.at).toLocaleString()}`;
+    setTimeout(() => showCrash(native ? 'Lifelog closed last time (Android)' : 'Lifelog closed last time', report).catch(() => {}), 1200);
   }, [loaded]);
 
   // tapping a check-in opens the chat, a day-off reminder the plan, a Read the article

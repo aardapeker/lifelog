@@ -190,7 +190,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   // glass: see-through, with a light edge (the shimmer sweeps across it)
-  pillMain: { backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)' },
+  // dark glass: readable even floating over a busy screen (the Go on air button over the chips)
+  pillMain: { backgroundColor: 'rgba(14,14,16,0.92)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
   pillGhost: { backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' },
   pillFull: { alignSelf: 'stretch', paddingVertical: 17 },
   pillText: { fontFamily: fonts.sans, fontSize: 15, color: '#FFFFFF' },

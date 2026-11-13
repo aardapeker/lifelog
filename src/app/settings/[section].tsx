@@ -71,6 +71,7 @@ import { priceHint } from '../../lib/usage';
 import { getSetting, setSetting } from '../../lib/db';
 import { embed, indexPending, indexStats } from '../../lib/embeddings';
 import { getKey, maskKey, setKey, type Provider } from '../../lib/keys';
+import { getCrashToken, sendCrash, setCrashToken } from '../../lib/crashReport';
 import { useBottomSpace } from '../../components/MiniPlayer';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 
@@ -996,6 +997,52 @@ function BackdropSection() {
   );
 }
 
+/** Crash reports filed to GitHub by themselves, so Claude reads them without screenshots. */
+function CrashReportSection() {
+  const [saved, setSaved] = useState<string | null>(null);
+  const [draft, setDraft] = useState('');
+  const [status, run] = useStatus();
+  useEffect(() => {
+    getCrashToken().then(setSaved).catch(() => {});
+  }, []);
+  const save = () =>
+    run(async () => {
+      await setCrashToken(draft);
+      setSaved(draft.trim() || null);
+      setDraft('');
+      return draft.trim() ? 'Saved. Crashes are sent by themselves from now on.' : 'Removed.';
+    });
+  const test = () =>
+    run(async () => {
+      const n = await sendCrash('Test report', 'This is a test from Settings: auto-send works. You can close this issue.');
+      return `Sent as issue #${n}.`;
+    });
+  return (
+    <Section
+      title="Crash reports"
+      hint="When Lifelog crashes, the next open shows what happened. With a GitHub token here, the report is also filed as an issue in Lifelog's repo by itself (only the crash report, never your journal). Make a fine-grained token on github.com → Settings → Developer settings, for the lifelog repo only, with Issues: Read and write."
+    >
+      <Text style={styles.hint}>{saved ? `Token saved: ${maskKey(saved)}` : 'No token: crash reports stay on the phone (with a Copy button).'}</Text>
+      <TextInput
+        style={styles.input}
+        placeholder={saved ? 'Paste a new token to replace it' : 'github_pat_…'}
+        placeholderTextColor={colors.muted}
+        value={draft}
+        onChangeText={setDraft}
+        secureTextEntry
+        autoCapitalize="none"
+        autoCorrect={false}
+        {...inputColors}
+      />
+      <View style={styles.row}>
+        <PillButton label="Save" onPress={save} />
+        {saved && <PillButton label="Send a test" onPress={test} ghost />}
+      </View>
+      <StatusLine status={status} />
+    </Section>
+  );
+}
+
 /** A folding list of songs, each with one action (un-heart, un-ban). */
 function SongList(props: {
   title: string;
@@ -1339,6 +1386,7 @@ export default function SettingsScreen() {
           </View>
           <StatusLine status={indexStatus} />
         </Section>
+        <CrashReportSection />
         <WidgetAndExport />
         </>
         )}
