@@ -29,6 +29,7 @@ import { FadeIn, PressScale, Shimmer, ShimmerText, stagger } from '../../compone
 import { useBottomSpace } from '../../components/MiniPlayer';
 import { MilestoneSuggestions } from '../../components/Milestones';
 import { TopBar } from '../../components/TopBar';
+import { Beam, TimelineItem } from '../../components/TracingBeam';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 
 type Range = 'all' | 'week' | 'month';
@@ -64,13 +65,14 @@ function EntryCard({ note, label, photos }: { note: Note; label: string; photos?
 const MOOD_TINTS = ['#6E7A93', '#8D93A6', '#A8A29A', '#D2B48C', '#EBC96E'];
 const moodTint = (m: number) => MOOD_TINTS[Math.min(4, Math.max(0, Math.round(m) - 1))];
 
-function Day({ section, photos }: { section: DaySection; photos: Map<number, string[]> }) {
+function Day({ section, photos, last }: { section: DaySection; photos: Map<number, string[]>; last?: boolean }) {
   const moods = section.data.map((n) => n.mood).filter((m): m is number => typeof m === 'number');
   const mood = moods.length ? moods.reduce((a, b) => a + b, 0) / moods.length : null;
+  // each day hangs on the timeline, its dot in the day's mood colour
   return (
+    <TimelineItem dot={mood !== null ? moodTint(mood) : null} last={last}>
     <View style={styles.day}>
       <View style={styles.dayHeader}>
-        {mood !== null && <View style={[styles.moodDot, { backgroundColor: moodTint(mood) }]} />}
         <Text style={styles.dayTitle}>{section.weekday}</Text>
         <Text style={styles.dayDate}>
           {section.day} {section.month}
@@ -80,6 +82,7 @@ function Day({ section, photos }: { section: DaySection; photos: Map<number, str
         <EntryCard key={n.id} note={n} label={formatTime(n.created_at)} photos={photos.get(n.id)} />
       ))}
     </View>
+    </TimelineItem>
   );
 }
 
@@ -323,6 +326,9 @@ export default function JournalScreen() {
 
   return (
     <View style={styles.screen}>
+      {/* the tracing beam: lights up the timeline as you scroll back through your days (under the
+          list, so the days' dots sit on top of it) */}
+      {!isSearch && days.length > 1 && <Beam y={y} left={20} />}
       {isSearch ? (
     <Animated.FlatList
       {...scrolling}
@@ -351,7 +357,7 @@ export default function JournalScreen() {
       ListEmptyComponent={empty}
       renderItem={({ item, index }) => (
         <FadeIn delay={stagger(index, 70)}>
-          <Day section={item} photos={photos} />
+          <Day section={item} photos={photos} last={index === days.length - 1} />
         </FadeIn>
       )}
     />
@@ -399,9 +405,8 @@ const styles = StyleSheet.create({
   chips: { gap: 8, paddingTop: 14 },
   count: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.muted },
 
-  day: { marginTop: 14, gap: 10 },
+  day: { marginTop: 14, gap: 10, paddingTop: 2 },
   dayHeader: { flexDirection: 'row', alignItems: 'baseline', gap: 10 },
-  moodDot: { width: 8, height: 8, borderRadius: 4, alignSelf: 'center', opacity: 0.85 },
   dayTitle: { fontFamily: fonts.serif, fontSize: 19, color: colors.text },
   dayDate: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.muted },
 
