@@ -24,6 +24,7 @@ export type Feature =
   | 'photos'
   | 'voicenotes'
   | 'index'
+  | 'arena'
   | 'other';
 
 export const FEATURES: Record<Feature, { label: string; icon: ComponentProps<typeof Ionicons>['name']; tint: string }> = {
@@ -38,6 +39,7 @@ export const FEATURES: Record<Feature, { label: string; icon: ComponentProps<typ
   photos: { label: 'Photo captions', icon: 'image-outline', tint: '#FF8AC8' },
   voicenotes: { label: 'Voice notes', icon: 'recording-outline', tint: '#FF8A80' },
   index: { label: 'Search index', icon: 'compass-outline', tint: '#7FE0D0' },
+  arena: { label: 'Bug Arena questions', icon: 'bug-outline', tint: '#B6F09C' },
   other: { label: 'Other', icon: 'ellipsis-horizontal-circle-outline', tint: '#B0B0B0' },
 };
 

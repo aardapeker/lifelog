@@ -1,4 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
+import { getProgress } from './arena';
 import { getSetting, setSetting } from './db';
 import { notify } from './notify';
 import { likedSongs } from './songMemory';
@@ -25,6 +26,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'damar', emoji: '🥀', name: 'Full Damar', how: 'Make 5 shows on Tuzla Arabesk', goal: 5 },
   { id: 'hearts', emoji: '💘', name: 'Easy to Please', how: 'Heart 25 songs', goal: 25 },
   { id: 'roast', emoji: '🔥', name: 'Glutton for Punishment', how: 'Ask the Friend to roast you 3 times', goal: 3 },
+  { id: 'bugs', emoji: '🐛', name: 'Bug Exterminator', how: 'Get 100 Bug Arena questions right', goal: 100 },
+  { id: 'boss', emoji: '👹', name: 'Boss Slayer', how: 'Beat 3 Bug Arena bosses', goal: 3 },
 ];
 
 const KEY = 'achievements'; // { [id]: unlockedAt }
@@ -81,7 +84,9 @@ export async function progress(db: SQLiteDatabase): Promise<Record<string, numbe
     one(db, "SELECT count(*) AS n FROM messages WHERE role = 'user' AND content = '🔥 Roast my week'"),
   ]);
   const shows = Object.values(counts).reduce((a, b) => a + b, 0);
-  return { owl, early, cat, servis, cay, bruh, streak, novel, hundred, radio: shows, damar: counts.arabesk ?? 0, hearts, roast };
+  const arena = await getProgress(db);
+  const bosses = Object.values(arena.bosses).reduce((a, b) => a + (b ?? 0), 0);
+  return { bugs: arena.right, boss: bosses, owl, early, cat, servis, cay, bruh, streak, novel, hundred, radio: shows, damar: counts.arabesk ?? 0, hearts, roast };
 }
 
 export async function unlocked(db: SQLiteDatabase): Promise<Record<string, number>> {

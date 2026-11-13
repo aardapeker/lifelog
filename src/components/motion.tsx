@@ -20,6 +20,12 @@ export const haptic = {
   success: () => {
     if (buzz) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
   },
+  error: () => {
+    if (buzz) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+  },
+  tick: () => {
+    if (buzz) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  },
 };
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);

@@ -9,6 +9,7 @@ import {
   Inter_900Black_Italic,
 } from '@expo-google-fonts/inter';
 import { LibreCaslonText_400Regular_Italic } from '@expo-google-fonts/libre-caslon-text';
+import { JetBrainsMono_500Medium, JetBrainsMono_700Bold } from '@expo-google-fonts/jetbrains-mono';
 import { openWrite } from '../lib/write';
 import { useFonts } from 'expo-font';
 import * as Notifications from 'expo-notifications';
@@ -82,6 +83,9 @@ export default function RootLayout() {
     Inter_900Black,
     Inter_900Black_Italic,
     LibreCaslonText_400Regular_Italic,
+    // code in Bug Arena
+    JetBrainsMono_500Medium,
+    JetBrainsMono_700Bold,
   });
 
   useEffect(() => {
@@ -140,6 +144,8 @@ export default function RootLayout() {
         <Stack.Screen name="note/[id]" options={{ animation: 'none' }} />
         <Stack.Screen name="recap/[id]" />
         <Stack.Screen name="wrapped/[month]" />
+        <Stack.Screen name="arena/index" />
+        <Stack.Screen name="arena/play" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
         <Stack.Screen name="station/[key]" />
         <Stack.Screen name="onair" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="playlist" options={{ animation: 'slide_from_bottom' }} />

@@ -36,6 +36,7 @@ import { useBottomSpace } from '../../components/MiniPlayer';
 import { LifeTimeline } from '../../components/Milestones';
 import { Achievements } from '../../components/Achievements';
 import { WrappedCard } from '../../components/WrappedCard';
+import { ArenaCard } from '../../components/ArenaCard';
 import { TopBar } from '../../components/TopBar';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 
@@ -232,6 +233,11 @@ export default function InsightsScreen() {
           />
         </FadeIn>
       )}
+
+      {/* ── the coding game ── */}
+      <FadeIn style={styles.section} delay={stagger(0, 60)}>
+        <ArenaCard />
+      </FadeIn>
 
       {/* ── mood ── */}
       <FadeIn style={styles.section} delay={stagger(0, 60)}>

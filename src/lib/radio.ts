@@ -1,6 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getRadioConfig, parseJsonReply } from './chat';
 import { getCheckinSettings, shiftFor } from './checkins';
+import { arenaNews } from './arena';
 import { aboutUser, renderNotes } from './context';
 import { getSetting } from './db';
 import { formatDate, olderNotes, recentNotes } from './notes';
@@ -174,7 +175,12 @@ export async function buildShow(
     playedSongs(db),
     likedSongs(db),
   ]);
-  const [prefs, banned, throwbacks] = await Promise.all([getRadioPrefs(db), bannedSongs(db), olderNotes(db, 14, 3).catch(() => [])]);
+  const [prefs, banned, throwbacks, arena] = await Promise.all([
+    getRadioPrefs(db),
+    bannedSongs(db),
+    olderNotes(db, 14, 3).catch(() => []),
+    arenaNews(db).catch(() => ''),
+  ]);
   // favourites take turns: one that played in the last few shows sits this one out
   const resting = new Set(played.slice(0, REST).map((p) => p.id));
   const ok = (t: { id: string }) => !banned.some((b) => b.id === t.id);
@@ -248,6 +254,7 @@ export async function buildShow(
         : '') +
       (banned.length ? `NEVER play these, the listener banned them: ${banned.slice(0, 60).map(songLine).join('; ')}\n` : '') +
       (wish.trim() ? `The listener asked for: ${wish.trim()}\n` : '') +
+      (arena ? `${arena} The hosts may brag about it or tease them once (good BREAKING NEWS material).\n` : '') +
       (taste.length ? `Their top artists lately: ${taste.join(', ')}\n` : '') +
       `\n${notesText}`,
   });
@@ -347,6 +354,7 @@ export async function buildShow(
       `The playlist:\n${tracks.map((t, k) => `${k + 1}. "${t.name}" by ${t.artist}`).join('\n')}\n` +
       (welcome.length ? `Their favourites (greet these like old friends when they come): ${welcome.map(songLine).join('; ')}\n` : '') +
       (wish.trim() ? `The listener asked for: ${wish.trim()}\n` : '') +
+      (arena ? `${arena} The hosts may brag about it or tease them once (good BREAKING NEWS material).\n` : '') +
       `\n${notesText}` +
       (throwbacks.length
         ? `\n\nThrowbacks: a few random OLDER entries. Use one or two for a callback ("remember that day in September when…"), ` +

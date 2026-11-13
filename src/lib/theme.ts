@@ -22,6 +22,8 @@ export const fonts = {
   sans: 'Inter_500Medium',
   sansRegular: 'Inter_400Regular',
   sansBold: 'Inter_600SemiBold',
+  mono: 'JetBrainsMono_500Medium', // code (Bug Arena)
+  monoBold: 'JetBrainsMono_700Bold',
 };
 
 /** Text fields: a soft highlight so selected text stays readable, white handles and cursor. */
