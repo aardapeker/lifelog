@@ -507,8 +507,6 @@ function useRadioEngine() {
       setShow(s);
       setPaused(false);
       setPhase('onair');
-      // let the player finish drawing before the lock-screen audio starts, so a crash report can tell them apart
-      await new Promise((r) => setTimeout(r, 1500));
       breadcrumb('radio: on-air notification');
       await goOnAir(s.title, `${s.station.name} ${s.station.freq}`);
       // make sure Spotify is awake on the phone now, while Lifelog is on screen and allowed to open it

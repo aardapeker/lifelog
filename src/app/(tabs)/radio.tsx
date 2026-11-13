@@ -32,18 +32,18 @@ export default function RadioHome() {
 
   return (
     <View style={styles.screen}>
+      {/* behind the glass, NOT inside the blur area: when a show goes on air this tab (hidden under the
+          player) re-colours its background, and a live blur re-capturing that crashed the app (GPU
+          driver, SIGSEGV) right after "Write the show". The sheet is see-through glass instead. */}
+      <ShowWash />
       <GlassArea style={{ paddingTop: insets.top + 8 }}>
-        {/* inside the blur area, so the glass sheet frosts the song's colour too */}
-        <View style={[StyleSheet.absoluteFill, { top: -(insets.top + 8) }]} pointerEvents="none">
-          <ShowWash />
-        </View>
         <View style={styles.bar}>
           <Avatar size={44} />
           <Text style={styles.barTitle}>Radio</Text>
           <Bell />
         </View>
 
-        <Glass blur radius={28} style={styles.sheet}>
+        <Glass radius={28} style={styles.sheet} fill="rgba(18, 18, 18, 0.55)">
           <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 40 + TAB_BAR_SPACE + insets.bottom }]}>
             <Text style={styles.title}>Tune In</Text>
 
