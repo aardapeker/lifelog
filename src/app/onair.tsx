@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BuildProgress } from '../components/BuildProgress';
@@ -10,6 +10,7 @@ import Ionicons from '../components/Icon';
 import { FadeIn, PressScale, Pulse } from '../components/motion';
 import { Ban, ColourWash, GlowingCover, Heart, KeepAwake, showName, WASH_BASE, withAlpha } from '../components/radioParts';
 import { IconButton, PillButton, StatusLine } from '../components/ui';
+import { breadcrumb } from '../lib/crashLog';
 import { useRadio } from '../lib/radioEngine';
 import { colors, fonts, radius } from '../lib/theme';
 
@@ -23,6 +24,9 @@ export default function OnAirScreen() {
   const r = useRadio();
   const { phase, show, current, palette, paused, speaking, progress, station, steps, draft, status, hearts, voice } = r;
 
+  useEffect(() => {
+    if (phase === 'onair') breadcrumb('radio: player drawn');
+  }, [phase]);
   const close = () => (router.canGoBack() ? router.back() : router.replace('/radio'));
   const [talkOpen, setTalkOpen] = useState(true);
   /** ⋯ : the show's less frequent actions. */

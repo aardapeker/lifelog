@@ -1,5 +1,6 @@
 import { createAudioPlaylist, type AudioPlaylist } from 'expo-audio';
 import { File, Paths } from 'expo-file-system';
+import { breadcrumb } from './crashLog';
 import { beat } from './heartbeat';
 import { radioAudioMode, wav } from './tts';
 
@@ -40,9 +41,12 @@ async function silence(): Promise<string> {
 
 export async function goOnAir(title: string, station: string): Promise<void> {
   if (keeper) return updateOnAir(title, station);
+  breadcrumb('on air: audio mode');
   await radioAudioMode();
+  breadcrumb('on air: silence file');
   const uri = await silence();
   // two tracks, so the lock screen shows ⏭ (it's only offered for playlists)
+  breadcrumb('on air: creating the silent playlist');
   keeper = createAudioPlaylist({ sources: [uri, uri], updateInterval: 1000, loop: 'all' });
   lastPlaying = true;
   lastTime = 0;
@@ -80,10 +84,13 @@ export async function goOnAir(title: string, station: string): Promise<void> {
     lastTime = s.currentTime;
   });
   keeper.addListener('trackChanged', (e) => trackMoved(e.currentIndex));
+  breadcrumb('on air: playing the silence');
   keeper.play();
+  breadcrumb('on air: lock screen controls');
   try {
     keeper.setActiveForLockScreen(true, { title, artist: station }, { showNextTrack: true, showSeekForward: false, showSeekBackward: false });
   } catch {}
+  breadcrumb('on air: done');
 }
 
 export function updateOnAir(title: string, station: string): void {

@@ -96,11 +96,15 @@ class CrashCatcherModule : Module() {
       }
     }
     if (run.length >= 5) strings.add(run.toString())
-    val telling = strings.filter {
-      it.contains(".so") || it.contains("::") || it.startsWith("SIG") || it.startsWith("SEGV") || it.startsWith("BUS_") ||
-        it.contains("abort", true) || it.contains("assert", true) || it.contains("hermes", true) || it.contains("Exception")
+    val hex = Regex("^[0-9a-f\"']{16,}.?$")
+    val word = Regex("^[A-Za-z][A-Za-z0-9_\\-.:]{2,24}$") // thread names ("mqt_v_js", "hermes-gc"), short symbols
+    val telling = strings.map { it.trim() }.filter {
+      !hex.matches(it) && (
+        it.contains(".so") || it.contains("::") || it.startsWith("SIG") || it.startsWith("SEGV") || it.startsWith("BUS_") ||
+          it.contains("abort", true) || it.contains("assert", true) || it.contains("hermes", true) || it.contains("Exception") ||
+          word.matches(it))
     }.map { it.substringAfterLast('/').take(160) }
-    return telling.distinct().take(28).joinToString("\n")
+    return telling.distinct().take(60).joinToString("\n")
   }
 
   private fun isBad(reason: Int) = when (reason) {
