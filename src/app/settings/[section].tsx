@@ -1,4 +1,5 @@
 import Ionicons, { ICON_STYLES, setIconStyle, useIconStyle } from '../../components/Icon';
+import { BACKDROPS, setBackdrop, useBackdrop } from '../../lib/backdrop';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { Children, cloneElement, isValidElement, useCallback, useEffect, useState, type ComponentProps, type ReactNode } from 'react';
@@ -969,6 +970,32 @@ function IconsSection() {
   );
 }
 
+/** The background colour when no show is playing (while one plays, the song's colour takes over). */
+function BackdropSection() {
+  const db = useSQLiteContext();
+  const chosen = useBackdrop();
+  return (
+    <Section title="Background" hint="The app's colour when no music is playing. While a show plays, the song's colour takes over.">
+      <View style={styles.swatches}>
+        {BACKDROPS.map((b) => (
+          <Pressable
+            key={b.key || 'plain'}
+            onPress={() => setBackdrop(db, b.key)}
+            accessibilityLabel={`${b.label} background`}
+            accessibilityState={{ selected: chosen === b.key }}
+            style={styles.swatchCell}
+          >
+            <View style={[styles.swatch, { backgroundColor: b.color }, chosen === b.key && styles.swatchOn]}>
+              {chosen === b.key && <Ionicons name="checkmark" size={18} color="#FFFFFF" />}
+            </View>
+            <Text style={styles.swatchLabel}>{b.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </Section>
+  );
+}
+
 /** A folding list of songs, each with one action (un-heart, un-ban). */
 function SongList(props: {
   title: string;
@@ -1218,6 +1245,7 @@ export default function SettingsScreen() {
 
         <LearnedSection />
         <IconsSection />
+        <BackdropSection />
         </>
         )}
 
@@ -1321,6 +1349,11 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
+  swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
+  swatchCell: { alignItems: 'center', gap: 6, width: 56 },
+  swatch: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent' },
+  swatchOn: { borderColor: '#FFFFFF' },
+  swatchLabel: { fontFamily: fonts.sansRegular, fontSize: 11, color: colors.muted },
   pageTitle: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 24, marginBottom: 10 },
   iconPreview: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 22, paddingHorizontal: 6 },

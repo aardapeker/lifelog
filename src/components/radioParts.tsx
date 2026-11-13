@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Easing, Image, StyleSheet, View } from 'react-native';
 import { FadeIn, PressScale } from './motion';
+import { useBackdrop } from '../lib/backdrop';
 import { useRadioDock } from '../lib/radioEngine';
 import { colors, radius } from '../lib/theme';
 
@@ -107,12 +108,14 @@ export const WASH_BASE = '#0B0B0B';
 
 /**
  * The whole app's background while a show plays: the playlist look in the song's colour. Off air,
- * the app's normal plain background. Reads only the dock state, so it doesn't redraw every second.
+ * the colour picked in Settings (or the plain background). Reads only the dock state, so it doesn't redraw every second.
  */
 export function ShowWash() {
   const { phase, glow } = useRadioDock();
-  if (phase !== 'onair') return <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }]} pointerEvents="none" />;
-  return <ColourWash glow={glow} />;
+  const chosen = useBackdrop(); // Settings → Me → Background, for when nothing plays
+  if (phase === 'onair') return <ColourWash glow={glow} />;
+  if (chosen) return <ColourWash glow={chosen} />;
+  return <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }]} pointerEvents="none" />;
 }
 
 /** 3:56 */
