@@ -11,6 +11,7 @@ import { scheduleDayOffReminders } from './planner';
 import { ensureRecap } from './recap';
 import { checkAchievements } from './achievements';
 import { ensureWrapped } from './wrapped';
+import { radarJob } from '../radar/local';
 
 /**
  * Everything the app does "on its own", run when it opens or after you save.
@@ -50,4 +51,5 @@ async function runAll(db: SQLiteDatabase): Promise<void> {
   await safe(runResearch(db));
   await safe(writePendingReads(db)); // at most one Read a day
   await safe(maybeSendDigest(db));
+  await safe(radarJob(db)); // Radar: new news every ~2 hours, and the morning digest
 }

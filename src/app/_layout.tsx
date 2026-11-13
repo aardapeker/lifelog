@@ -145,6 +145,10 @@ export default function RootLayout() {
         <Stack.Screen name="recap/[id]" />
         <Stack.Screen name="wrapped/[month]" />
         <Stack.Screen name="arena/index" />
+        <Stack.Screen name="radar/index" />
+        <Stack.Screen name="radar/today" />
+        <Stack.Screen name="radar/settings" />
+        <Stack.Screen name="radar/item/[id]" options={{ animation: 'fade_from_bottom' }} />
         <Stack.Screen name="arena/play" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
         <Stack.Screen name="station/[key]" />
         <Stack.Screen name="onair" options={{ animation: 'slide_from_bottom' }} />

@@ -1,0 +1,115 @@
+import { useLocalSearchParams } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
+import { useEffect } from 'react';
+import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AiSummary } from '../../../radar/components/AiSummary';
+import { CardMeta } from '../../../radar/components/CardMeta';
+import { VideoThumb } from '../../../radar/components/FeedCard';
+import { Header, HeaderIcon } from '../../../radar/components/Header';
+import { Pill } from '../../../radar/components/Pill';
+import { PostBody } from '../../../radar/components/PostBody';
+import { ReaderView } from '../../../radar/components/ReaderView';
+import { StoryCoverage } from '../../../radar/components/StoryCoverage';
+import { isUsefulSnippet } from '../../../radar/format';
+import { useLoad } from '../../../radar/hooks';
+import { colors, ui } from '../../../radar/theme';
+import type { FeedItem } from '../../../radar/types';
+import { useRadar } from '../../../radar/useRadar';
+
+/** One item: TL;DR, read it here, save it, every outlet covering the story. Port of the radar app's item screen. */
+
+const OPEN_LABEL: Partial<Record<FeedItem['type'], string>> = {
+  VIDEO: 'Open on YouTube',
+  SHORT: 'Open on YouTube',
+  RELEASE: 'Open on GitHub',
+  DISCUSSION: 'Open the discussion',
+  POST: 'Open on Mastodon',
+};
+
+export default function ItemScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const r = useRadar();
+  const item = useLoad(() => r.item(id), [r, id]);
+  const read = item.data?.read;
+  // opening an item marks it read, so its card is dimmed in the feed
+  useEffect(() => {
+    if (read === false) r.markRead(id).catch(() => {});
+  }, [id, read, r]);
+
+  if (!item.data) {
+    return (
+      <View style={ui.screen}>
+        <Header title="Radar" />
+        <Text style={[ui.muted, { padding: 24 }]}>{item.isError ? `Couldn't load it: ${item.error?.message}` : item.isPending ? 'Loading…' : 'This one is gone.'}</Text>
+      </View>
+    );
+  }
+  return <Detail item={item.data} onChange={item.setData} />;
+}
+
+function Detail({ item, onChange }: { item: FeedItem; onChange: (i: FeedItem) => void }) {
+  const r = useRadar();
+  const insets = useSafeAreaInsets();
+  const isVideo = item.type === 'VIDEO' || item.type === 'SHORT';
+  // videos open in the YouTube app; pages in an in-app browser tab
+  const open = (url = item.url) => (isVideo && url === item.url ? Linking.openURL(url) : WebBrowser.openBrowserAsync(url, { toolbarColor: colors.ink }));
+  const second = item.mediaUrl && item.type === 'DISCUSSION' ? { url: item.mediaUrl, label: 'Linked article' } : null;
+  const save = () => {
+    r.setSaved(item.id, !item.saved).catch(() => {});
+    onChange({ ...item, saved: !item.saved });
+  };
+  const hide = () =>
+    item.domain &&
+    Alert.alert(`Never show ${item.domain}?`, 'Its articles leave your feed and the morning digest. Undo it in Radar settings.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Hide it', style: 'destructive', onPress: () => r.setHidden(item.domain!, true).catch(() => {}) },
+    ]);
+
+  return (
+    <View style={ui.screen}>
+      <Header
+        title={item.topicName}
+        right={
+          (item.type === 'ARTICLE' || item.type === 'DISCUSSION') && item.domain ? <HeaderIcon icon="eye-off-outline" label={`Never show ${item.domain}`} onPress={hide} /> : null
+        }
+      />
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 48 }]}>
+        {isVideo && (
+          <Pressable onPress={() => open()} accessibilityRole="button" accessibilityLabel="Play on YouTube" style={styles.media}>
+            <VideoThumb item={item} />
+          </Pressable>
+        )}
+        {(item.type === 'ARTICLE' || item.type === 'DISCUSSION') && item.thumbnailUrl && (
+          <Image source={{ uri: item.thumbnailUrl }} style={styles.hero} resizeMode="cover" />
+        )}
+        {item.type === 'POST' ? (
+          <PostBody item={item} large />
+        ) : (
+          <>
+            <CardMeta item={item} showKind={false} />
+            <Text style={styles.title}>{item.title}</Text>
+            {item.author && <Text style={ui.muted}>{item.author}</Text>}
+            {isUsefulSnippet(item.snippet, item.title) && <Text style={ui.body}>{item.snippet}</Text>}
+            <AiSummary item={item} />
+          </>
+        )}
+        <View style={styles.actions}>
+          <Pill label={OPEN_LABEL[item.type] ?? 'Open original'} icon="open-outline" variant="solid" onPress={() => open()} />
+          <Pill label={item.saved ? 'Saved' : 'Save'} icon={item.saved ? 'bookmark' : 'bookmark-outline'} variant={item.saved ? 'on' : 'plain'} onPress={save} />
+          {second && <Pill label={second.label} icon="document-text-outline" onPress={() => open(second.url)} />}
+        </View>
+        <ReaderView item={item} />
+        <StoryCoverage item={item} />
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  content: { padding: 20, gap: 16 },
+  media: { borderRadius: 16, overflow: 'hidden' },
+  hero: { width: '100%', aspectRatio: 16 / 9, borderRadius: 16 },
+  title: { color: colors.paper, fontSize: 26, fontWeight: '800', lineHeight: 32 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+});

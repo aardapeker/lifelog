@@ -37,6 +37,7 @@ import { LifeTimeline } from '../../components/Milestones';
 import { Achievements } from '../../components/Achievements';
 import { WrappedCard } from '../../components/WrappedCard';
 import { ArenaCard } from '../../components/ArenaCard';
+import { RadarCard } from '../../components/RadarCard';
 import { TopBar } from '../../components/TopBar';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 
@@ -233,6 +234,11 @@ export default function InsightsScreen() {
           />
         </FadeIn>
       )}
+
+      {/* ── the news radar (a sub-app) ── */}
+      <FadeIn style={styles.section} delay={stagger(0, 60)}>
+        <RadarCard />
+      </FadeIn>
 
       {/* ── the coding game ── */}
       <FadeIn style={styles.section} delay={stagger(0, 60)}>

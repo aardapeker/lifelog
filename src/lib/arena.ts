@@ -1,8 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { getChatConfig, getChatModel, parseJsonReply, PROVIDERS } from './chat';
+import { geminiFirst, parseJsonReply } from './chat';
 import { aboutUser } from './context';
 import { getSetting, setSetting } from './db';
-import { getKey } from './keys';
 import { runJs, sameOutput } from './jsRun';
 
 /*
@@ -179,11 +178,9 @@ const saveBank = (db: SQLiteDatabase, lang: Lang, b: Question[]) => setSetting(d
 
 /** Gemini when its key is saved (the funniest writer), otherwise whatever the chat uses. */
 async function writer(db: SQLiteDatabase) {
-  const gemini = await getKey('gemini');
-  if (gemini) return { adapter: PROVIDERS.gemini, apiKey: gemini, model: await getChatModel(db, 'gemini') };
-  const chat = await getChatConfig(db);
-  if (!chat.apiKey) throw new Error('Add an AI key in Settings first: the questions are written by AI.');
-  return { adapter: PROVIDERS[chat.provider], apiKey: chat.apiKey, model: chat.model };
+  const w = await geminiFirst(db);
+  if (!w) throw new Error('Add an AI key in Settings first: the questions are written by AI.');
+  return w;
 }
 
 const TOPICS: Partial<Record<Lang, string>> = {

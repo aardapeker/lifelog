@@ -227,6 +227,54 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX inbox_at ON inbox(at);
   `,
+  // v11: Radar, the topic news feed (a sub-app that moves to its own server later: its tables stand alone)
+  `
+  CREATE TABLE radar_topics (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug          TEXT    NOT NULL UNIQUE,
+    name          TEXT    NOT NULL,
+    color         TEXT    NOT NULL,
+    keywords      TEXT    NOT NULL DEFAULT '[]', -- JSON string[]
+    exclude_words TEXT    NOT NULL DEFAULT '[]',
+    sources       TEXT    NOT NULL DEFAULT '{}', -- JSON TopicSources
+    position      INTEGER NOT NULL DEFAULT 0,
+    created_at    INTEGER NOT NULL
+  );
+  CREATE TABLE radar_items (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    topic_id       INTEGER NOT NULL REFERENCES radar_topics(id) ON DELETE CASCADE,
+    source_id      TEXT    NOT NULL, -- bing-news, hacker-news, youtube, github, mastodon
+    type           TEXT    NOT NULL,
+    source_name    TEXT,
+    title          TEXT    NOT NULL,
+    snippet        TEXT,
+    url            TEXT    NOT NULL,
+    thumbnail_url  TEXT,
+    media_url      TEXT,
+    author         TEXT,
+    author_avatar  TEXT,
+    score          INTEGER,
+    comment_count  INTEGER,
+    published_at   INTEGER NOT NULL,
+    fetched_at     INTEGER NOT NULL,
+    story_id       INTEGER, -- the lead item this one joined ("· N sources"); NULL = it is a lead
+    domain         TEXT,
+    saved_at       INTEGER,
+    read_at        INTEGER,
+    summary        TEXT,    -- AI TL;DR bullets, one per line
+    summary_basis  TEXT,
+    summary_by     TEXT,
+    UNIQUE (topic_id, url)
+  );
+  CREATE INDEX radar_items_feed ON radar_items(published_at DESC);
+  CREATE INDEX radar_items_story ON radar_items(story_id);
+  CREATE TABLE radar_sites (
+    domain TEXT PRIMARY KEY,
+    ok     INTEGER NOT NULL DEFAULT 0, -- reads that worked
+    fail   INTEGER NOT NULL DEFAULT 0, -- paywall, login wall, needs JavaScript
+    hidden INTEGER NOT NULL DEFAULT 0  -- "Never show this site"
+  );
+  `,
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<void> {

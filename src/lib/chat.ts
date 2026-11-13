@@ -172,6 +172,17 @@ export async function getRadioConfig(db: SQLiteDatabase) {
   return { provider, apiKey, model, adapter: PROVIDERS[provider] };
 }
 
+/**
+ * For playful jobs (Bug Arena, Radar's TL;DRs): Gemini when its key is saved (cheap, and it's the
+ * funny one), otherwise whatever the chat uses. Null when no key at all.
+ */
+export async function geminiFirst(db: SQLiteDatabase) {
+  const gemini = await getKey('gemini');
+  if (gemini) return { provider: 'gemini' as Provider, adapter: PROVIDERS.gemini, apiKey: gemini, model: await getChatModel(db, 'gemini') };
+  const chat = await getChatConfig(db);
+  return chat.apiKey ? { provider: chat.provider, adapter: PROVIDERS[chat.provider], apiKey: chat.apiKey, model: chat.model } : null;
+}
+
 /** Parses a JSON object out of a model reply, tolerating ```json fences or chatter around it. */
 export function parseJsonReply<T>(text: string): T {
   const start = text.indexOf('{');
