@@ -91,6 +91,10 @@ export default function JournalScreen() {
   const insets = useSafeAreaInsets();
   const bottomSpace = useBottomSpace(); // the tab bar, plus the radio player when it's docked
   const { y, onScroll } = useCollapsingHeader();
+  // sizes for the tracing beam: where the first day starts, and how far the list scrolls
+  const [headerH, setHeaderH] = useState(0);
+  const [contentH, setContentH] = useState(0);
+  const [viewH, setViewH] = useState(0);
   const [notes, setNotes] = useState<Note[]>([]);
   const [name, setName] = useState('');
   const [query, setQuery] = useState('');
@@ -244,7 +248,7 @@ export default function JournalScreen() {
   );
 
   const header = (
-    <View>
+    <View onLayout={(e) => setHeaderH(e.nativeEvent.layout.height)}>
       {/* your photo opens You (profile + settings); new entries start from the ＋ in the tab bar */}
       <TopBar
         kicker={greeting()}
@@ -328,7 +332,16 @@ export default function JournalScreen() {
     <View style={styles.screen}>
       {/* the tracing beam: lights up the timeline as you scroll back through your days (under the
           list, so the days' dots sit on top of it) */}
-      {!isSearch && days.length > 1 && <Beam y={y} left={20} />}
+      {!isSearch && days.length > 1 && headerH > 0 && (
+        <Beam
+          y={y}
+          left={20}
+          firstDot={insets.top + 12 + headerH + 10 + 13} // the list's top padding, the header, the gap, half the first day's dot
+          top={insets.top + 46} // under the slim title bar
+          bottom={bottomSpace}
+          end={Math.max(0, contentH - viewH)}
+        />
+      )}
       {isSearch ? (
     <Animated.FlatList
       {...scrolling}
@@ -348,6 +361,8 @@ export default function JournalScreen() {
       ) : (
     <Animated.FlatList
       {...scrolling}
+      onLayout={(e) => setViewH(e.nativeEvent.layout.height)}
+      onContentSizeChange={(_, h) => setContentH(h)}
       style={styles.screen}
       data={days}
       keyExtractor={(d) => d.key}
