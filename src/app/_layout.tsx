@@ -145,6 +145,7 @@ export default function RootLayout() {
         <Stack.Screen name="recap/[id]" />
         <Stack.Screen name="wrapped/[month]" />
         <Stack.Screen name="arena/index" />
+        <Stack.Screen name="groceries" />
         <Stack.Screen name="radar/index" />
         <Stack.Screen name="radar/today" />
         <Stack.Screen name="radar/settings" />

@@ -25,7 +25,9 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.POST_NOTIFICATIONS",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ],
       "blockedPermissions": [
         "android.permission.SYSTEM_ALERT_WINDOW"
@@ -105,7 +107,15 @@
           "disableIOS": true
         }
       ],
-      "./plugins/withSpotifyRemote"
+      "./plugins/withSpotifyRemote",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Lifelog uses your location to find grocery prices at the markets near you.",
+          "isAndroidBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": false
+        }
+      ]
     ]
   }
 }

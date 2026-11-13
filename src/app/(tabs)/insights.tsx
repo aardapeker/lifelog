@@ -38,6 +38,7 @@ import { Achievements } from '../../components/Achievements';
 import { WrappedCard } from '../../components/WrappedCard';
 import { ArenaCard } from '../../components/ArenaCard';
 import { RadarCard } from '../../components/RadarCard';
+import { GroceryCard } from '../../components/GroceryCard';
 import { TopBar } from '../../components/TopBar';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 
@@ -234,6 +235,11 @@ export default function InsightsScreen() {
           />
         </FadeIn>
       )}
+
+      {/* ── the grocery list ── */}
+      <FadeIn style={styles.section} delay={stagger(0, 60)}>
+        <GroceryCard />
+      </FadeIn>
 
       {/* ── the news radar (a sub-app) ── */}
       <FadeIn style={styles.section} delay={stagger(0, 60)}>
