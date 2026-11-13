@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Glass } from '../../components/Glass';
 import { MiniPlayer } from '../../components/MiniPlayer';
 import { ShowWash } from '../../components/radioParts';
+import { ShimmerSweep } from '../../components/ui';
 import { colors, fonts } from '../../lib/theme';
 import { useKeyboardVisible } from '../../lib/useKeyboardVisible';
 
@@ -142,12 +143,14 @@ function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
                 const light = v.open[i].interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
                 return (
                   <View key={s.route} style={StyleSheet.absoluteFill} pointerEvents="box-none">
-                    {/* Write keeps its ring while it isn't open, so the ＋ always stands out */}
+                    {/* Write keeps its shimmering ring while it isn't open, so the ＋ always stands out */}
                     {s.route === 'write' && (
                       <Animated.View
                         pointerEvents="none"
                         style={[styles.ring, { opacity: light, transform: [{ translateX: Animated.add(v.x[i], (ICON - ITEM) / 2) }] }]}
-                      />
+                      >
+                        <ShimmerSweep w={ITEM} strength={0.22} round={ITEM / 2} />
+                      </Animated.View>
                     )}
                     {/* the icon: a light copy and a dark copy cross-fade as the pill arrives */}
                     <Animated.View style={[styles.icon, { transform: [{ translateX: v.x[i] }] }]} pointerEvents="none">
@@ -234,8 +237,8 @@ const styles = StyleSheet.create({
     borderRadius: ITEM / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.35)',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.28)',
+    backgroundColor: 'rgba(255,255,255,0.10)', // glass, like the buttons
   },
 });
