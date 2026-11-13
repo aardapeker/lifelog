@@ -204,7 +204,7 @@ export default function OnAirScreen() {
       <LinearGradient
         colors={['rgba(0,0,0,0.6)', 'rgba(0,0,0,0.25)', 'rgba(0,0,0,0)']}
         locations={[0, 0.55, 1]}
-        style={[styles.topFade, { height: insets.top + 110 }]}
+        style={[styles.topFade, { height: insets.top + 76 }]} // only behind the header: it used to dim the show's name
         pointerEvents="none"
       />
       <View style={[styles.bar, { paddingTop: insets.top + 8 }]}>
@@ -245,10 +245,11 @@ const styles = StyleSheet.create({
   barMid: { flex: 1, alignItems: 'center', paddingHorizontal: 8 },
   onAir: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.danger },
-  barSmall: { fontFamily: fonts.sans, fontSize: 11, letterSpacing: 1.2, color: colors.muted },
-  barTitle: { fontFamily: fonts.sans, fontSize: 15, color: colors.text, marginTop: 2 },
+  barSmall: { fontFamily: fonts.sans, fontSize: 11, letterSpacing: 1.2, color: 'rgba(255,255,255,0.8)', textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 5 },
+  barTitle: { fontFamily: fonts.sans, fontSize: 15, color: colors.text, marginTop: 2, textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 5 },
   content: { paddingHorizontal: 22, paddingTop: 8 },
-  showName: { fontFamily: fonts.serifItalic, fontSize: 15, color: colors.muted, marginBottom: 14, textAlign: 'center' },
+  // readable on any cover colour, even a pale one: bright, a touch heavier, with a soft shadow
+  showName: { fontFamily: fonts.sans, fontSize: 15, color: 'rgba(255,255,255,0.92)', marginBottom: 14, textAlign: 'center', textShadowColor: 'rgba(0,0,0,0.55)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } },
   coverBox: { width: '82%', alignSelf: 'center', marginTop: 6 }, // like a record sleeve, with room around it
   player: { padding: 18, marginTop: 26 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
