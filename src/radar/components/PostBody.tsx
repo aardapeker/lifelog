@@ -3,7 +3,7 @@ import { Image, StyleSheet, Text, View } from 'react-native'
 
 import type { FeedItem } from '../types'
 import { splitAuthor, timeAgo } from '../format'
-import { colors, mono } from '../theme'
+import { colors, mono, fonts } from '../theme'
 import { metaStyles } from './CardMeta'
 
 /** A Mastodon post: author row, text, image, likes. Card and detail screen (`large`). */
@@ -42,11 +42,11 @@ const styles = StyleSheet.create({
   wrap: { gap: 12 },
   author: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   initial: { backgroundColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  initialText: { color: colors.paper, fontWeight: '700' },
-  name: { color: colors.paper, fontWeight: '700', fontSize: 15 },
-  muted: { color: colors.muted, fontSize: 13 },
-  text: { color: colors.paper, fontSize: 15, lineHeight: 22 },
-  large: { fontSize: 18, lineHeight: 27 },
+  initialText: { color: colors.paper, fontFamily: fonts.sansBold },
+  name: { color: colors.paper, fontFamily: fonts.sansBold, fontSize: 15 },
+  muted: { color: colors.muted, fontFamily: fonts.sansRegular, fontSize: 13 },
+  text: { color: colors.paper, fontFamily: fonts.sansRegular, fontSize: 15, lineHeight: 22 },
+  large: { fontFamily: fonts.sansRegular, fontSize: 18, lineHeight: 27 },
   image: { width: '100%', aspectRatio: 16 / 10, borderRadius: 12, borderWidth: 1, borderColor: colors.line },
   stats: { color: colors.muted, fontFamily: mono, fontSize: 12 },
 })

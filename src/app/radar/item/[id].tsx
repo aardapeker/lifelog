@@ -13,7 +13,7 @@ import { ReaderView } from '../../../radar/components/ReaderView';
 import { StoryCoverage } from '../../../radar/components/StoryCoverage';
 import { isUsefulSnippet } from '../../../radar/format';
 import { useLoad } from '../../../radar/hooks';
-import { colors, ui } from '../../../radar/theme';
+import { colors, ui, fonts } from '../../../radar/theme';
 import type { FeedItem } from '../../../radar/types';
 import { useRadar } from '../../../radar/useRadar';
 
@@ -110,6 +110,6 @@ const styles = StyleSheet.create({
   content: { padding: 20, gap: 16 },
   media: { borderRadius: 16, overflow: 'hidden' },
   hero: { width: '100%', aspectRatio: 16 / 9, borderRadius: 16 },
-  title: { color: colors.paper, fontSize: 26, fontWeight: '800', lineHeight: 32 },
+  title: { color: colors.paper, fontSize: 26, fontFamily: fonts.sansBold, lineHeight: 32 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
 });

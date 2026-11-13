@@ -44,13 +44,12 @@ export function RadarCard() {
 
 const styles = StyleSheet.create({
   hint: { fontFamily: fonts.sansRegular, fontSize: 13, lineHeight: 19, color: colors.muted, marginBottom: 10 },
-  // Radar's own colours (ink and orange), so it reads as its own little app
-  card: { borderRadius: radius.md, padding: 18, gap: 10, backgroundColor: '#1c1916', borderWidth: 1, borderColor: 'rgba(255,122,69,0.4)' },
+  card: { borderRadius: radius.md, padding: 18, gap: 10, backgroundColor: colors.surface },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontFamily: fonts.sansBold, fontSize: 18, color: '#f3eee6' },
-  go: { fontFamily: fonts.sans, fontSize: 26, color: '#ff7a45' },
+  title: { fontFamily: fonts.sansBold, fontSize: 18, color: colors.text },
+  go: { fontFamily: fonts.sans, fontSize: 26, color: colors.muted },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   dot: { width: 8, height: 8, borderRadius: 4 },
-  headline: { flex: 1, fontFamily: fonts.sansRegular, fontSize: 14, color: '#d8d0c4' },
-  sub: { fontFamily: fonts.sansRegular, fontSize: 13, color: '#a39a8e' },
+  headline: { flex: 1, fontFamily: fonts.sansRegular, fontSize: 14, color: colors.text },
+  sub: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.muted },
 });

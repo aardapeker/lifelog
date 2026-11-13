@@ -4,7 +4,7 @@ import { Image, ActivityIndicator, StyleSheet, Text, View } from 'react-native'
 
 import { useReader } from '../hooks'
 import type { FeedItem, ReaderBlock } from '../types'
-import { colors, ui } from '../theme'
+import { colors, ui, fonts } from '../theme'
 import { Retry } from './AiSummary'
 import { Pill } from './Pill'
 
@@ -66,8 +66,8 @@ const hostOf = (url: string | null) => (url ? url.replace(/^https?:\/\/(www\.)?/
 
 const styles = StyleSheet.create({
   wrap: { gap: 14, borderTopWidth: 1, borderTopColor: colors.line, paddingTop: 16 },
-  h2: { color: colors.paper, fontSize: 22, fontWeight: '700', marginTop: 8 },
-  h3: { color: colors.paper, fontSize: 18, fontWeight: '700' },
-  quote: { borderLeftWidth: 3, borderLeftColor: colors.accent, paddingLeft: 12, fontStyle: 'italic' },
+  h2: { color: colors.paper, fontSize: 22, fontFamily: fonts.sansBold, marginTop: 8 },
+  h3: { color: colors.paper, fontSize: 18, fontFamily: fonts.sansBold },
+  quote: { borderLeftWidth: 3, borderLeftColor: colors.accent, paddingLeft: 12, fontFamily: fonts.serifItalic },
   img: { width: '100%', aspectRatio: 16 / 10, borderRadius: 10 },
 })

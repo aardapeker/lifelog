@@ -6,7 +6,7 @@ import { FeedCard } from '../../radar/components/FeedCard';
 import { Header, HeaderIcon } from '../../radar/components/Header';
 import { TopicChips } from '../../radar/components/TopicChips';
 import { timeAgo } from '../../radar/format';
-import { colors, ui } from '../../radar/theme';
+import { colors, ui, fonts } from '../../radar/theme';
 import type { FeedItem, Topic } from '../../radar/types';
 import { useRadar } from '../../radar/useRadar';
 
@@ -121,7 +121,7 @@ export default function RadarFeed() {
 }
 
 const styles = StyleSheet.create({
-  status: { color: colors.muted, fontSize: 12, paddingHorizontal: 20, paddingBottom: 6 },
+  status: { color: colors.muted, fontFamily: fonts.sansRegular, fontSize: 12, paddingHorizontal: 20, paddingBottom: 6 },
   list: { paddingHorizontal: 16 },
   cell: { paddingBottom: 12 },
   empty: { padding: 24, textAlign: 'center' },

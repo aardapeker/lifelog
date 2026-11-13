@@ -6,7 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useStory } from '../hooks'
 import type { FeedItem } from '../types'
 import { timeAgo } from '../format'
-import { colors, ui } from '../theme'
+import { colors, ui, fonts } from '../theme'
 
 /** "Coverage · 6 sources": every outlet on this story; tap one to open it in the app. */
 export function StoryCoverage({ item }: { item: FeedItem }) {
@@ -44,5 +44,5 @@ export function StoryCoverage({ item }: { item: FeedItem }) {
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
   border: { borderTopWidth: 1, borderTopColor: colors.line },
-  title: { color: colors.paper, fontSize: 15 },
+  title: { color: colors.paper, fontFamily: fonts.sansRegular, fontSize: 15 },
 })

@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Header } from '../../radar/components/Header';
 import { timeAgo } from '../../radar/format';
 import { useLoad } from '../../radar/hooks';
-import { colors, ui } from '../../radar/theme';
+import { colors, ui, fonts } from '../../radar/theme';
 import { useRadar } from '../../radar/useRadar';
 
 /** ☀ Today: the same list as the morning notification. Port of the radar app's today screen. */
@@ -62,9 +62,9 @@ const styles = StyleSheet.create({
   done: { padding: 24, textAlign: 'center' },
   heading: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   dot: { width: 10, height: 10, borderRadius: 5 },
-  topic: { color: colors.paper, fontSize: 18, fontWeight: '700' },
+  topic: { color: colors.paper, fontSize: 18, fontFamily: fonts.sansBold },
   row: { padding: 14, gap: 4 },
   border: { borderTopWidth: 1, borderTopColor: colors.line },
-  story: { color: colors.accent, fontWeight: '700' },
-  title: { color: colors.paper, fontSize: 16, fontWeight: '600' },
+  story: { color: colors.accent, fontFamily: fonts.sansBold },
+  title: { color: colors.paper, fontSize: 16, fontFamily: fonts.sans },
 });

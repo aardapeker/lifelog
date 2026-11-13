@@ -28,7 +28,7 @@ export function TopicChips({ topics, active, onChange, savedOnly, onSavedOnly }:
         <Pill
           key={t.slug ?? 'all'}
           label={t.name}
-          variant={t.slug === active ? 'solid' : 'plain'}
+          variant={t.slug === active ? 'on' : 'plain'}
           onPress={() => onChange(t.slug)}
         />
       ))}

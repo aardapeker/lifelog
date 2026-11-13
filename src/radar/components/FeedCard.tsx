@@ -4,7 +4,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import type { FeedItem } from '../types'
 import { formatDuration, isUsefulSnippet } from '../format'
-import { colors, mono, ui } from '../theme'
+import { colors, mono, ui, fonts } from '../theme'
 import { CardMeta } from './CardMeta'
 import { PostBody } from './PostBody'
 
@@ -75,8 +75,8 @@ const styles = StyleSheet.create({
   body: { padding: 16 },
   row: { flexDirection: 'row', gap: 12 },
   text: { flex: 1, gap: 6 },
-  title: { color: colors.paper, fontSize: 18, fontWeight: '700', lineHeight: 24 },
-  snippet: { color: colors.soft, fontSize: 14, lineHeight: 20 },
+  title: { color: colors.paper, fontSize: 18, fontFamily: fonts.sansBold, lineHeight: 24 },
+  snippet: { color: colors.soft, fontFamily: fonts.sansRegular, fontSize: 14, lineHeight: 20 },
   extras: { color: colors.muted, fontFamily: mono, fontSize: 12 },
   side: { width: 96, height: 72, borderRadius: 10 },
   video: { aspectRatio: 16 / 9, backgroundColor: colors.line, alignItems: 'center', justifyContent: 'center' },

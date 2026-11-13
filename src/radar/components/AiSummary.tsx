@@ -3,7 +3,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
 
 import { useSummary } from '../hooks'
 import type { AiSummary as Summary, FeedItem } from '../types'
-import { colors, ui } from '../theme'
+import { colors, ui, fonts } from '../theme'
 import { Pill } from './Pill'
 
 /** Same rules as the web app's AiSummary. */
@@ -66,6 +66,6 @@ const styles = StyleSheet.create({
   box: { padding: 16, gap: 10 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   bullet: { flexDirection: 'row', gap: 8 },
-  dot: { color: colors.accent, fontSize: 16, lineHeight: 24 },
-  note: { color: colors.muted, fontSize: 12 },
+  dot: { color: colors.accent, fontFamily: fonts.sansRegular, fontSize: 16, lineHeight: 24 },
+  note: { color: colors.muted, fontFamily: fonts.sansRegular, fontSize: 12 },
 })

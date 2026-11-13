@@ -1,31 +1,30 @@
-// Radar's own look (copied from the radar repo, mobile/src/theme.ts): it stays its own app inside Lifelog.
-import { StyleSheet } from 'react-native'
+import { StyleSheet } from 'react-native';
+import { colors as app, fonts, radius } from '../lib/theme';
 
-/** Same tokens as the web app (frontend/src/index.css). */
+/*
+ * Radar inside Lifelog wears Lifelog's look: the same charcoal, white and grey, and Inter. The token
+ * names stay the radar repo's (ink, panel, paper…) so the ported components didn't have to change;
+ * only the values point at Lifelog's theme. (The standalone Radar app keeps its own ink-and-orange.)
+ */
 export const colors = {
-  ink: '#12100e',
-  panel: '#1c1916',
-  line: '#2e2a25',
-  paper: '#f3eee6',
-  soft: '#d8d0c4',
-  muted: '#a39a8e',
-  accent: '#ff7a45',
-  up: '#7fd49a',
-} as const
+  ink: app.bg,
+  panel: app.surface,
+  line: app.line,
+  paper: app.text,
+  soft: '#D9D8D8',
+  muted: app.muted,
+  accent: app.text, // Lifelog is monochrome: highlights are white, not orange
+  up: app.ok,
+} as const;
 
-export const mono = 'monospace'
+export const mono = fonts.mono;
+export { fonts };
 
 /** Styles several screens share. */
 export const ui = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.ink },
-  card: {
-    backgroundColor: colors.panel,
-    borderColor: colors.line,
-    borderWidth: 1,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  label: { color: colors.accent, fontFamily: mono, fontSize: 12, letterSpacing: 2, textTransform: 'uppercase' },
-  muted: { color: colors.muted, fontSize: 14 },
-  body: { color: colors.soft, fontSize: 16, lineHeight: 24 },
-})
+  card: { backgroundColor: colors.panel, borderRadius: radius.md, overflow: 'hidden' },
+  label: { color: colors.muted, fontFamily: fonts.serif, fontSize: 14 }, // like Lifelog's "How long?" labels
+  muted: { color: colors.muted, fontFamily: fonts.sansRegular, fontSize: 14 },
+  body: { color: colors.soft, fontFamily: fonts.sansRegular, fontSize: 16, lineHeight: 24 },
+});

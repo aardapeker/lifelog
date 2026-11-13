@@ -14,7 +14,9 @@ with the phone acting as its server. When the server exists, it moves back out.
   methods calling the server's REST API, returned from `useRadar()`; the screens don't change.
 - `types.ts`, `format.ts`, `theme.ts` and `components/` are copies/ports of the radar repo
   (`shared/api/types.ts`, `shared/format.ts`, `mobile/src/theme.ts`, `mobile/src/components/`).
-  Keep them in step; Radar keeps its own look (ink, paper, orange).
+  Keep them in step. Inside Lifelog, Radar wears Lifelog's look: `theme.ts` keeps the radar repo's
+  token names but points them at `lib/theme`, and `Pill`/`Header` use Lifelog's glass buttons, chips
+  and icon buttons (the standalone Radar app keeps its own ink-and-orange).
 
 ## The on-phone backend (`local/`)
 Ports of the Java services:

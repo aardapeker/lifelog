@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from 'react-native'
 
 import type { FeedItem } from '../types'
 import { timeAgo } from '../format'
-import { colors, mono } from '../theme'
+import { colors, mono, fonts } from '../theme'
 
 /** "● Linux · Phoronix · 3h ago  ARTICLE", shared by every card and the detail screen. */
 export function CardMeta({ item, showKind = true }: { item: FeedItem; showKind?: boolean }) {
@@ -29,9 +29,9 @@ export const metaStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 },
   dot: metaStyles.dot,
-  topic: { color: colors.paper, fontWeight: '700', fontSize: 13 },
-  muted: { color: colors.muted, fontSize: 13 },
-  story: { color: colors.accent, fontWeight: '700', fontSize: 13 },
+  topic: { color: colors.paper, fontFamily: fonts.sansBold, fontSize: 13 },
+  muted: { color: colors.muted, fontFamily: fonts.sansRegular, fontSize: 13 },
+  story: { color: colors.accent, fontFamily: fonts.sansBold, fontSize: 13 },
   kind: {
     color: colors.muted,
     fontFamily: mono,

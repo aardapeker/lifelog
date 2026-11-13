@@ -5,9 +5,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Header } from '../../radar/components/Header';
 import { Pill } from '../../radar/components/Pill';
 import { splitList } from '../../radar/format';
-import { colors, ui } from '../../radar/theme';
+import { colors, ui, fonts } from '../../radar/theme';
 import type { DigestSettings, RadarSettings, Topic, TopicInput } from '../../radar/types';
 import { useRadar } from '../../radar/useRadar';
+import { inputColors } from '../../lib/theme';
 
 /*
  * Radar's settings: your topics (keywords, words to skip, where else to look), the morning digest,
@@ -109,7 +110,7 @@ export default function RadarSettingsScreen() {
             <Text style={[ui.label, styles.section]}>☀️ Morning digest</Text>
             <View style={styles.switchRow}>
               <Text style={[ui.body, { flex: 1 }]}>A notification with the best unread news, once a day</Text>
-              <Switch value={d.enabled} onValueChange={(v) => saveD({ ...d, enabled: v })} trackColor={{ true: colors.accent }} />
+              <Switch value={d.enabled} onValueChange={(v) => saveD({ ...d, enabled: v })} trackColor={{ true: colors.up }} />
             </View>
             {d.enabled && (
               <>
@@ -232,8 +233,7 @@ function Field({ label, value, onChange, placeholder }: { label: string; value: 
         placeholderTextColor={colors.muted}
         autoCapitalize="none"
         style={styles.input}
-        cursorColor={colors.accent}
-        selectionColor="rgba(255,122,69,0.35)"
+        {...inputColors}
       />
     </View>
   );
@@ -244,10 +244,10 @@ const styles = StyleSheet.create({
   section: { marginTop: 22 },
   topic: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
   dot: { width: 12, height: 12, borderRadius: 6 },
-  topicName: { color: colors.paper, fontSize: 16, fontWeight: '700', marginBottom: 2 },
+  topicName: { color: colors.paper, fontSize: 16, fontFamily: fonts.sansBold, marginBottom: 2 },
   form: { padding: 16, gap: 14 },
-  fieldLabel: { color: colors.muted, fontSize: 13 },
-  input: { borderWidth: 1, borderColor: colors.line, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, color: colors.paper, fontSize: 15 },
+  fieldLabel: { color: colors.muted, fontFamily: fonts.sansRegular, fontSize: 13 },
+  input: { backgroundColor: '#333232', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 13, color: colors.paper, fontFamily: fonts.sansRegular, fontSize: 15 }, // Lifelog's text field
   colors: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   swatch: { width: 30, height: 30, borderRadius: 15 },
   swatchOn: { borderWidth: 3, borderColor: colors.paper },
