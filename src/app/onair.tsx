@@ -8,7 +8,7 @@ import { SeekBar } from '../components/expressive';
 import { Glass, GlassArea } from '../components/Glass';
 import Ionicons from '../components/Icon';
 import { FadeIn, PressScale, Pulse } from '../components/motion';
-import { AlbumGlow, Ban, GlowingCover, Heart, KeepAwake, showName, withAlpha } from '../components/radioParts';
+import { Ban, ColourWash, GlowingCover, Heart, KeepAwake, showName, WASH_BASE, withAlpha } from '../components/radioParts';
 import { IconButton, PillButton, StatusLine } from '../components/ui';
 import { useRadio } from '../lib/radioEngine';
 import { colors, fonts, radius } from '../lib/theme';
@@ -40,15 +40,9 @@ export default function OnAirScreen() {
     <View style={styles.screen}>
       {/* everything sits in a blur area, so the player panel is real frosted glass over the cover's colours */}
       <GlassArea>
-      <AlbumGlow palette={palette} image={phase === 'onair' || phase === 'done' ? (current?.track.image ?? null) : null} />
+      {/* the same background as the playlist: the song's colour at the top, fading into black */}
+      <ColourWash glow={phase === 'onair' || phase === 'done' ? (palette?.glow ?? null) : null} />
       {phase === 'onair' && <KeepAwake />}
-      {/* like the reference: the cover's colours melt into darkness at the bottom… */}
-      <LinearGradient
-        colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.85)']}
-        locations={[0, 0.6, 1]}
-        style={[StyleSheet.absoluteFill, { top: '45%' }]}
-        pointerEvents="none"
-      />
 
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 74, paddingBottom: insets.bottom + 40 }]}>
         {phase === 'building' && <BuildProgress steps={steps} station={station} />}
@@ -199,14 +193,7 @@ export default function OnAirScreen() {
         <StatusLine status={status} />
       </ScrollView>
 
-      {/* …and the same soft fade at the top, under the header, instead of a hard edge where the page
-          scrolls: the bar floats over the page (so the cover's glow isn't cut off at a line) */}
-      <LinearGradient
-        colors={['rgba(0,0,0,0.6)', 'rgba(0,0,0,0.25)', 'rgba(0,0,0,0)']}
-        locations={[0, 0.55, 1]}
-        style={[styles.topFade, { height: insets.top + 76 }]} // only behind the header: it used to dim the show's name
-        pointerEvents="none"
-      />
+      {/* the header floats over the page, so the cover's glow isn't cut off at a line */}
       <View style={[styles.bar, { paddingTop: insets.top + 8 }]}>
         <IconButton icon="chevron-down" label="Close" onPress={close} />
         <View style={styles.barMid}>
@@ -239,9 +226,8 @@ function Tap({ icon, label, onPress, small }: { icon: string; label: string; onP
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1, backgroundColor: WASH_BASE },
   bar: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 8 },
-  topFade: { position: 'absolute', top: 0, left: 0, right: 0 },
   barMid: { flex: 1, alignItems: 'center', paddingHorizontal: 8 },
   onAir: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.danger },

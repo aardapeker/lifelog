@@ -4,7 +4,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Easing, Image, StyleSheet, View } from 'react-native';
 import { FadeIn, PressScale } from './motion';
-import type { Palette } from '../lib/albumColors';
 import { colors, radius } from '../lib/theme';
 
 /*
@@ -47,43 +46,6 @@ export function Ban({ name, onBan, size }: { name: string; onBan: () => void; si
 export const withAlpha = (rgb: string, a: number) => rgb.replace('rgb(', 'rgba(').replace(')', `, ${a})`);
 
 /**
- * The page's light: the album cover itself, blurred into a soft cloud of its colours, filling the
- * whole screen behind the glass (fixed while you scroll). Each new cover cross-fades in. A dark veil
- * keeps the text readable. No cover (or before it loads): the cover's two colours as a gradient.
- */
-export function AlbumGlow({ palette, image }: { palette: Palette | null; image: string | null }) {
-  const [layers, setLayers] = useState<{ key: string; image: string | null; p: Palette | null }[]>([]);
-  useEffect(() => {
-    if (!image && !palette) return;
-    setLayers((l) => (l[l.length - 1]?.key === `${image}|${palette?.glow}` ? l : [...l.slice(-1), { key: `${image}|${palette?.glow}`, image, p: palette }]));
-  }, [image, palette]);
-  return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      {layers.map(({ key, image: img, p }) => (
-        <FadeIn key={key} from={0} style={StyleSheet.absoluteFill}>
-          {img ? (
-            <>
-              <Image source={{ uri: img }} blurRadius={40} resizeMode="cover" style={[StyleSheet.absoluteFill, styles.backdrop]} />
-              <LinearGradient
-                colors={['rgba(29, 28, 28, 0.15)', 'rgba(29, 28, 28, 0.45)', 'rgba(29, 28, 28, 0.7)']}
-                locations={[0, 0.5, 1]}
-                style={StyleSheet.absoluteFill}
-              />
-            </>
-          ) : p ? (
-            <LinearGradient
-              colors={[withAlpha(p.glow, 0.65), withAlpha(p.glow, 0.38), withAlpha(p.deep, 0.95)]}
-              locations={[0, 0.45, 1]}
-              style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }]}
-            />
-          ) : null}
-        </FadeIn>
-      ))}
-    </View>
-  );
-}
-
-/**
  * The cover with a halo: a soft light in the cover's brightest colour glowing out from behind it,
  * like a lamp (a real blurred shadow, not a hard edge). While on air it breathes slowly (a little
  * faster while the hosts talk); paused, it rests.
@@ -122,6 +84,26 @@ export function GlowingCover({ uri, glow, live, talking }: { uri: string; glow: 
   );
 }
 
+/**
+ * The radio's background (the playlist look, which the player uses too): the song's colour at the top,
+ * fading into near-black. A new song's colour cross-fades in.
+ */
+export function ColourWash({ glow }: { glow: string | null }) {
+  const c = glow ?? 'rgb(150, 90, 190)';
+  return (
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: WASH_BASE }]} pointerEvents="none">
+      <FadeIn key={c} from={0} style={StyleSheet.absoluteFill}>
+        <LinearGradient
+          colors={[withAlpha(c, 0.75), withAlpha(c, 0.25), 'rgba(0,0,0,0)']}
+          locations={[0, 0.35, 0.7]}
+          style={StyleSheet.absoluteFill}
+        />
+      </FadeIn>
+    </View>
+  );
+}
+export const WASH_BASE = '#0B0B0B';
+
 /** 3:56 */
 export const duration = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}`;
 
@@ -129,7 +111,6 @@ const styles = StyleSheet.create({
   cover: { width: '100%', aspectRatio: 1, borderRadius: radius.lg, backgroundColor: colors.raised },
   coverWrap: { marginBottom: 0 },
   halo: { borderRadius: radius.lg },
-  backdrop: { transform: [{ scale: 1.25 }], opacity: 0.85 }, // a little bigger: no hard blur edges at the screen's sides
 });
 
 /** "just now", "25 min ago", "3 h ago". */

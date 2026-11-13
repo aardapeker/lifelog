@@ -1,11 +1,10 @@
 import { router } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Glass, GlassArea } from '../components/Glass';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '../components/Icon';
 import { PressScale } from '../components/motion';
-import { duration, Heart, showName, withAlpha } from '../components/radioParts';
+import { ColourWash, duration, Heart, showName, WASH_BASE } from '../components/radioParts';
 import { IconButton, PillButton } from '../components/ui';
 import { useRadio } from '../lib/radioEngine';
 import { colors, fonts, radius } from '../lib/theme';
@@ -19,17 +18,11 @@ export default function PlaylistScreen() {
   const { show, index, phase, palette, current, paused, hearts, banned, toggleHeart, ban, jumpTo, replay, keepLive, liveKept, save, togglePause, skip } = useRadio();
   const close = () => (router.canGoBack() ? router.back() : router.replace('/onair'));
 
-  const glow = palette?.glow ?? 'rgb(150, 90, 190)';
   return (
     <View style={styles.screen}>
       <GlassArea>
       {/* the song's colour at the top, fading into black (like the light from the cover) */}
-      <LinearGradient
-        colors={[withAlpha(glow, 0.75), withAlpha(glow, 0.25), 'rgba(0,0,0,0)']}
-        locations={[0, 0.35, 0.7]}
-        style={StyleSheet.absoluteFill}
-        pointerEvents="none"
-      />
+      <ColourWash glow={palette?.glow ?? null} />
       <View style={[styles.bar, { paddingTop: insets.top + 8 }]}>
         <IconButton icon="chevron-down" label="Close" onPress={close} />
         <View style={{ flex: 1, alignItems: 'center' }}>
@@ -122,7 +115,7 @@ export default function PlaylistScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#0B0B0B' },
+  screen: { flex: 1, backgroundColor: WASH_BASE },
   bar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 10 },
   barSmall: { fontFamily: fonts.sans, fontSize: 11, letterSpacing: 1.2, color: colors.muted },
   barTitle: { fontFamily: fonts.sans, fontSize: 15, color: colors.text, marginTop: 2 },
