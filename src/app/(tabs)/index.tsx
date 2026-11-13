@@ -362,7 +362,7 @@ export default function JournalScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1 }, // see-through: the tabs' background (plain, or the song's colour) shows
   list: { paddingHorizontal: 20, gap: 10 },
 
   top: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 22 },

@@ -763,12 +763,14 @@ export type RadioEngine = ReturnType<typeof useRadioEngine>;
 const Ctx = createContext<RadioEngine | null>(null);
 // just "is the player docked?", for screens that only need room for it (Journal, Life): they don't
 // re-render every time the song's progress or the talking changes, only when the dock appears/folds
-type Dock = { phase: RadioEngine['phase']; miniCollapsed: boolean };
-const DockCtx = createContext<Dock>({ phase: 'pick', miniCollapsed: false });
+// (and the song's colour, for the app's background while music plays)
+type Dock = { phase: RadioEngine['phase']; miniCollapsed: boolean; glow: string | null };
+const DockCtx = createContext<Dock>({ phase: 'pick', miniCollapsed: false, glow: null });
 
 export function RadioProvider({ children }: { children: ReactNode }) {
   const engine = useRadioEngine();
-  const dock = useMemo(() => ({ phase: engine.phase, miniCollapsed: engine.miniCollapsed }), [engine.phase, engine.miniCollapsed]);
+  const glow = engine.palette?.glow ?? null;
+  const dock = useMemo(() => ({ phase: engine.phase, miniCollapsed: engine.miniCollapsed, glow }), [engine.phase, engine.miniCollapsed, glow]);
   return (
     <Ctx.Provider value={engine}>
       <DockCtx.Provider value={dock}>{children}</DockCtx.Provider>

@@ -317,7 +317,7 @@ export default function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1 }, // see-through: the tabs' background (plain, or the song's colour) shows
   center: { justifyContent: 'center', paddingHorizontal: 28 },
   top: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, marginBottom: 10 },
   title: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 24, color: colors.text },

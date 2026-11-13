@@ -5,6 +5,7 @@ import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Glass } from '../../components/Glass';
 import { MiniPlayer } from '../../components/MiniPlayer';
+import { ShowWash } from '../../components/radioParts';
 import { colors, fonts } from '../../lib/theme';
 import { useKeyboardVisible } from '../../lib/useKeyboardVisible';
 
@@ -192,11 +193,14 @@ export default function TabsLayout() {
   return (
     // The tab bar used to blur the screens behind it; on Android that blur crashed the app when
     // the bar came back (after the editor, after the keyboard). It keeps the glass look without it.
+    <View style={{ flex: 1 }}>
+    {/* behind every tab: plain, or the song's colour while a show plays */}
+    <ShowWash />
     <Tabs
       tabBar={(props) => <FloatingTabBar {...props} />}
       // Back goes to the tab you came from (not always to Journal), like a normal page
       backBehavior="history"
-      screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg }, animation: 'shift' }}
+      screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: 'transparent' }, animation: 'shift' }}
     >
       <Tabs.Screen name="index" options={{ title: 'Journal' }} />
       <Tabs.Screen name="insights" options={{ title: 'Life' }} />
@@ -204,6 +208,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="chat" options={{ title: 'Friend' }} />
       <Tabs.Screen name="radio" options={{ title: 'Radio' }} />
     </Tabs>
+    </View>
   );
 }
 

@@ -449,7 +449,7 @@ export function NoteEditor({
 
 const styles = StyleSheet.create({
   restored: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.muted, marginTop: -8, marginBottom: 14 },
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1 }, // see-through: the tabs' background (plain, or the song's colour) shows
   bar: {
     flexDirection: 'row',
     alignItems: 'center',

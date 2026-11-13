@@ -5,7 +5,7 @@ import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Glass, GlassArea } from '../../components/Glass';
 import { FadeIn, Pulse, PressScale, stagger } from '../../components/motion';
-import { ago, showName } from '../../components/radioParts';
+import { ago, showName, ShowWash } from '../../components/radioParts';
 import { StationArt } from '../../components/StationArt';
 import { Chip } from '../../components/ui';
 import { useRadio } from '../../lib/radioEngine';
@@ -33,6 +33,10 @@ export default function RadioHome() {
   return (
     <View style={styles.screen}>
       <GlassArea style={{ paddingTop: insets.top + 8 }}>
+        {/* inside the blur area, so the glass sheet frosts the song's colour too */}
+        <View style={[StyleSheet.absoluteFill, { top: -(insets.top + 8) }]} pointerEvents="none">
+          <ShowWash />
+        </View>
         <View style={styles.bar}>
           <Avatar size={44} />
           <Text style={styles.barTitle}>Radio</Text>
@@ -152,7 +156,7 @@ export default function RadioHome() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1 },
   bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 14 },
   barTitle: { fontFamily: fonts.serif, fontSize: 18, color: colors.text },
   sheet: { flex: 1, marginBottom: -40 },

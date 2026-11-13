@@ -412,7 +412,7 @@ export default function InsightsScreen() {
 const CELL = 18;
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1 }, // see-through: the tabs' background (plain, or the song's colour) shows
   content: { paddingHorizontal: 20, gap: 30 },
   title: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 34, color: colors.text },
   section: { gap: 6 },
