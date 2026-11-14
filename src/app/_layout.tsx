@@ -20,7 +20,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { Alert } from 'react-native';
+import { DialogHost } from '../components/DialogHost';
 import { isBackupFileName } from '../lib/backup';
 import { clearCrash, lastCrash, nativeCrash } from '../lib/crashLog';
 import { showCrash } from '../lib/crashReport';
@@ -161,6 +161,8 @@ export default function RootLayout() {
         <Stack.Screen name="inbox" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="welcome" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
       </Stack>
+      {/* every popup in the app (lib/dialog's showAlert) */}
+      <DialogHost />
       </LockGate>
       </RadioProvider>
     </SQLiteProvider>

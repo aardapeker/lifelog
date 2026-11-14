@@ -1,13 +1,14 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { articleStyles as styles, paragraphs, SearchedFor, SourceList } from '../../components/Article';
 import { FadeIn } from '../../components/motion';
 import { IconButton, InfoTile, PillButton } from '../../components/ui';
 import { deleteResearch, getResearch, researchSources, type Research } from '../../lib/autonomy';
 import { formatDate } from '../../lib/notes';
+import { showAlert } from '../../lib/dialog';
 
 /** One thing the friend looked up on its own, laid out like a short blog post. */
 export default function ResearchScreen() {
@@ -21,7 +22,7 @@ export default function ResearchScreen() {
   }, [db, id]);
 
   const remove = () =>
-    Alert.alert('Remove this?', r?.topic, [
+    showAlert('Remove this?', r?.topic, [
       { text: 'Keep', style: 'cancel' },
       {
         text: 'Remove',

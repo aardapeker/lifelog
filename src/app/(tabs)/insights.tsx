@@ -2,7 +2,7 @@ import Ionicons from '../../components/Icon';
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
-import { Alert, Animated, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { requestPinWidget } from 'react-native-android-widget';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chip, PillButton, SectionTitle } from '../../components/ui';
@@ -41,6 +41,7 @@ import { RadarCard } from '../../components/RadarCard';
 import { GroceryCard } from '../../components/GroceryCard';
 import { TopBar } from '../../components/TopBar';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
+import { showAlert } from '../../lib/dialog';
 
 const WEEKS = 12;
 const WEEKDAY = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -382,7 +383,7 @@ export default function InsightsScreen() {
                 load();
               }}
               onLongPress={() =>
-                Alert.alert('Delete this idea?', i.text, [
+                showAlert('Delete this idea?', i.text, [
                   { text: 'Keep', style: 'cancel' },
                   {
                     text: 'Delete',

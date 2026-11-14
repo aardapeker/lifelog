@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
-import { Alert, KeyboardAvoidingView, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton, PillButton } from '../../components/ui';
 import {
@@ -13,6 +13,7 @@ import {
   saveMilestone,
 } from '../../lib/milestones';
 import { colors, fonts, inputColors, radius } from '../../lib/theme';
+import { showAlert } from '../../lib/dialog';
 
 const EMOJIS = ['💼', '🏠', '🎓', '❤️', '🛵', '✈️', '🏆', '🐈', '👶', '🕊️', '🏥', '🎬'];
 
@@ -51,7 +52,7 @@ export default function MilestoneScreen() {
   };
 
   const remove = () =>
-    Alert.alert('Delete this milestone?', title, [
+    showAlert('Delete this milestone?', title, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',

@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Header } from '../../radar/components/Header';
 import { Pill } from '../../radar/components/Pill';
@@ -9,6 +9,7 @@ import { colors, ui, fonts } from '../../radar/theme';
 import type { DigestSettings, RadarSettings, Topic, TopicInput } from '../../radar/types';
 import { useRadar } from '../../radar/useRadar';
 import { inputColors } from '../../lib/theme';
+import { showAlert } from '../../lib/dialog';
 
 /*
  * Radar's settings: your topics (keywords, words to skip, where else to look), the morning digest,
@@ -63,7 +64,7 @@ export default function RadarSettingsScreen() {
                 load();
               }}
               onDelete={() =>
-                Alert.alert(`Delete ${t.name}?`, 'Its news goes too (saved items included).', [
+                showAlert(`Delete ${t.name}?`, 'Its news goes too (saved items included).', [
                   { text: 'Keep it', style: 'cancel' },
                   {
                     text: 'Delete',

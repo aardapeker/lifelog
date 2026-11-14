@@ -2,12 +2,13 @@ import Ionicons from '../components/Icon';
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton } from '../components/ui';
 import { chatTitle, deleteChat, listChats, type ChatSummary } from '../lib/chats';
 import { formatDate } from '../lib/notes';
 import { colors, fonts, radius } from '../lib/theme';
+import { showAlert } from '../lib/dialog';
 
 /** All conversations, newest first. Tap to continue one, hold to delete it. */
 export default function ChatHistoryScreen() {
@@ -23,7 +24,7 @@ export default function ChatHistoryScreen() {
   const openChat = (id: number) => router.navigate({ pathname: '/chat', params: { id: String(id) } });
 
   const remove = (c: ChatSummary) =>
-    Alert.alert(
+    showAlert(
       'Delete this chat?',
       `"${chatTitle(c)}" and anything your friend learned only from it will be forgotten. Your journal stays.`,
       [

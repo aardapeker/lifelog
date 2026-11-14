@@ -3,19 +3,7 @@ import { useAudioRecorder } from 'expo-audio';
 import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  BackHandler,
-  Image,
-  KeyboardAvoidingView,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, BackHandler, Image, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { haptic, Pulse } from './motion';
 import { PhotoViewer } from './PhotoViewer';
@@ -29,6 +17,7 @@ import { takePendingShare } from '../lib/share';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../lib/theme';
 import { useKeyboardVisible } from '../lib/useKeyboardVisible';
 import { prepareMicrophone, transcribe, VOICE_RECORDING } from '../lib/voice';
+import { showAlert } from '../lib/dialog';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -102,7 +91,7 @@ export function NoteEditor({
         if (share?.imageUri) {
           importPhoto(share.imageUri)
             .then((file) => setPhotos((p) => [...p, file]))
-            .catch(() => Alert.alert("Couldn't add the shared image"));
+            .catch(() => showAlert("Couldn't add the shared image"));
         }
       }
     })();
@@ -202,7 +191,7 @@ export function NoteEditor({
   /** Asks first if there's something to lose. */
   const confirmDiscard = () => {
     if (!changed()) return discard();
-    Alert.alert(noteId === null ? 'Throw this away?' : 'Undo your changes?', 'What you wrote this time will be gone.', [
+    showAlert(noteId === null ? 'Throw this away?' : 'Undo your changes?', 'What you wrote this time will be gone.', [
       { text: 'Keep writing', style: 'cancel' },
       { text: noteId === null ? 'Discard' : 'Undo changes', style: 'destructive', onPress: discard },
     ]);
@@ -255,7 +244,7 @@ export function NoteEditor({
 
   const remove = () => {
     if (noteId === null) return confirmDiscard();
-    Alert.alert('Delete this entry?', 'It will be gone for good, and your friend will forget it too.', [
+    showAlert('Delete this entry?', 'It will be gone for good, and your friend will forget it too.', [
       { text: 'Keep it', style: 'cancel' },
       {
         text: 'Delete',
@@ -279,7 +268,7 @@ export function NoteEditor({
       recorder.record();
       setMic('recording');
     } catch (e) {
-      Alert.alert("Couldn't start recording", e instanceof Error ? e.message : String(e));
+      showAlert("Couldn't start recording", e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -291,7 +280,7 @@ export function NoteEditor({
       const text = await transcribe(recorder.uri);
       setBody((b) => (b.trim() ? `${b.trimEnd()}\n\n${text}` : text));
     } catch (e) {
-      Alert.alert("Couldn't turn that into text", e instanceof Error ? e.message : String(e));
+      showAlert("Couldn't turn that into text", e instanceof Error ? e.message : String(e));
     } finally {
       setMic('idle');
     }
@@ -307,7 +296,7 @@ export function NoteEditor({
         setBody(fixed);
       }
     } catch (e) {
-      Alert.alert("Couldn't fix it", e instanceof Error ? e.message : String(e));
+      showAlert("Couldn't fix it", e instanceof Error ? e.message : String(e));
     } finally {
       setFixing('idle');
     }
@@ -324,10 +313,10 @@ export function NoteEditor({
         const file = await pickPhoto(source);
         if (file) setPhotos((p) => [...p, file]);
       } catch (e) {
-        Alert.alert("Couldn't add the photo", e instanceof Error ? e.message : String(e));
+        showAlert("Couldn't add the photo", e instanceof Error ? e.message : String(e));
       }
     };
-    Alert.alert('Add a photo', undefined, [
+    showAlert('Add a photo', undefined, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Gallery', onPress: () => pick('library') },
       { text: 'Camera', onPress: () => pick('camera') },

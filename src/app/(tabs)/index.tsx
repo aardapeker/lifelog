@@ -3,7 +3,7 @@ import { openWrite } from '../../lib/write';
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Animated, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Animated, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chip, IconButton, PillButton, SectionTitle } from '../../components/ui';
 import { getSetting } from '../../lib/db';
@@ -31,6 +31,7 @@ import { MilestoneSuggestions } from '../../components/Milestones';
 import { TopBar } from '../../components/TopBar';
 import { Beam, TimelineItem } from '../../components/TracingBeam';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
+import { showAlert } from '../../lib/dialog';
 
 type Range = 'all' | 'week' | 'month';
 const RANGES: { key: Range; label: string; days: number }[] = [
@@ -168,7 +169,7 @@ export default function JournalScreen() {
 
   const backup = async () => {
     if (!(await getPassphrase())) {
-      Alert.alert('Set a passphrase first', 'Backups are encrypted with a passphrase only you know.', [
+      showAlert('Set a passphrase first', 'Backups are encrypted with a passphrase only you know.', [
         { text: 'Later', style: 'cancel' },
         { text: 'Open Settings', onPress: () => router.push('/settings/privacy') },
       ]);
@@ -178,7 +179,7 @@ export default function JournalScreen() {
       await backupNow(db);
       setNeedsBackup(false);
     } catch (e) {
-      Alert.alert("Couldn't back up", e instanceof Error ? e.message : String(e));
+      showAlert("Couldn't back up", e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -213,7 +214,7 @@ export default function JournalScreen() {
           onPress={async () => {
             const s = await getPlannerSettings(db);
             if (!s.city) {
-              Alert.alert('Where are you?', 'Set your city in You → Friend → Days Off, so I can check the weather and events.', [
+              showAlert('Where are you?', 'Set your city in You → Friend → Days Off, so I can check the weather and events.', [
                 { text: 'Later', style: 'cancel' },
                 { text: 'Open Settings', onPress: () => router.push('/settings/friend') },
               ]);

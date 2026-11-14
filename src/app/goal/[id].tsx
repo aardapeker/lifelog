@@ -1,11 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
-import { Alert, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { DetailScreen, detailStyles } from '../../components/DetailScreen';
 import { IconButton, PillButton } from '../../components/ui';
 import { deleteGoal, getGoal, goalNotes, setGoalDone, type Goal } from '../../lib/insights';
 import type { Note } from '../../lib/notes';
+import { showAlert } from '../../lib/dialog';
 
 /** A goal's timeline: every entry that's about it. */
 export default function GoalScreen() {
@@ -25,7 +26,7 @@ export default function GoalScreen() {
   const since = new Date(goal.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
 
   const remove = () =>
-    Alert.alert('Delete this goal?', 'Your entries stay. Only the goal and its links go.', [
+    showAlert('Delete this goal?', 'Your entries stay. Only the goal and its links go.', [
       { text: 'Keep', style: 'cancel' },
       {
         text: 'Delete',

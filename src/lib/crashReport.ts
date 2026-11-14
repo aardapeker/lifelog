@@ -1,7 +1,7 @@
 import * as Clipboard from 'expo-clipboard';
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
-import { Alert } from 'react-native';
+import { showAlert } from './dialog';
 
 /*
  * What happens with a crash report on the next open: a popup with the report and a Copy button,
@@ -50,7 +50,7 @@ export async function showCrash(title: string, report: string): Promise<void> {
       sent = `⚠️ Couldn't send it: ${e instanceof Error ? e.message : String(e)}`;
     }
   }
-  Alert.alert(title, `${sent ? `${sent}\n\n` : ''}${report.slice(0, 3000)}`, [
+  showAlert(title, `${sent ? `${sent}\n\n` : ''}${report.slice(0, 3000)}`, [
     {
       text: 'Copy',
       onPress: () => {

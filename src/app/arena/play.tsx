@@ -2,7 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, BackHandler, Easing, ScrollView, StyleSheet, Text, View, type ScrollViewInstance } from 'react-native';
+import { Animated, BackHandler, Easing, ScrollView, StyleSheet, Text, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CodeBlock } from '../../components/CodeBlock';
 import { FadeIn, haptic, PressScale } from '../../components/motion';
@@ -25,6 +25,7 @@ import {
   type RoundResult,
 } from '../../lib/arena';
 import { colors, fonts, radius } from '../../lib/theme';
+import { showAlert } from '../../lib/dialog';
 
 // while it writes the first batch
 const WAITING = [
@@ -90,7 +91,7 @@ export default function ArenaPlay() {
   // quitting mid-round asks first (the round won't count)
   const quit = () => {
     if (over || !qs || !answers.length) return router.back();
-    Alert.alert('Run away?', "This round won't count. The bugs will talk about this.", [
+    showAlert('Run away?', "This round won't count. The bugs will talk about this.", [
       { text: 'Stay', style: 'cancel' },
       { text: 'Run away', style: 'destructive', onPress: () => router.back() },
     ]);

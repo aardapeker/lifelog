@@ -2,7 +2,7 @@ import Ionicons from '../components/Icon';
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FadeIn, PressScale, stagger } from '../components/motion';
 import { useProfile } from '../components/TopBar';
@@ -12,6 +12,7 @@ import { getSetting, setSetting } from '../lib/db';
 import { deletePhotoFile, pickPhoto, photoUri } from '../lib/photos';
 import { colors, fonts, radius } from '../lib/theme';
 import { SETTINGS_PAGES, type SettingsPage } from '../lib/settingsPages';
+import { showAlert } from '../lib/dialog';
 
 type Stats = { entries: number; words: number; since: number | null; milestones: number };
 
@@ -55,10 +56,10 @@ export default function YouScreen() {
         await setSetting(db, 'profile.photo', file);
         setPhoto(file);
       } catch (e) {
-        Alert.alert("Couldn't change the photo", e instanceof Error ? e.message : String(e));
+        showAlert("Couldn't change the photo", e instanceof Error ? e.message : String(e));
       }
     };
-    Alert.alert('Your photo', undefined, [
+    showAlert('Your photo', undefined, [
       { text: 'Cancel', style: 'cancel' },
       ...(photo
         ? [

@@ -2,11 +2,12 @@ import Ionicons from './Icon';
 import { useKeepAwake } from 'expo-keep-awake';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Easing, Image, StyleSheet, View } from 'react-native';
+import { Animated, Easing, Image, StyleSheet, View } from 'react-native';
 import { FadeIn, PressScale } from './motion';
 import { useBackdrop } from '../lib/backdrop';
 import { useRadioDock } from '../lib/radioEngine';
 import { colors, radius } from '../lib/theme';
+import { showAlert } from '../lib/dialog';
 
 /*
  * Pieces shared by the radio's screens (home, station, on air, playlist).
@@ -34,7 +35,7 @@ export function Heart({ on, onPress, size }: { on: boolean; onPress: () => void;
 /** 🚫 "Don't play this song": asks once, then the song never comes back on the radio. */
 export function Ban({ name, onBan, size }: { name: string; onBan: () => void; size: number }) {
   const ask = () =>
-    Alert.alert(`Never play "${name}"?`, "It won't come back on Lifelog Radio. If it's playing now, we skip it.", [
+    showAlert(`Never play "${name}"?`, "It won't come back on Lifelog Radio. If it's playing now, we skip it.", [
       { text: 'Cancel', style: 'cancel' },
       { text: "Don't play it", style: 'destructive', onPress: onBan },
     ]);

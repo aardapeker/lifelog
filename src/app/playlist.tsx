@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Glass, GlassArea } from '../components/Glass';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '../components/Icon';
@@ -8,6 +8,7 @@ import { ColourWash, duration, Heart, showName, WASH_BASE } from '../components/
 import { IconButton, PillButton } from '../components/ui';
 import { useRadio } from '../lib/radioEngine';
 import { colors, fonts, radius } from '../lib/theme';
+import { showAlert } from '../lib/dialog';
 
 /**
  * The show's playlist on its own page: covers, lengths, the one playing now. Tap a song to jump to it
@@ -53,7 +54,7 @@ export default function PlaylistScreen() {
                 }}
                 onLongPress={() =>
                   !gone &&
-                  Alert.alert(`Never play "${s.track.name}"?`, "It won't come back on Lifelog Radio. If it's playing now, we skip it.", [
+                  showAlert(`Never play "${s.track.name}"?`, "It won't come back on Lifelog Radio. If it's playing now, we skip it.", [
                     { text: 'Cancel', style: 'cancel' },
                     { text: "Don't play it", style: 'destructive', onPress: () => ban(s.track) },
                   ])

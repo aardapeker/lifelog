@@ -1,12 +1,13 @@
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton, PillButton, StatusLine, type Status } from '../components/ui';
 import { restoreFromUri, setPassphrase } from '../lib/backup';
 import { clearPendingBackup, peekPendingBackup } from '../lib/share';
 import { colors, fonts, inputColors, radius } from '../lib/theme';
+import { showAlert } from '../lib/dialog';
 
 /** Opens when a .lifelog backup is shared into the app (Drive → ⋮ → Send a copy → Lifelog). */
 export default function RestoreScreen() {
@@ -27,7 +28,7 @@ export default function RestoreScreen() {
       setStatus({ kind: 'err', msg: 'Type the passphrase this backup was made with.' });
       return;
     }
-    Alert.alert('Replace everything?', 'All entries, chats and settings on this phone are replaced with the backup.', [
+    showAlert('Replace everything?', 'All entries, chats and settings on this phone are replaced with the backup.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Restore',

@@ -3,7 +3,7 @@ import { BACKDROPS, setBackdrop, useBackdrop } from '../../lib/backdrop';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { Children, cloneElement, isValidElement, useCallback, useEffect, useState, type ComponentProps, type ReactNode } from 'react';
-import { Alert, Animated, KeyboardAvoidingView, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Animated, KeyboardAvoidingView, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { authenticate, canUseBiometrics } from '../../components/LockGate';
 import * as IntentLauncher from 'expo-intent-launcher';
@@ -74,6 +74,7 @@ import { getKey, maskKey, setKey, type Provider } from '../../lib/keys';
 import { getCrashToken, sendCrash, setCrashToken } from '../../lib/crashReport';
 import { useBottomSpace } from '../../components/MiniPlayer';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
+import { showAlert } from '../../lib/dialog';
 
 /** A field name or a switch at the very top of a panel doesn't need the space it keeps above itself elsewhere. */
 function flushTop(children: ReactNode): ReactNode {
@@ -263,10 +264,10 @@ function PrivacySection() {
 
   const restore = () => {
     if (!pass.trim()) {
-      Alert.alert('Type the passphrase first', 'Enter the passphrase the backup was made with, then tap Restore.');
+      showAlert('Type the passphrase first', 'Enter the passphrase the backup was made with, then tap Restore.');
       return;
     }
-    Alert.alert('Replace everything?', 'All entries, chats and settings on this phone are replaced with the backup.', [
+    showAlert('Replace everything?', 'All entries, chats and settings on this phone are replaced with the backup.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Restore',
@@ -570,7 +571,7 @@ function DaysOffSection() {
 
   const plan = (offset: number) => {
     if (!s.place) {
-      Alert.alert('Set your city first', 'Type your district or city and tap Save.');
+      showAlert('Set your city first', 'Type your district or city and tap Save.');
       return;
     }
     router.push(`/plan/${dayParam(midnight(Date.now()) + offset * 86_400_000)}`);
@@ -1133,7 +1134,7 @@ function WidgetAndExport() {
       const ok = await requestPinWidget({ widgetName: 'Lifelog' });
       if (!ok) throw new Error('not supported');
     } catch {
-      Alert.alert(
+      showAlert(
         "Your launcher didn't allow it",
         'On Xiaomi: Settings → Apps → Manage apps → Lifelog → Other permissions → turn on "Home screen shortcuts", then try again. ' +
           'Or long-press the home screen → Widgets → Lifelog.',
@@ -1144,7 +1145,7 @@ function WidgetAndExport() {
     try {
       await exportJson(db);
     } catch (e) {
-      Alert.alert("Couldn't export", e instanceof Error ? e.message : String(e));
+      showAlert("Couldn't export", e instanceof Error ? e.message : String(e));
     }
   };
   return (

@@ -1,7 +1,7 @@
 import Ionicons from '../../components/Icon';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Glass, GlassArea } from '../../components/Glass';
 import { FadeIn, Pulse, PressScale, stagger } from '../../components/motion';
@@ -12,6 +12,7 @@ import { useRadio } from '../../lib/radioEngine';
 import { STATIONS } from '../../lib/stations';
 import { colors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 import { Avatar, Bell } from '../../components/TopBar';
+import { showAlert } from '../../lib/dialog';
 
 /**
  * The Radio tab: the stations as a grid of cards (tap one for its options), and the shows you've
@@ -132,7 +133,7 @@ export default function RadioHome() {
                       <Pressable
                         onPress={() =>
                           h.kept
-                            ? Alert.alert('Delete this saved show?', 'Its script and voices are deleted from your phone.', [
+                            ? showAlert('Delete this saved show?', 'Its script and voices are deleted from your phone.', [
                                 { text: 'Keep it', style: 'cancel' },
                                 { text: 'Delete', style: 'destructive', onPress: () => forgetShow(h.id) },
                               ])

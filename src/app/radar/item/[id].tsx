@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect } from 'react';
-import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AiSummary } from '../../../radar/components/AiSummary';
 import { CardMeta } from '../../../radar/components/CardMeta';
@@ -16,6 +16,7 @@ import { useLoad } from '../../../radar/hooks';
 import { colors, ui, fonts } from '../../../radar/theme';
 import type { FeedItem } from '../../../radar/types';
 import { useRadar } from '../../../radar/useRadar';
+import { showAlert } from '../../../lib/dialog';
 
 /** One item: TL;DR, read it here, save it, every outlet covering the story. Port of the radar app's item screen. */
 
@@ -61,7 +62,7 @@ function Detail({ item, onChange }: { item: FeedItem; onChange: (i: FeedItem) =>
   };
   const hide = () =>
     item.domain &&
-    Alert.alert(`Never show ${item.domain}?`, 'Its articles leave your feed and the morning digest. Undo it in Radar settings.', [
+    showAlert(`Never show ${item.domain}?`, 'Its articles leave your feed and the morning digest. Undo it in Radar settings.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Hide it', style: 'destructive', onPress: () => r.setHidden(item.domain!, true).catch(() => {}) },
     ]);

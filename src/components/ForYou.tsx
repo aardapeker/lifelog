@@ -1,7 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { deleteResearch, listResearch, researchSources, type Research } from '../lib/autonomy';
 import { formatDate } from '../lib/notes';
 import { articleOf, listReads, type Read } from '../lib/reads';
@@ -9,6 +9,7 @@ import { colors, fonts, radius } from '../lib/theme';
 import { FadeIn, stagger } from './motion';
 import { UNREAD } from './TopBar';
 import { SectionTitle } from './ui';
+import { showAlert } from '../lib/dialog';
 
 /** Friend → For you: what your friend made for you on its own. Reads (articles) and things it looked up. */
 export function ForYou() {
@@ -83,7 +84,7 @@ export function ForYou() {
                 style={styles.research}
                 onPress={() => router.push(`/research/${r.id}`)}
                 onLongPress={() =>
-                  Alert.alert('Remove this?', r.topic, [
+                  showAlert('Remove this?', r.topic, [
                     { text: 'Keep', style: 'cancel' },
                     {
                       text: 'Remove',

@@ -1,12 +1,13 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { articleStyles, paragraphs, SearchedFor, SourceList } from '../../components/Article';
 import { IconButton, InfoTile, PillButton } from '../../components/ui';
 import { formatDate } from '../../lib/notes';
 import { articleOf, deleteRead, getRead, markOpened, type Article, type Read } from '../../lib/reads';
+import { showAlert } from '../../lib/dialog';
 
 const styles = articleStyles;
 
@@ -27,7 +28,7 @@ export default function ReadScreen() {
   }, [db, id]);
 
   const remove = () =>
-    Alert.alert('Delete this read?', undefined, [
+    showAlert('Delete this read?', undefined, [
       { text: 'Keep', style: 'cancel' },
       {
         text: 'Delete',
