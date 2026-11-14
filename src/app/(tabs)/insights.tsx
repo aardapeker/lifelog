@@ -30,7 +30,7 @@ import {
   type Person,
 } from '../../lib/insights';
 import { bigTitleMotion, CollapsingHeader, useCollapsingHeader } from '../../components/CollapsingHeader';
-import { Glass, BlurSource, useBlurSource } from '../../components/Glass';
+import { Glass, BlurSource, useBlurSource, useTabBlurSource } from '../../components/Glass';
 import { FadeIn, PressScale, stagger } from '../../components/motion';
 import { useBottomSpace } from '../../components/MiniPlayer';
 import { LifeTimeline } from '../../components/Milestones';
@@ -154,7 +154,8 @@ export default function InsightsScreen() {
   const insets = useSafeAreaInsets();
   const bottomSpace = useBottomSpace(); // the tab bar, plus the radio player when it's docked
   const { y, onScroll } = useCollapsingHeader();
-  const blur = useBlurSource(); // the list, for the sticky bar's frosted glass
+  const blur = useBlurSource(); // the list, for the sticky bar's (and the tab bar's) frosted glass
+  useTabBlurSource(blur);
   const [moods, setMoods] = useState<Map<number, number>>(new Map());
   const [words, setWords] = useState<string[]>([]);
   const [byShift, setByShift] = useState<{ label: string; mood: number; n: number }[]>([]);

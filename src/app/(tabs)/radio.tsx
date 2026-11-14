@@ -3,7 +3,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Glass, GlassArea } from '../../components/Glass';
+import { BlurSource, Glass, GlassArea, useBlurSource, useTabBlurSource } from '../../components/Glass';
 import { FadeIn, Pulse, PressScale, stagger } from '../../components/motion';
 import { ago, showName, ShowWash } from '../../components/radioParts';
 import { StationArt } from '../../components/StationArt';
@@ -22,6 +22,8 @@ import { useFirstFrame } from '../../lib/perf';
 export default function RadioHome() {
   useFirstFrame('Radio'); // Settings → Privacy → Speed
   const insets = useSafeAreaInsets();
+  const blur = useBlurSource(); // for the tab bar's frosted glass
+  useTabBlurSource(blur);
   const [tab, setTab] = useState<'stations' | 'recent' | 'saved'>('stations');
   const { history, loadHistory, playPast, forgetShow, keepShow, phase, show, current, paused } = useRadio();
   const saved = history.filter((h) => h.kept); // 🔖 kept for good
@@ -39,6 +41,7 @@ export default function RadioHome() {
           player) re-colours its background, and a live blur re-capturing that crashed the app (GPU
           driver, SIGSEGV) right after "Write the show". The sheet is see-through glass instead. */}
       <ShowWash />
+      <BlurSource target={blur}>
       <GlassArea style={{ paddingTop: insets.top + 8 }}>
         <View style={styles.bar}>
           <Avatar size={44} />
@@ -154,6 +157,7 @@ export default function RadioHome() {
           </ScrollView>
         </Glass>
       </GlassArea>
+      </BlurSource>
     </View>
   );
 }

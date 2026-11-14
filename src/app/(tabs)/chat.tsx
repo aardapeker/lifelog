@@ -13,7 +13,7 @@ import {
   type ScrollViewInstance,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Glass } from '../../components/Glass';
+import { Glass, BlurSource, useBlurSource, useTabBlurSource } from '../../components/Glass';
 import { LinkedText } from '../../components/LinkedText';
 import { FadeIn, PressScale, TypingDots } from '../../components/motion';
 import { Chip, IconButton, PillButton } from '../../components/ui';
@@ -63,6 +63,8 @@ export default function ChatScreen() {
   useFirstFrame('Friend'); // Settings → Privacy → Speed
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();
+  const blur = useBlurSource(); // for the tab bar's frosted glass
+  useTabBlurSource(blur);
   const params = useLocalSearchParams<{ id?: string; new?: string; ask?: string }>();
   const [chatId, setChatId] = useState<number | null>(null); // null = a new chat, saved on first message
   const [title, setTitle] = useState<string | null>(null);
@@ -214,6 +216,7 @@ export default function ChatScreen() {
   const isEmptyNew = chatId === null && messages.length === 0;
 
   return (
+    <BlurSource target={blur}>
     <KeyboardAvoidingView style={[styles.screen, { paddingTop: insets.top + 12 }]} behavior="padding">
       <View style={styles.top}>
         <Avatar size={42} />
@@ -315,6 +318,7 @@ export default function ChatScreen() {
       </>
       )}
     </KeyboardAvoidingView>
+    </BlurSource>
   );
 }
 

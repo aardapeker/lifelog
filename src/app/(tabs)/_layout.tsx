@@ -1,9 +1,9 @@
 import Ionicons from '../../components/Icon';
 import { Tabs } from 'expo-router';
-import { useEffect, useMemo, useRef, useState, type ComponentProps } from 'react';
+import { useEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Glass } from '../../components/Glass';
+import { FrostedGlass, Glass, useActiveBlurSource } from '../../components/Glass';
 import { MiniPlayer } from '../../components/MiniPlayer';
 import { ShowWash } from '../../components/radioParts';
 import { tabTapped } from '../../lib/perf';
@@ -53,6 +53,20 @@ function slotLayout(width: number, active: number, labelW: number[]) {
  * scaled middle, because widths can't animate natively and would stutter when the app is busy.
  * Drawn by hand: the library's bar ignored left/width on Android.
  */
+/** The tab bar's glass: real frosted blur of the open tab when it has a BlurSource, else tinted glass. */
+function BarGlass({ children }: { children: ReactNode }) {
+  const source = useActiveBlurSource();
+  return source ? (
+    <FrostedGlass target={source} radius={31} style={styles.bar}>
+      {children}
+    </FrostedGlass>
+  ) : (
+    <Glass radius={31} style={styles.bar}>
+      {children}
+    </Glass>
+  );
+}
+
 function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
   const insets = useSafeAreaInsets();
   const keyboardOpen = useKeyboardVisible();
@@ -113,7 +127,8 @@ function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
           <MiniPlayer />
         </View>
       )}
-      <Glass radius={31} style={styles.bar}>
+      {/* frosted: the open tab's content blurred behind it (each tab registers its BlurSource) */}
+      <BarGlass>
         <View style={styles.row} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
           {/* hidden copies of the names, to measure them */}
           <View style={styles.measure} pointerEvents="none">
@@ -189,7 +204,7 @@ function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
             </>
           )}
         </View>
-      </Glass>
+      </BarGlass>
     </View>
   );
 }

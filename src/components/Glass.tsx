@@ -1,6 +1,7 @@
 import { BlurTargetView, BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { createContext, useContext, useRef, type ComponentRef, type ReactNode, type RefObject } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { createContext, useCallback, useContext, useRef, useSyncExternalStore, type ComponentRef, type ReactNode, type RefObject } from 'react';
 import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 /*
@@ -108,15 +109,53 @@ export function BlurSource({ target, children }: { target: Target; children: Rea
 }
 
 /** Frosted glass over a BlurSource it is NOT inside of: the blur, a light tint, a hairline edge. */
-export function FrostedGlass({ target, style, children }: { target: Target; style?: StyleProp<ViewStyle>; children?: ReactNode }) {
+export function FrostedGlass({ target, style, children, radius }: { target: Target; style?: StyleProp<ViewStyle>; children?: ReactNode; radius?: number }) {
   return (
-    <View style={[{ overflow: 'hidden' }, style]}>
+    <View style={[{ overflow: 'hidden', borderRadius: radius ?? 0 }, style]}>
       {CAN_BLUR ? (
         <BlurView blurTarget={target} blurMethod="dimezisBlurViewSdk31Plus" intensity={45} tint="dark" style={StyleSheet.absoluteFill} />
       ) : null}
       <View style={[StyleSheet.absoluteFill, { backgroundColor: CAN_BLUR ? 'rgba(24, 23, 23, 0.32)' : glass.solid }]} />
-      <View style={[StyleSheet.absoluteFill, { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: glass.edge }]} pointerEvents="none" />
+      <View
+        style={[StyleSheet.absoluteFill, radius ? [styles.edge, { borderRadius: radius }] : { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: glass.edge }]}
+        pointerEvents="none"
+      />
       {children}
     </View>
+  );
+}
+
+/*
+ * The tab bar floats over whichever tab is open, so it blurs THAT tab's content: each tab registers
+ * its BlurSource while it's focused, and the bar reads the current one.
+ */
+let activeSource: Target | null = null;
+const sourceListeners = new Set<() => void>();
+const announceSource = () => sourceListeners.forEach((l) => l());
+
+/** In a tab screen: "while I'm open, the tab bar blurs this". */
+export function useTabBlurSource(target: Target): void {
+  useFocusEffect(
+    useCallback(() => {
+      activeSource = target;
+      announceSource();
+      return () => {
+        if (activeSource === target) {
+          activeSource = null;
+          announceSource();
+        }
+      };
+    }, [target]),
+  );
+}
+
+/** For the tab bar: the open tab's BlurSource (null: nothing to blur, use plain glass). */
+export function useActiveBlurSource(): Target | null {
+  return useSyncExternalStore(
+    (l) => {
+      sourceListeners.add(l);
+      return () => sourceListeners.delete(l);
+    },
+    () => activeSource,
   );
 }

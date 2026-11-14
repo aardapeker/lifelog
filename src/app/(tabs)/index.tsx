@@ -33,7 +33,7 @@ import { Beam, TimelineItem } from '../../components/TracingBeam';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 import { showAlert } from '../../lib/dialog';
 import { useFirstFrame } from '../../lib/perf';
-import { BlurSource, useBlurSource } from '../../components/Glass';
+import { BlurSource, useBlurSource, useTabBlurSource } from '../../components/Glass';
 
 type Range = 'all' | 'week' | 'month';
 const RANGES: { key: Range; label: string; days: number }[] = [
@@ -95,7 +95,8 @@ export default function JournalScreen() {
   const insets = useSafeAreaInsets();
   const bottomSpace = useBottomSpace(); // the tab bar, plus the radio player when it's docked
   const { y, onScroll } = useCollapsingHeader();
-  const blur = useBlurSource(); // the list, for the sticky bar's frosted glass
+  const blur = useBlurSource(); // the list, for the sticky bar's (and the tab bar's) frosted glass
+  useTabBlurSource(blur);
   // sizes for the tracing beam: where the first day starts, and how far the list scrolls
   const [headerH, setHeaderH] = useState(0);
   const [contentH, setContentH] = useState(0);
