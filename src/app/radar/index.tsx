@@ -9,12 +9,14 @@ import { timeAgo } from '../../radar/format';
 import { colors, ui, fonts } from '../../radar/theme';
 import type { FeedItem, Topic } from '../../radar/types';
 import { useRadar } from '../../radar/useRadar';
+import { useFirstFrame } from '../../lib/perf';
 
 const PAGE = 30;
 const STALE = 30 * 60_000; // older than this, opening Radar fetches new news
 
 /** Radar's feed: every topic (or one), newest first; pull down for new news. Port of the radar app's index. */
 export default function RadarFeed() {
+  useFirstFrame('Radar'); // Settings → Privacy → Speed
   const r = useRadar();
   const insets = useSafeAreaInsets();
   const [topics, setTopics] = useState<Topic[]>([]);

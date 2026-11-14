@@ -42,6 +42,7 @@ import { GroceryCard } from '../../components/GroceryCard';
 import { TopBar } from '../../components/TopBar';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 import { showAlert } from '../../lib/dialog';
+import { time, useFirstFrame } from '../../lib/perf';
 
 const WEEKS = 12;
 const WEEKDAY = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -148,6 +149,7 @@ function MoodGrid({ moods }: { moods: Map<number, number> }) {
 }
 
 export default function InsightsScreen() {
+  useFirstFrame('Life'); // Settings → Privacy → Speed
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();
   const bottomSpace = useBottomSpace(); // the tab bar, plus the radio player when it's docked
@@ -189,7 +191,7 @@ export default function InsightsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      const t = setTimeout(load, 250); // after the tab switch, so it stays smooth
+      const t = setTimeout(() => time('Life tab: database reads', load), 250); // after the tab switch, so it stays smooth
       return () => clearTimeout(t);
     }, [load]),
   );

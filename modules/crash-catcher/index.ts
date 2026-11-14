@@ -6,6 +6,7 @@ type CrashCatcher = {
   breadcrumb(text: string): void;
   lastCrash(): string | null;
   clear(): void;
+  processAgeMs(): number;
 };
 
 export default requireOptionalNativeModule<CrashCatcher>('CrashCatcher');

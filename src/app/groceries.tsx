@@ -26,6 +26,7 @@ import {
   type Product,
 } from '../lib/groceries';
 import { colors, fonts, inputColors, radius } from '../lib/theme';
+import { useFirstFrame } from '../lib/perf';
 
 const DISTANCES = [1, 2, 3, 5];
 
@@ -35,6 +36,7 @@ const DISTANCES = [1, 2, 3, 5];
  * Prices come straight from marketfiyati.org.tr (no AI, so it costs nothing).
  */
 export default function GroceriesScreen() {
+  useFirstFrame('Groceries'); // Settings → Privacy → Speed
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();
   const [list, setList] = useState<Item[]>([]);

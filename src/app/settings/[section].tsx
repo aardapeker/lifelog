@@ -1,6 +1,8 @@
 import Ionicons, { ICON_STYLES, setIconStyle, useIconStyle } from '../../components/Icon';
 import { BACKDROPS, setBackdrop, useBackdrop } from '../../lib/backdrop';
 import { ColorPicker } from '../../components/ColorPicker';
+import * as Clipboard from 'expo-clipboard';
+import { clearRuns, describe, pastRuns, summary, useFirstFrame, type Run } from '../../lib/perf';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -1023,6 +1025,47 @@ function BackdropSection() {
   );
 }
 
+/** How fast the app starts and opens its screens (lib/perf), this week. */
+function SpeedSection() {
+  const [runs, setRuns] = useState<Run[]>([]);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    setRuns(pastRuns());
+  }, []);
+  const text = runs.length ? `${summary(runs)}\n\nLatest launch:\n${describe(runs[0])}` : 'Nothing measured yet.';
+  return (
+    <Section title="Speed" hint="How long Lifelog takes to start and to open its screens, measured on every launch and kept for a week. Times start when Android launches the app.">
+      <Text style={styles.speed} selectable>
+        {runs.length ? summary(runs) : 'Nothing measured yet.'}
+      </Text>
+      {open && runs[0] && (
+        <Text style={[styles.speed, { marginTop: 12 }]} selectable>
+          {`Latest launch:\n${describe(runs[0])}`}
+        </Text>
+      )}
+      <View style={styles.row}>
+        <PillButton label={open ? 'Hide the latest launch' : 'Show the latest launch'} onPress={() => setOpen((x) => !x)} ghost />
+        <PillButton
+          label="Copy"
+          onPress={() => {
+            Clipboard.setStringAsync(text).catch(() => {});
+            haptic.success();
+          }}
+          ghost
+        />
+        <PillButton
+          label="Start over"
+          onPress={() => {
+            clearRuns();
+            setRuns(pastRuns().slice(0, 1));
+          }}
+          ghost
+        />
+      </View>
+    </Section>
+  );
+}
+
 /** Crash reports filed to GitHub by themselves, so Claude reads them without screenshots. */
 function CrashReportSection() {
   const [saved, setSaved] = useState<string | null>(null);
@@ -1192,6 +1235,7 @@ function WidgetAndExport() {
 }
 
 export default function SettingsScreen() {
+  useFirstFrame('Settings'); // Settings → Privacy → Speed
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();
   const { section } = useLocalSearchParams<{ section: string }>();
@@ -1412,6 +1456,7 @@ export default function SettingsScreen() {
           </View>
           <StatusLine status={indexStatus} />
         </Section>
+        <SpeedSection />
         <CrashReportSection />
         <WidgetAndExport />
         </>
@@ -1427,6 +1472,7 @@ const styles = StyleSheet.create({
   swatchCell: { alignItems: 'center', gap: 6, width: 56 },
   swatch: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent' },
   swatchOn: { borderColor: '#FFFFFF' },
+  speed: { fontFamily: fonts.mono, fontSize: 11.5, lineHeight: 18, color: colors.text },
   swatchPlain: { borderColor: colors.line }, // dark on dark: an outline so you can see it
   swatchLabel: { fontFamily: fonts.sansRegular, fontSize: 11, color: colors.muted },
   pageTitle: { flexDirection: 'row', alignItems: 'center', gap: 12 },

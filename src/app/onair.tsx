@@ -14,6 +14,7 @@ import { breadcrumb } from '../lib/crashLog';
 import { ActionSheet, type SheetAction } from '../components/ActionSheet';
 import { useRadio } from '../lib/radioEngine';
 import { colors, fonts, radius } from '../lib/theme';
+import { useFirstFrame } from '../lib/perf';
 
 /**
  * The show, full screen: while it's being made (the live steps, then your playlist check), and on air
@@ -21,6 +22,7 @@ import { colors, fonts, radius } from '../lib/theme';
  * The playlist has its own page (top right).
  */
 export default function OnAirScreen() {
+  useFirstFrame('Player'); // Settings → Privacy → Speed
   const insets = useSafeAreaInsets();
   const r = useRadio();
   const { phase, show, current, palette, paused, speaking, progress, station, steps, draft, status, hearts, voice } = r;

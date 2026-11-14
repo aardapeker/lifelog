@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Glass } from '../../components/Glass';
 import { MiniPlayer } from '../../components/MiniPlayer';
 import { ShowWash } from '../../components/radioParts';
+import { tabTapped } from '../../lib/perf';
 import { ShimmerSweep } from '../../components/ui';
 import { colors, fonts } from '../../lib/theme';
 import { useKeyboardVisible } from '../../lib/useKeyboardVisible';
@@ -174,6 +175,7 @@ function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
                       onPress={() => {
                         if (!route || focused) return;
                         setTapped(i);
+                        tabTapped(s.label); // Settings → Privacy → Speed: tap → drawn
                         setTimeout(() => navigateToTab(route.key), 16);
                       }}
                       accessibilityRole="tab"

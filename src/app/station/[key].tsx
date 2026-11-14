@@ -11,9 +11,11 @@ import { SHOW_LENGTHS, songLangOf, songLangsFor, type SongLang } from '../../lib
 import { useRadio } from '../../lib/radioEngine';
 import { FRIEND_VOICES, LANGS, STATIONS, voicesFor } from '../../lib/stations';
 import { colors, fonts, inputColors, radius } from '../../lib/theme';
+import { useFirstFrame } from '../../lib/perf';
 
 /** One station: its artwork and hosts, the show's options, and Go on air. */
 export default function StationScreen() {
+  useFirstFrame('Station page'); // Settings → Privacy → Speed
   const { key } = useLocalSearchParams<{ key: string }>();
   const insets = useSafeAreaInsets();
   const db = useSQLiteContext();

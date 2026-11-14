@@ -26,9 +26,11 @@ import {
 } from '../../lib/arena';
 import { getSetting, setSetting } from '../../lib/db';
 import { colors, fonts, radius } from '../../lib/theme';
+import { useFirstFrame } from '../../lib/perf';
 
 /** Bug Arena's home: your rank, the languages, and the three ways to play. */
 export default function ArenaHome() {
+  useFirstFrame('Bug Arena'); // Settings → Privacy → Speed
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();
   const [p, setP] = useState<Progress | null>(null);

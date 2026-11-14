@@ -13,12 +13,14 @@ import { STATIONS } from '../../lib/stations';
 import { colors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 import { Avatar, Bell } from '../../components/TopBar';
 import { showAlert } from '../../lib/dialog';
+import { useFirstFrame } from '../../lib/perf';
 
 /**
  * The Radio tab: the stations as a grid of cards (tap one for its options), and the shows you've
  * heard on their own tab. While a show is being made or on air, a card on top takes you back to it.
  */
 export default function RadioHome() {
+  useFirstFrame('Radio'); // Settings → Privacy → Speed
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<'stations' | 'recent' | 'saved'>('stations');
   const { history, loadHistory, playPast, forgetShow, keepShow, phase, show, current, paused } = useRadio();

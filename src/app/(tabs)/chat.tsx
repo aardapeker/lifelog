@@ -27,6 +27,7 @@ import { buildSystemPrompt, searchTool } from '../../lib/context';
 import { songsTool, spotifyConnected } from '../../lib/spotify';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 import { useKeyboardVisible } from '../../lib/useKeyboardVisible';
+import { useFirstFrame } from '../../lib/perf';
 
 type Row = ChatMessage & { id: number | string; key?: string }; // key stays the same while a reply streams in
 
@@ -59,6 +60,7 @@ function toApiMessages(rows: Row[]): ChatMessage[] {
 }
 
 export default function ChatScreen() {
+  useFirstFrame('Friend'); // Settings → Privacy → Speed
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ id?: string; new?: string; ask?: string }>();

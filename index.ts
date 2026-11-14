@@ -1,4 +1,6 @@
 // Entry point: Expo Router, plus the two things Android runs without the app being open.
+import { mark } from './src/lib/perf'; // first: its clock starts here (Settings → Privacy → Speed)
+mark('JS started');
 import { installCrashLog } from './src/lib/crashLog';
 installCrashLog(); // before anything else runs
 import 'expo-router/entry';

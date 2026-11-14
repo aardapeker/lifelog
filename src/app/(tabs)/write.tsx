@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { NoteEditor, type EditorResult } from '../../components/NoteEditor';
+import { useFirstFrame } from '../../lib/perf';
 
 /**
  * The Write tab (the ＋ in the middle): one place for all writing. Opened plain, it's a new entry;
@@ -8,6 +9,7 @@ import { NoteEditor, type EditorResult } from '../../components/NoteEditor';
  * and an unfinished one is kept as a draft and comes back when you return to it.
  */
 export default function WriteTab() {
+  useFirstFrame('Write'); // Settings → Privacy → Speed
   const params = useLocalSearchParams<{ id?: string; voice?: string; shared?: string; t?: string }>();
   const noteId = params.id && params.id !== 'new' ? Number(params.id) : null;
   const [round, setRound] = useState(0); // a new round after each save/discard: a blank page

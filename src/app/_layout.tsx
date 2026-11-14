@@ -21,6 +21,7 @@ import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { DialogHost } from '../components/DialogHost';
+import { mark } from '../lib/perf';
 import { isBackupFileName } from '../lib/backup';
 import { clearCrash, lastCrash, nativeCrash } from '../lib/crashLog';
 import { showCrash } from '../lib/crashReport';
@@ -90,7 +91,10 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    if (loaded) SplashScreen.hideAsync().catch(() => {});
+    if (!loaded) return;
+    mark('fonts loaded');
+    SplashScreen.hideAsync().catch(() => {});
+    requestAnimationFrame(() => mark('first screen drawn'));
   }, [loaded]);
 
   // Lifelog closed because of an error last time: say what it was (screenshot it for a fix)
@@ -118,7 +122,14 @@ export default function RootLayout() {
 
   return (
     <ShareIntentProvider>
-    <SQLiteProvider databaseName={DB_NAME} onInit={migrate}>
+    <SQLiteProvider
+      databaseName={DB_NAME}
+      onInit={async (db) => {
+        mark('database opening');
+        await migrate(db);
+        mark('database ready');
+      }}
+    >
       <StatusBar style="light" />
       <RadioProvider>
       <LockGate>

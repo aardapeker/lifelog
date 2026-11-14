@@ -12,6 +12,7 @@ import { IconButton, InfoTile } from '../../components/ui';
 import { entryTitle, formatDate, formatTime, getNote, type Note } from '../../lib/notes';
 import { listPhotos, photoUri, type Photo } from '../../lib/photos';
 import { colors, fonts, radius } from '../../lib/theme';
+import { useFirstFrame } from '../../lib/perf';
 
 /** **bold** and *italic* inside a paragraph. */
 function inline(text: string): ReactNode[] {
@@ -65,6 +66,7 @@ function Block({ text }: { text: string }) {
 
 /** An entry to read, laid out like a blog post: headline, the song, the words, the photos full width. Edit is one tap away. */
 export default function EntryScreen() {
+  useFirstFrame('Entry'); // Settings → Privacy → Speed
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();

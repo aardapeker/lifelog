@@ -32,6 +32,7 @@ import { TopBar } from '../../components/TopBar';
 import { Beam, TimelineItem } from '../../components/TracingBeam';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 import { showAlert } from '../../lib/dialog';
+import { useFirstFrame } from '../../lib/perf';
 
 type Range = 'all' | 'week' | 'month';
 const RANGES: { key: Range; label: string; days: number }[] = [
@@ -88,6 +89,7 @@ function Day({ section, photos, last }: { section: DaySection; photos: Map<numbe
 }
 
 export default function JournalScreen() {
+  useFirstFrame('Journal'); // Settings → Privacy → Speed
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();
   const bottomSpace = useBottomSpace(); // the tab bar, plus the radio player when it's docked

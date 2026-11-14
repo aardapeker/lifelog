@@ -73,6 +73,11 @@ class CrashCatcherModule : Module() {
       parts.joinToString("\n\n")
     }
 
+    /** How long ago Android started this app's process, in ms (the zero point of the speed measurements). */
+    Function("processAgeMs") {
+      android.os.SystemClock.elapsedRealtime() - android.os.Process.getStartElapsedRealtime()
+    }
+
     Function("clear") {
       val c = context ?: return@Function null
       crashFile(c).delete()

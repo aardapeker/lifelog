@@ -9,12 +9,14 @@ import { IconButton, PillButton } from '../components/ui';
 import { useRadio } from '../lib/radioEngine';
 import { colors, fonts, radius } from '../lib/theme';
 import { showAlert } from '../lib/dialog';
+import { useFirstFrame } from '../lib/perf';
 
 /**
  * The show's playlist on its own page: covers, lengths, the one playing now. Tap a song to jump to it
  * (after the show: to play the show again from there); long-press for "don't play this song".
  */
 export default function PlaylistScreen() {
+  useFirstFrame('Playlist'); // Settings → Privacy → Speed
   const insets = useSafeAreaInsets();
   const { show, index, phase, palette, current, paused, hearts, banned, toggleHeart, ban, jumpTo, replay, keepLive, liveKept, save, togglePause, skip } = useRadio();
   const close = () => (router.canGoBack() ? router.back() : router.replace('/onair'));
