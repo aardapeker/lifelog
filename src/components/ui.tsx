@@ -75,9 +75,8 @@ export function IconButton(props: {
 }
 
 /**
- * The app's buttons, Aceternity's "Shimmer" on glass: a see-through pill with a soft band of light sweeping across it
- * every few seconds. The main one has white text and a brighter edge; `ghost` (the secondary one) is
- * quieter. The sweep animates natively, so it costs the app nothing.
+ * The app's buttons: a see-through glass pill. The main one is dark with white text; `ghost` (the
+ * secondary one) is quieter. `shimmer` adds Aceternity's sweep of light, for a button that should stand out.
  */
 export function PillButton(props: {
   label: string;
@@ -85,6 +84,7 @@ export function PillButton(props: {
   ghost?: boolean;
   full?: boolean;
   disabled?: boolean;
+  shimmer?: boolean; // the sweep of light; off by default (an endless animation keeps the GPU busy)
   style?: StyleProp<ViewStyle>;
 }) {
   const [w, setW] = useState(0);
@@ -95,14 +95,18 @@ export function PillButton(props: {
       onLayout={(e) => setW(e.nativeEvent.layout.width)}
       style={[styles.pill, props.ghost ? styles.pillGhost : styles.pillMain, props.full && styles.pillFull, props.disabled && { opacity: 0.5 }, props.style]}
     >
-      <ShimmerSweep w={w} strength={props.ghost ? 0.14 : 0.2} />
+      {props.shimmer && <ShimmerSweep w={w} strength={props.ghost ? 0.14 : 0.2} />}
       <Text style={[styles.pillText, props.ghost && styles.pillTextGhost]}>{props.label}</Text>
     </PressScale>
   );
 }
 
-/** Shimmer: a soft band of light crossing its parent (a pill, or a circle) every few seconds. */
-export function ShimmerSweep({ w, strength = 0.14, round = radius.pill }: { w: number; strength?: number; round?: number }) {
+/**
+ * Shimmer: a soft band of light crossing its parent (a pill, or a circle) a few times, then it rests.
+ * Not forever: an endless animation redraws the screen (and the frosted bars over it) every frame,
+ * which kept the GPU busy and warmed the phone.
+ */
+export function ShimmerSweep({ w, strength = 0.14, round = radius.pill, times = 3 }: { w: number; strength?: number; round?: number; times?: number }) {
   const x = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(
@@ -111,6 +115,7 @@ export function ShimmerSweep({ w, strength = 0.14, round = radius.pill }: { w: n
         Animated.delay(1400),
         Animated.timing(x, { toValue: 0, duration: 0, useNativeDriver: true }),
       ]),
+      { iterations: times },
     );
     loop.start();
     return () => loop.stop();
@@ -189,7 +194,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     overflow: 'hidden',
   },
-  // glass: see-through, with a light edge (the shimmer sweeps across it)
+  // glass: see-through, with a light edge 
   // dark glass: readable even floating over a busy screen (the Go on air button over the chips)
   pillMain: { backgroundColor: 'rgba(14,14,16,0.92)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
   pillGhost: { backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' },
