@@ -1,5 +1,7 @@
 import Ionicons, { ICON_STYLES, setIconStyle, useIconStyle } from '../../components/Icon';
 import { BACKDROPS, setBackdrop, useBackdrop } from '../../lib/backdrop';
+import { ColorPicker } from '../../components/ColorPicker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { Children, cloneElement, isValidElement, useCallback, useEffect, useState, type ComponentProps, type ReactNode } from 'react';
@@ -976,6 +978,8 @@ function IconsSection() {
 function BackdropSection() {
   const db = useSQLiteContext();
   const chosen = useBackdrop();
+  const [picking, setPicking] = useState(false);
+  const custom = chosen && !BACKDROPS.some((b) => b.key === chosen) ? chosen : null; // a colour from the picker
   return (
     <Section title="Background" hint="The app's colour when no music is playing. While a show plays, the song's colour takes over.">
       <View style={styles.swatches}>
@@ -987,13 +991,34 @@ function BackdropSection() {
             accessibilityState={{ selected: chosen === b.key }}
             style={styles.swatchCell}
           >
-            <View style={[styles.swatch, { backgroundColor: b.color }, chosen === b.key && styles.swatchOn]}>
+            <View style={[styles.swatch, { backgroundColor: b.color }, !b.key && styles.swatchPlain, chosen === b.key && styles.swatchOn]}>
               {chosen === b.key && <Ionicons name="checkmark" size={18} color="#FFFFFF" />}
             </View>
             <Text style={styles.swatchLabel}>{b.label}</Text>
           </Pressable>
         ))}
+        {/* any colour you like */}
+        <Pressable onPress={() => setPicking(true)} accessibilityLabel="Pick your own background colour" style={styles.swatchCell}>
+          <View style={[styles.swatch, { overflow: 'hidden' }, custom && styles.swatchOn]}>
+            {custom ? (
+              <View style={[StyleSheet.absoluteFill, { backgroundColor: custom }]} />
+            ) : (
+              <LinearGradient colors={['#FF4D4D', '#FFD84D', '#4DFF88', '#4DB8FF', '#C44DFF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+            )}
+            <Ionicons name={custom ? 'checkmark' : 'add'} size={20} color="#FFFFFF" />
+          </View>
+          <Text style={styles.swatchLabel}>Custom</Text>
+        </Pressable>
       </View>
+      <ColorPicker
+        visible={picking}
+        initial={custom ?? (chosen || undefined)}
+        onClose={() => setPicking(false)}
+        onPick={(c) => {
+          setPicking(false);
+          setBackdrop(db, c);
+        }}
+      />
     </Section>
   );
 }
@@ -1402,6 +1427,7 @@ const styles = StyleSheet.create({
   swatchCell: { alignItems: 'center', gap: 6, width: 56 },
   swatch: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent' },
   swatchOn: { borderColor: '#FFFFFF' },
+  swatchPlain: { borderColor: colors.line }, // dark on dark: an outline so you can see it
   swatchLabel: { fontFamily: fonts.sansRegular, fontSize: 11, color: colors.muted },
   pageTitle: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 24, marginBottom: 10 },
