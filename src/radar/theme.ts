@@ -22,7 +22,7 @@ export { fonts };
 
 /** Styles several screens share. */
 export const ui = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.ink },
+  screen: { flex: 1, backgroundColor: colors.ink }, // (Radar's pages use components/Page instead: the app's background + mini player)
   card: { backgroundColor: colors.panel, borderRadius: radius.md, overflow: 'hidden' },
   label: { color: colors.muted, fontFamily: fonts.serif, fontSize: 14 }, // like Lifelog's "How long?" labels
   muted: { color: colors.muted, fontFamily: fonts.sansRegular, fontSize: 14 },

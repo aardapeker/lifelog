@@ -15,6 +15,7 @@ import { isUsefulSnippet } from '../../../radar/format';
 import { useLoad } from '../../../radar/hooks';
 import { colors, ui, fonts } from '../../../radar/theme';
 import type { FeedItem } from '../../../radar/types';
+import { Page, usePageBottom } from '../../../components/Page';
 import { useRadar } from '../../../radar/useRadar';
 import { showAlert } from '../../../lib/dialog';
 
@@ -40,10 +41,10 @@ export default function ItemScreen() {
 
   if (!item.data) {
     return (
-      <View style={ui.screen}>
+      <Page>
         <Header title="Radar" />
         <Text style={[ui.muted, { padding: 24 }]}>{item.isError ? `Couldn't load it: ${item.error?.message}` : item.isPending ? 'Loading…' : 'This one is gone.'}</Text>
-      </View>
+      </Page>
     );
   }
   return <Detail item={item.data} onChange={item.setData} />;
@@ -52,6 +53,7 @@ export default function ItemScreen() {
 function Detail({ item, onChange }: { item: FeedItem; onChange: (i: FeedItem) => void }) {
   const r = useRadar();
   const insets = useSafeAreaInsets();
+  const pageBottom = usePageBottom(); // room for the docked mini player
   const isVideo = item.type === 'VIDEO' || item.type === 'SHORT';
   // videos open in the YouTube app; pages in an in-app browser tab
   const open = (url = item.url) => (isVideo && url === item.url ? Linking.openURL(url) : WebBrowser.openBrowserAsync(url, { toolbarColor: colors.ink }));
@@ -68,14 +70,14 @@ function Detail({ item, onChange }: { item: FeedItem; onChange: (i: FeedItem) =>
     ]);
 
   return (
-    <View style={ui.screen}>
+    <Page>
       <Header
         title={item.topicName}
         right={
           (item.type === 'ARTICLE' || item.type === 'DISCUSSION') && item.domain ? <HeaderIcon icon="eye-off-outline" label={`Never show ${item.domain}`} onPress={hide} /> : null
         }
       />
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 48 }]}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 48 + pageBottom }]}>
         {/* plays right here; "Open on YouTube" below still goes to the app */}
         {isVideo && <VideoPlayer item={item} />}
         {(item.type === 'ARTICLE' || item.type === 'DISCUSSION') && item.thumbnailUrl && (
@@ -100,7 +102,7 @@ function Detail({ item, onChange }: { item: FeedItem; onChange: (i: FeedItem) =>
         <ReaderView item={item} />
         <StoryCoverage item={item} />
       </ScrollView>
-    </View>
+    </Page>
   );
 }
 

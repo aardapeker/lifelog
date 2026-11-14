@@ -7,6 +7,7 @@ import { Pill } from '../../radar/components/Pill';
 import { splitList } from '../../radar/format';
 import { colors, ui, fonts } from '../../radar/theme';
 import type { DigestSettings, RadarSettings, Topic, TopicInput } from '../../radar/types';
+import { Page, usePageBottom } from '../../components/Page';
 import { useRadar } from '../../radar/useRadar';
 import { inputColors } from '../../lib/theme';
 import { showAlert } from '../../lib/dialog';
@@ -23,6 +24,7 @@ const MIN_POINTS = [0, 5, 20, 50, 100];
 export default function RadarSettingsScreen() {
   const r = useRadar();
   const insets = useSafeAreaInsets();
+  const pageBottom = usePageBottom(); // room for the docked mini player
   const [topics, setTopics] = useState<Topic[]>([]);
   const [editing, setEditing] = useState<number | 'new' | null>(null);
   const [s, setS] = useState<RadarSettings | null>(null);
@@ -47,9 +49,9 @@ export default function RadarSettingsScreen() {
   };
 
   return (
-    <View style={ui.screen}>
+    <Page>
       <Header title="Radar settings" />
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 60 }]} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 60 + pageBottom }]} keyboardShouldPersistTaps="handled">
         <Text style={ui.label}>Topics</Text>
         <Text style={ui.muted}>Radar follows topics, not people. Each one searches its keywords, plus the channels, repos and hashtags you add.</Text>
         {topics.map((t) =>
@@ -166,7 +168,7 @@ export default function RadarSettingsScreen() {
           </>
         )}
       </ScrollView>
-    </View>
+    </Page>
   );
 }
 

@@ -25,7 +25,7 @@ export function HeaderIcon({ icon, label, onPress }: { icon: ComponentProps<type
 }
 
 const styles = StyleSheet.create({
-  bar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingBottom: 10, backgroundColor: colors.ink },
+  bar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingBottom: 10 }, // see-through: the page's colour shows behind it, like Lifelog's own pages
   title: { flex: 1, color: colors.paper, fontSize: 16, fontFamily: fonts.sans, textAlign: 'center' },
   right: { flexDirection: 'row', gap: 8, minWidth: 44, justifyContent: 'flex-end' },
 });

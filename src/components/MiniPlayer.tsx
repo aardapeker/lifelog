@@ -7,7 +7,7 @@ import { colors, fonts, radius, TAB_BAR_SPACE } from '../lib/theme';
 import { FadeIn, PressScale } from './motion';
 import { Glass } from './Glass';
 
-const MINI_HEIGHT = 70;
+export const MINI_HEIGHT = 70;
 
 /** Bottom padding for a tab screen's list: room for the tab bar, plus the docked radio when it's showing. */
 export function useBottomSpace(): number {

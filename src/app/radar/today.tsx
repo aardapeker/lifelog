@@ -6,20 +6,22 @@ import { Header } from '../../radar/components/Header';
 import { timeAgo } from '../../radar/format';
 import { useLoad } from '../../radar/hooks';
 import { colors, ui, fonts } from '../../radar/theme';
+import { Page, usePageBottom } from '../../components/Page';
 import { useRadar } from '../../radar/useRadar';
 
 /** ☀ Today: the same list as the morning notification. Port of the radar app's today screen. */
 export default function TodayScreen() {
   const r = useRadar();
   const insets = useSafeAreaInsets();
+  const pageBottom = usePageBottom(); // room for the docked mini player
   const digest = useLoad(() => r.digest(), [r]);
   useFocusEffect(useCallback(() => digest.refetch(), [digest.refetch])); // opened ones drop out
   const sections = digest.data?.sections ?? [];
   return (
-    <View style={ui.screen}>
+    <Page>
       <Header title="☀️ Today" />
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 48 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 48 + pageBottom }]}
         refreshControl={<RefreshControl refreshing={false} onRefresh={digest.refetch} colors={[colors.accent]} progressBackgroundColor={colors.panel} />}
       >
         <Text style={ui.muted}>The best unread things from the last 24 hours, a few per topic.</Text>
@@ -53,7 +55,7 @@ export default function TodayScreen() {
           </View>
         ))}
       </ScrollView>
-    </View>
+    </Page>
   );
 }
 

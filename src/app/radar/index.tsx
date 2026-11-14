@@ -8,6 +8,7 @@ import { TopicChips } from '../../radar/components/TopicChips';
 import { timeAgo } from '../../radar/format';
 import { colors, ui, fonts } from '../../radar/theme';
 import type { FeedItem, Topic } from '../../radar/types';
+import { Page, usePageBottom } from '../../components/Page';
 import { useRadar } from '../../radar/useRadar';
 import { useFirstFrame } from '../../lib/perf';
 
@@ -19,6 +20,7 @@ export default function RadarFeed() {
   useFirstFrame('Radar'); // Settings → Privacy → Speed
   const r = useRadar();
   const insets = useSafeAreaInsets();
+  const pageBottom = usePageBottom(); // room for the docked mini player
   const [topics, setTopics] = useState<Topic[]>([]);
   const [topic, setTopic] = useState<string | null>(null);
   const [savedOnly, setSavedOnly] = useState(false);
@@ -80,7 +82,7 @@ export default function RadarFeed() {
   const open = (item: FeedItem) => router.push(`/radar/item/${item.id}`);
 
   return (
-    <View style={ui.screen}>
+    <Page>
       <Header
         title="📡 Radar"
         right={
@@ -116,9 +118,9 @@ export default function RadarFeed() {
                 : 'Nothing here yet. Pull down to check again, or add keywords in ⚙.'}
           </Text>
         }
-        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 32 }]}
+        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 32 + pageBottom }]}
       />
-    </View>
+    </Page>
   );
 }
 
