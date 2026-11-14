@@ -79,6 +79,7 @@ import { getCrashToken, sendCrash, setCrashToken } from '../../lib/crashReport';
 import { useBottomSpace } from '../../components/MiniPlayer';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 import { showAlert } from '../../lib/dialog';
+import { BlurSource, useBlurSource } from '../../components/Glass';
 
 /** A field name or a switch at the very top of a panel doesn't need the space it keeps above itself elsewhere. */
 function flushTop(children: ReactNode): ReactNode {
@@ -1241,6 +1242,7 @@ export default function SettingsScreen() {
   const { section } = useLocalSearchParams<{ section: string }>();
   const page: SettingsPage = section in SETTINGS_PAGES ? (section as SettingsPage) : 'me';
   const { y, onScroll } = useCollapsingHeader();
+  const blur = useBlurSource(); // the list, for the sticky bar's frosted glass
   const [name, setName] = useState('');
   const [profile, setProfile] = useState('');
   const [provider, setProvider] = useState<Provider>('gemini');
@@ -1311,6 +1313,7 @@ export default function SettingsScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+      <BlurSource target={blur}>
       <Animated.ScrollView
         onScroll={onScroll}
         scrollEventThrottle={16}
@@ -1462,7 +1465,8 @@ export default function SettingsScreen() {
         </>
         )}
       </Animated.ScrollView>
-      <CollapsingHeader title={SETTINGS_PAGES[page].title} y={y} />
+      </BlurSource>
+      <CollapsingHeader title={SETTINGS_PAGES[page].title} y={y} blur={blur} />
     </KeyboardAvoidingView>
   );
 }

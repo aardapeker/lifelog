@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { Animated, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts } from '../lib/theme';
-import { Glass } from './Glass';
+import { FrostedGlass, Glass } from './Glass';
 
 /*
  * Magazine-masthead scrolling: the big title fades and shrinks as you scroll, and a slim
@@ -30,17 +30,26 @@ export function bigTitleMotion(y: Animated.Value) {
 }
 
 /** The slim glass bar. Render it after the list, so it sits on top. */
-export function CollapsingHeader({ title, y }: { title: string; y: Animated.Value }) {
+export function CollapsingHeader({ title, y, blur }: { title: string; y: Animated.Value; blur?: Parameters<typeof FrostedGlass>[0]['target'] }) {
   const insets = useSafeAreaInsets();
   const opacity = y.interpolate({ inputRange: [SHOW_AT - 20, SHOW_AT + 10], outputRange: [0, 1], extrapolate: 'clamp' });
   const shift = y.interpolate({ inputRange: [SHOW_AT - 20, SHOW_AT + 10], outputRange: [-10, 0], extrapolate: 'clamp' });
   return (
     <Animated.View pointerEvents="none" style={[styles.wrap, { opacity }]}>
-      <Glass radius={0} style={{ paddingTop: insets.top + 6, paddingBottom: 12 }}>
-        <Animated.Text style={[styles.title, { transform: [{ translateY: shift }] }]} numberOfLines={1}>
-          {title}
-        </Animated.Text>
-      </Glass>
+      {/* frosted: the page blurred behind it (when the page's list is in a BlurSource), like iOS-style glass */}
+      {blur ? (
+        <FrostedGlass target={blur} style={{ paddingTop: insets.top + 6, paddingBottom: 12 }}>
+          <Animated.Text style={[styles.title, { transform: [{ translateY: shift }] }]} numberOfLines={1}>
+            {title}
+          </Animated.Text>
+        </FrostedGlass>
+      ) : (
+        <Glass radius={0} style={{ paddingTop: insets.top + 6, paddingBottom: 12 }}>
+          <Animated.Text style={[styles.title, { transform: [{ translateY: shift }] }]} numberOfLines={1}>
+            {title}
+          </Animated.Text>
+        </Glass>
+      )}
     </Animated.View>
   );
 }

@@ -1,7 +1,7 @@
 import { BlurTargetView, BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { createContext, useContext, useRef, type ComponentRef, type ReactNode, type RefObject } from 'react';
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 /*
  * Frosted glass. On Android a blur needs to know what's behind it, so screens that have
@@ -87,3 +87,36 @@ const styles = StyleSheet.create({
   shell: { overflow: 'hidden' }, // rounds the blur too (borderRadius alone doesn't on Android)
   edge: { borderWidth: StyleSheet.hairlineWidth * 2, borderColor: glass.edge },
 });
+
+/*
+ * Real blur, the safe way: the content goes in a <BlurSource>, and the glass that blurs it sits NEXT
+ * TO it (outside), never inside it. (A blur inside the area it blurs made Android's drawing tree loop
+ * into itself and crashed the radio; that's why <Glass blur> is off.) Used by the sticky top bar.
+ */
+export const CAN_BLUR = Platform.OS === 'android' && Number(Platform.Version) >= 31; // Android 12+
+
+export const useBlurSource = (): Target => useRef<ComponentRef<typeof View> | null>(null);
+
+/** The content a frosted bar next to it can blur. */
+export function BlurSource({ target, children }: { target: Target; children: ReactNode }) {
+  if (!CAN_BLUR) return <View style={{ flex: 1 }}>{children}</View>;
+  return (
+    <BlurTargetView ref={target} style={{ flex: 1 }}>
+      {children}
+    </BlurTargetView>
+  );
+}
+
+/** Frosted glass over a BlurSource it is NOT inside of: the blur, a light tint, a hairline edge. */
+export function FrostedGlass({ target, style, children }: { target: Target; style?: StyleProp<ViewStyle>; children?: ReactNode }) {
+  return (
+    <View style={[{ overflow: 'hidden' }, style]}>
+      {CAN_BLUR ? (
+        <BlurView blurTarget={target} blurMethod="dimezisBlurViewSdk31Plus" intensity={45} tint="dark" style={StyleSheet.absoluteFill} />
+      ) : null}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: CAN_BLUR ? 'rgba(24, 23, 23, 0.32)' : glass.solid }]} />
+      <View style={[StyleSheet.absoluteFill, { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: glass.edge }]} pointerEvents="none" />
+      {children}
+    </View>
+  );
+}

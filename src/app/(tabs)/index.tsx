@@ -33,6 +33,7 @@ import { Beam, TimelineItem } from '../../components/TracingBeam';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 import { showAlert } from '../../lib/dialog';
 import { useFirstFrame } from '../../lib/perf';
+import { BlurSource, useBlurSource } from '../../components/Glass';
 
 type Range = 'all' | 'week' | 'month';
 const RANGES: { key: Range; label: string; days: number }[] = [
@@ -94,6 +95,7 @@ export default function JournalScreen() {
   const insets = useSafeAreaInsets();
   const bottomSpace = useBottomSpace(); // the tab bar, plus the radio player when it's docked
   const { y, onScroll } = useCollapsingHeader();
+  const blur = useBlurSource(); // the list, for the sticky bar's frosted glass
   // sizes for the tracing beam: where the first day starts, and how far the list scrolls
   const [headerH, setHeaderH] = useState(0);
   const [contentH, setContentH] = useState(0);
@@ -333,6 +335,7 @@ export default function JournalScreen() {
 
   return (
     <View style={styles.screen}>
+      <BlurSource target={blur}>
       {/* the tracing beam: lights up the timeline as you scroll back through your days (under the
           list, so the days' dots sit on top of it) */}
       {!isSearch && days.length > 1 && headerH > 0 && (
@@ -380,7 +383,8 @@ export default function JournalScreen() {
       )}
     />
       )}
-      <CollapsingHeader title={name.trim() || 'Journal'} y={y} />
+      </BlurSource>
+      <CollapsingHeader title={name.trim() || 'Journal'} y={y} blur={blur} />
     </View>
   );
 }
