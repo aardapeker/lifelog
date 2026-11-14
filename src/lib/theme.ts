@@ -37,3 +37,14 @@ export const radius = { sm: 12, md: 20, lg: 28, pill: 999 };
 
 /** Space the floating tab bar needs at the bottom of every tab screen. */
 export const TAB_BAR_SPACE = 110;
+
+/**
+ * Cards on a page: frosted glass without a live blur. The page's colour wash shows through a light
+ * tint, with a hairline edge catching the light. (Behind a card there's only the smooth wash, so a
+ * real blur would look the same and cost the GPU every frame.)
+ */
+export const frost = {
+  backgroundColor: 'rgba(255, 255, 255, 0.07)',
+  borderWidth: 1,
+  borderColor: 'rgba(255, 255, 255, 0.1)',
+} as const;

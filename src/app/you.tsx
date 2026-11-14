@@ -10,7 +10,7 @@ import { IconButton } from '../components/ui';
 import { IconTile } from '../components/IconTile';
 import { getSetting, setSetting } from '../lib/db';
 import { deletePhotoFile, pickPhoto, photoUri } from '../lib/photos';
-import { colors, fonts, radius } from '../lib/theme';
+import { colors, fonts, radius, frost } from '../lib/theme';
 import { SETTINGS_PAGES, type SettingsPage } from '../lib/settingsPages';
 import { showAlert } from '../lib/dialog';
 
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
   name: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 30, color: colors.text, marginTop: 14 },
   stats: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.muted, marginTop: 6, textAlign: 'center' },
   list: { gap: 10 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 18, borderRadius: radius.md, backgroundColor: colors.surface },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 18, borderRadius: radius.md, ...frost },
   rowTitle: { fontFamily: fonts.serif, fontSize: 18, color: colors.text },
   rowHint: { fontFamily: fonts.sansRegular, fontSize: 12, lineHeight: 17, color: colors.muted, marginTop: 3 },
 });

@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { deleteResearch, listResearch, researchSources, type Research } from '../lib/autonomy';
 import { formatDate } from '../lib/notes';
 import { articleOf, listReads, type Read } from '../lib/reads';
-import { colors, fonts, radius } from '../lib/theme';
+import { colors, fonts, radius, frost } from '../lib/theme';
 import { FadeIn, stagger } from './motion';
 import { UNREAD } from './TopBar';
 import { SectionTitle } from './ui';
@@ -123,10 +123,10 @@ export function ForYou() {
 const styles = StyleSheet.create({
   section: { gap: 6 },
   hint: { fontFamily: fonts.sansRegular, fontSize: 13, lineHeight: 19, color: colors.muted, marginBottom: 6 },
-  panel: { backgroundColor: colors.surface, borderRadius: radius.md, padding: 18 },
+  panel: { ...frost, borderRadius: radius.md, padding: 18 },
   rowTitle: { fontFamily: fonts.serif, fontSize: 17, color: colors.text },
   rowMeta: { fontFamily: fonts.sansRegular, fontSize: 12, lineHeight: 17, color: colors.muted, marginTop: 2 },
-  readCard: { backgroundColor: colors.surface, borderRadius: radius.md, padding: 18 },
+  readCard: { ...frost, borderRadius: radius.md, padding: 18 },
   readTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   readMeta: { fontFamily: fonts.sansRegular, fontSize: 12, color: colors.muted },
   newDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: UNREAD },

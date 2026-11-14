@@ -40,7 +40,7 @@ import { ArenaCard } from '../../components/ArenaCard';
 import { RadarCard } from '../../components/RadarCard';
 import { GroceryCard } from '../../components/GroceryCard';
 import { TopBar } from '../../components/TopBar';
-import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
+import { colors, inputColors, fonts, radius, TAB_BAR_SPACE, frost } from '../../lib/theme';
 import { showAlert } from '../../lib/dialog';
 import { useFirstFrame } from '../../lib/perf';
 import { useFocusReload } from '../../lib/focusReload';
@@ -450,7 +450,7 @@ const styles = StyleSheet.create({
   sparkEmpty: { height: 4, backgroundColor: colors.line },
   sparkDay: { fontFamily: fonts.sansRegular, fontSize: 10, color: colors.muted },
   hint: { fontFamily: fonts.sansRegular, fontSize: 13, lineHeight: 19, color: colors.muted, marginBottom: 6 },
-  panel: { backgroundColor: colors.surface, borderRadius: radius.md, padding: 18 },
+  panel: { ...frost, borderRadius: radius.md, padding: 18 },
   stat: { fontFamily: fonts.serif, fontSize: 16, lineHeight: 24, color: colors.text, marginTop: 14 },
 
   grid: { flexDirection: 'row', justifyContent: 'space-between' },
@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
   suggestions: { gap: 8, marginTop: 14, alignItems: 'flex-start' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 
-  readCard: { backgroundColor: colors.surface, borderRadius: radius.md, padding: 18 },
+  readCard: { ...frost, borderRadius: radius.md, padding: 18 },
   readTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   readMeta: { fontFamily: fonts.sansRegular, fontSize: 12, color: colors.muted },
   newDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent },

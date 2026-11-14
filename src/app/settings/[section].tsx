@@ -77,7 +77,7 @@ import { embed, indexPending, indexStats } from '../../lib/embeddings';
 import { getKey, maskKey, setKey, type Provider } from '../../lib/keys';
 import { getCrashToken, sendCrash, setCrashToken } from '../../lib/crashReport';
 import { useBottomSpace } from '../../components/MiniPlayer';
-import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
+import { colors, inputColors, fonts, radius, TAB_BAR_SPACE, frost } from '../../lib/theme';
 import { showAlert } from '../../lib/dialog';
 import { BlurSource, CAN_BLUR, useBlurSource } from '../../components/Glass';
 
@@ -1503,7 +1503,7 @@ const styles = StyleSheet.create({
 
   section: { gap: 6 },
   sectionHint: { fontFamily: fonts.sansRegular, fontSize: 13, lineHeight: 19, color: colors.muted, marginBottom: 8 },
-  panel: { backgroundColor: colors.surface, borderRadius: radius.md, padding: 20 },
+  panel: { ...frost, borderRadius: radius.md, padding: 20 },
   divider: { height: 1, backgroundColor: colors.line, marginVertical: 20 },
 
   keyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },

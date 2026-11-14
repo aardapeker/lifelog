@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { getSetting } from '../lib/db';
 import { chainOf, getList, tl } from '../lib/groceries';
-import { colors, fonts, radius } from '../lib/theme';
+import { colors, fonts, radius, frost } from '../lib/theme';
 import { PressScale } from './motion';
 import { SectionTitle } from './ui';
 
@@ -41,7 +41,7 @@ export function GroceryCard() {
 
 const styles = StyleSheet.create({
   hint: { fontFamily: fonts.sansRegular, fontSize: 13, lineHeight: 19, color: colors.muted, marginBottom: 10 },
-  card: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: radius.md, padding: 18, backgroundColor: colors.surface },
+  card: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: radius.md, padding: 18, ...frost },
   emoji: { fontSize: 32 },
   title: { fontFamily: fonts.sansBold, fontSize: 17, color: colors.text },
   sub: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.muted, marginTop: 2 },

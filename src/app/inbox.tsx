@@ -8,7 +8,7 @@ import { UNREAD } from '../components/TopBar';
 import { IconButton } from '../components/ui';
 import { IconTile } from '../components/IconTile';
 import { clearInbox, inboxItems, KIND_LOOK, markAllRead, markRead, openNotification, type InboxItem } from '../lib/notify';
-import { colors, fonts, radius } from '../lib/theme';
+import { colors, fonts, radius, frost } from '../lib/theme';
 
 const ago = (at: number) => {
   const m = Math.round((Date.now() - at) / 60_000);
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 },
   barTitle: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 20, color: colors.text },
   empty: { fontFamily: fonts.sansRegular, fontSize: 14, lineHeight: 21, color: colors.muted, textAlign: 'center', marginTop: 40 },
-  item: { flexDirection: 'row', gap: 12, padding: 16, borderRadius: radius.md, backgroundColor: colors.surface, alignItems: 'flex-start' },
+  item: { flexDirection: 'row', gap: 12, padding: 16, borderRadius: radius.md, ...frost, alignItems: 'flex-start' },
   itemNew: { backgroundColor: colors.raised },
   row: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
   kind: { fontFamily: fonts.sans, fontSize: 12, color: colors.muted },

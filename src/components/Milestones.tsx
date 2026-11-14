@@ -12,7 +12,7 @@ import {
   scanJournal,
   type Milestone,
 } from '../lib/milestones';
-import { colors, fonts, radius } from '../lib/theme';
+import { colors, fonts, radius, frost } from '../lib/theme';
 import { FadeIn, PressScale } from './motion';
 import { PillButton, SectionTitle } from './ui';
 
@@ -160,11 +160,11 @@ export function LifeTimeline() {
 }
 
 const styles = StyleSheet.create({
-  suggestion: { backgroundColor: colors.surface, borderRadius: radius.md, padding: 18, marginBottom: 14, gap: 4 },
+  suggestion: { ...frost, borderRadius: radius.md, padding: 18, marginBottom: 14, gap: 4 },
   kicker: { fontFamily: fonts.sans, fontSize: 12, color: colors.muted, letterSpacing: 0.5 },
   title: { fontFamily: fonts.serif, fontSize: 19, lineHeight: 26, color: colors.text },
   meta: { fontFamily: fonts.sansRegular, fontSize: 13, lineHeight: 19, color: colors.muted },
-  hint: { fontFamily: fonts.sansRegular, fontSize: 13, lineHeight: 19, color: colors.muted, marginBottom: 12 },
+  hint: { fontFamily: fonts.sansRegular, fontSize: 13, lineHeight: 19, color: colors.muted, marginTop: 10, marginBottom: 12 }, // room under the Add button
   buttons: { flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' },
   year: { marginBottom: 6 },
   yearText: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 22, color: colors.text, marginTop: 10, marginBottom: 4 },

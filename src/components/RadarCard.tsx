@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { FeedItem } from '../radar/types';
 import { useRadar } from '../radar/useRadar';
-import { colors, fonts, radius } from '../lib/theme';
+import { colors, fonts, radius, frost } from '../lib/theme';
 import { PressScale } from './motion';
 import { SectionTitle } from './ui';
 
@@ -44,7 +44,7 @@ export function RadarCard() {
 
 const styles = StyleSheet.create({
   hint: { fontFamily: fonts.sansRegular, fontSize: 13, lineHeight: 19, color: colors.muted, marginBottom: 10 },
-  card: { borderRadius: radius.md, padding: 18, gap: 10, backgroundColor: colors.surface },
+  card: { borderRadius: radius.md, padding: 18, gap: 10, ...frost },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontFamily: fonts.sansBold, fontSize: 18, color: colors.text },
   go: { fontFamily: fonts.sans, fontSize: 26, color: colors.muted },

@@ -3,7 +3,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ACHIEVEMENTS, checkAchievements, progress, unlocked } from '../lib/achievements';
-import { colors, fonts, radius } from '../lib/theme';
+import { colors, fonts, radius, frost } from '../lib/theme';
 import { SectionTitle } from './ui';
 
 /** The silly badges, in the Life tab: unlocked ones shine, the rest show how close you are. */
@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
   badge: {
     width: '31%',
     flexGrow: 1,
-    backgroundColor: colors.surface,
+    ...frost,
     borderRadius: radius.md,
     padding: 12,
     alignItems: 'center',

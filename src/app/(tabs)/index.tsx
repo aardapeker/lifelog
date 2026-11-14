@@ -30,7 +30,7 @@ import { useBottomSpace } from '../../components/MiniPlayer';
 import { MilestoneSuggestions } from '../../components/Milestones';
 import { TopBar } from '../../components/TopBar';
 import { Beam, TimelineItem } from '../../components/TracingBeam';
-import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
+import { colors, inputColors, fonts, radius, TAB_BAR_SPACE, frost } from '../../lib/theme';
 import { showAlert } from '../../lib/dialog';
 import { useFirstFrame } from '../../lib/perf';
 import { BlurSource, useBlurSource, useTabBlurSource } from '../../components/Glass';
@@ -451,7 +451,7 @@ const styles = StyleSheet.create({
   dayTitle: { fontFamily: fonts.serif, fontSize: 19, color: colors.text },
   dayDate: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.muted },
 
-  card: { backgroundColor: colors.surface, borderRadius: radius.md, padding: 18 },
+  card: { ...frost, borderRadius: radius.md, padding: 18 },
   cardTime: { fontFamily: fonts.sansRegular, fontSize: 12, color: colors.muted, marginBottom: 8 },
   cardBody: { fontFamily: fonts.sansRegular, fontSize: 15, lineHeight: 23, color: colors.text },
 

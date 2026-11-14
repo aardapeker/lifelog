@@ -2,7 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { colors, fonts, inputColors, radius } from '../lib/theme';
+import { colors, fonts, inputColors, radius, frost } from '../lib/theme';
 import { bytesLabel, radioStorage, type RadioStorage } from '../lib/radioStorage';
 import { FEATURES, getBudget, lira, setBudget, usageReport, usdToTry, type UsageReport } from '../lib/usage';
 import { Glass } from './Glass';
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
   tile: { flex: 1, padding: 14, minHeight: 86 },
   tileLabel: { fontFamily: fonts.serif, fontSize: 13, color: colors.muted },
   tileValue: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 24, lineHeight: 32, color: colors.text, marginTop: 4 },
-  panel: { backgroundColor: colors.surface, borderRadius: radius.md, padding: 18, marginBottom: 10 },
+  panel: { ...frost, borderRadius: radius.md, padding: 18, marginBottom: 10 },
   panelTitle: { fontFamily: fonts.serif, fontSize: 16, color: colors.text, marginBottom: 12 },
   chart: { flexDirection: 'row', alignItems: 'flex-end', height: 116, gap: 3 },
   col: { flex: 1, justifyContent: 'flex-end', height: '100%' },
