@@ -18,10 +18,11 @@ import { radioAudioMode, wav } from './tts';
  */
 
 let keeper: AudioPlaylist | null = null;
-export type Remote = { pause: () => void; play: () => void; next: () => void };
+export type Remote = { pause: () => void; play: () => void; next: () => void; previous: () => void };
 let remote: Remote | null = null;
 
 const TRACK_SECONDS = 60;
+const TRACKS = 3; // silent tracks in the lock-screen playlist
 let lastPlaying = true;
 let lastTime = 0;
 let expectedChange = false; // our own play/pause, not a button press
@@ -47,9 +48,10 @@ export async function goOnAir(title: string, station: string): Promise<void> {
   await radioAudioMode();
   breadcrumb('on air: silence file');
   const uri = await silence();
-  // two tracks, so the lock screen shows ⏭ (it's only offered for playlists)
+  // three tracks, so the lock screen shows ⏮ ⏭ (only offered for playlists) AND the direction can be
+  // told apart: with two, "back one" and "forward one" were the same move, so ⏮ skipped forward
   breadcrumb('on air: creating the silent playlist');
-  keeper = createAudioPlaylist({ sources: [uri, uri], updateInterval: 1000, loop: 'all' });
+  keeper = createAudioPlaylist({ sources: [uri, uri, uri], updateInterval: 1000, loop: 'all' });
   lastPlaying = true;
   lastTime = 0;
   lastIndex = 0;
@@ -62,12 +64,17 @@ export async function goOnAir(title: string, station: string): Promise<void> {
    */
   const trackMoved = (index: number) => {
     if (index === lastIndex) return;
+    const previousIndex = lastIndex;
     lastIndex = index;
     changedAt = Date.now();
     // the "paused" that came just before was the ⏭ reloading the silence, not a pause tap
     if (pendingToggle) clearTimeout(pendingToggle);
     pendingToggle = null;
-    if (armed && lastTime < TRACK_SECONDS - 3) remote?.next();
+    const forward = (index - previousIndex + TRACKS) % TRACKS === 1;
+    if (armed) {
+      if (!forward) remote?.previous();
+      else if (lastTime < TRACK_SECONDS - 3) remote?.next(); // (near the end it's the silence running out by itself)
+    }
     lastTime = 0;
   };
   keeper.addListener('playlistStatusUpdate', (s) => {
@@ -96,6 +103,8 @@ export async function goOnAir(title: string, station: string): Promise<void> {
         }
       }
     }
+    // ⏮ a few seconds into a track restarts it (like any music player) instead of changing track
+    if (armed && s.currentIndex === lastIndex && lastTime > 4 && s.currentTime < 1.5 && Date.now() - changedAt > SETTLE_MS) remote?.previous();
     lastTime = s.currentTime;
   });
   keeper.addListener('trackChanged', (e) => trackMoved(e.currentIndex));

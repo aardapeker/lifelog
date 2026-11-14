@@ -579,6 +579,7 @@ function useRadioEngine() {
         pause: () => !live.current.paused && controls.current.togglePause(),
         play: () => live.current.paused && controls.current.togglePause(),
         next: () => live.current.show && controls.current.skip(),
+        previous: () => live.current.show && controls.current.previous(),
       }),
     [],
   );
