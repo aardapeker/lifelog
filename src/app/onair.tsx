@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BuildProgress } from '../components/BuildProgress';
 import { SeekBar } from '../components/expressive';
@@ -11,6 +11,7 @@ import { FadeIn, PressScale, Pulse } from '../components/motion';
 import { Ban, ColourWash, GlowingCover, Heart, KeepAwake, showName, WASH_BASE, withAlpha } from '../components/radioParts';
 import { IconButton, PillButton, StatusLine } from '../components/ui';
 import { breadcrumb } from '../lib/crashLog';
+import { ActionSheet, type SheetAction } from '../components/ActionSheet';
 import { useRadio } from '../lib/radioEngine';
 import { colors, fonts, radius } from '../lib/theme';
 
@@ -29,16 +30,16 @@ export default function OnAirScreen() {
   }, [phase]);
   const close = () => (router.canGoBack() ? router.back() : router.replace('/radio'));
   const [talkOpen, setTalkOpen] = useState(true);
-  /** ⋯ : the show's less frequent actions. */
-  const more = () =>
-    Alert.alert(show ? showName(show) : 'The show', undefined, [
-      { text: r.liveKept ? 'Unsave the show' : 'Save the show (with its voices)', onPress: r.keepLive },
-      { text: 'Save the songs to Spotify', onPress: r.save },
-      phase === 'onair'
-        ? { text: 'End the show', style: 'destructive', onPress: r.stop }
-        : { text: 'Play it again', onPress: () => r.replay() },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+  /** ⋯ : the show's less frequent actions (a bottom sheet: Android's alert drops a 4th button and traps you). */
+  const [menu, setMenu] = useState(false);
+  const more = () => setMenu(true);
+  const actions: SheetAction[] = [
+    { label: r.liveKept ? 'Unsave the show' : 'Save the show (with its voices)', icon: r.liveKept ? 'bookmark' : 'bookmark-outline', onPress: r.keepLive },
+    { label: 'Save the songs to Spotify', icon: 'musical-notes-outline', onPress: r.save },
+    phase === 'onair'
+      ? { label: 'End the show', icon: 'stop-circle-outline', onPress: r.stop, destructive: true }
+      : { label: 'Play it again', icon: 'refresh', onPress: () => r.replay() },
+  ];
 
   return (
     <View style={styles.screen}>
@@ -47,6 +48,7 @@ export default function OnAirScreen() {
       {/* the same background as the playlist: the song's colour at the top, fading into black */}
       <ColourWash glow={phase === 'onair' || phase === 'done' ? (palette?.glow ?? null) : null} />
       {phase === 'onair' && <KeepAwake />}
+      <ActionSheet visible={menu} title={show ? showName(show) : 'The show'} actions={actions} onClose={() => setMenu(false)} />
 
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 74, paddingBottom: insets.bottom + 40 }]}>
         {phase === 'building' && <BuildProgress steps={steps} station={station} />}

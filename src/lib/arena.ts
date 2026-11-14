@@ -423,25 +423,6 @@ export async function finishRound(
   return { progress: p, xp: xp + (bossWon ? 150 : 0), rankUp: after.index > before.index ? RANKS[after.index] : null, record };
 }
 
-/** A line for the radio hosts: what happened in Bug Arena lately (empty if nothing to brag about). */
-export async function arenaNews(db: SQLiteDatabase): Promise<string> {
-  const p = await getProgress(db);
-  const played = Object.values(p.rounds).reduce((a, b) => a + (b ?? 0), 0);
-  if (!played) return '';
-  const rank = rankOf(totalXp(p));
-  const bosses = LANGS.filter((l) => p.bosses[l.key]).map((l) => `${l.boss.name} (${l.label}) ×${p.bosses[l.key]}`);
-  const weak = Object.entries(p.topics)
-    .filter(([, v]) => v.w > v.r)
-    .slice(0, 2)
-    .map(([k]) => k.replace(':', ' '));
-  return (
-    `Bug Arena (the coding game in their app): rank ${rank.name}, ${totalXp(p)} XP, ${p.streak}-day streak, ${played} rounds` +
-    (bosses.length ? `, bosses beaten: ${bosses.join(', ')}` : '') +
-    (weak.length ? `, keeps getting wrong: ${weak.join(', ')}` : '') +
-    '.'
-  );
-}
-
 function shuffle<T>(a: T[]): T[] {
   const b = [...a];
   for (let i = b.length - 1; i > 0; i--) {
