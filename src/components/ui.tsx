@@ -2,7 +2,7 @@ import Ionicons from './Icon';
 import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react';
 import { ActivityIndicator, Animated, Easing, Modal, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, fonts, radius } from '../lib/theme';
+import { colors, fonts, radius, frost } from '../lib/theme';
 import { Glass } from './Glass';
 import { PressScale } from './motion';
 
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
   pillTextGhost: { color: '#CBD5E1' },
 
   chip: {
-    backgroundColor: colors.raised,
+    ...frost,
     borderRadius: radius.pill,
     paddingHorizontal: 16,
     paddingVertical: 9,

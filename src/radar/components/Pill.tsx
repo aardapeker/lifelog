@@ -3,7 +3,7 @@ import type { ComponentProps } from 'react';
 import { StyleSheet, Text } from 'react-native';
 import Ionicons from '../../components/Icon';
 import { PressScale } from '../../components/motion';
-import { colors, fonts, radius } from '../../lib/theme';
+import { colors, fonts, frost, radius } from '../../lib/theme';
 
 interface Props {
   label: string;
@@ -33,7 +33,7 @@ export function Pill({ label, onPress, icon, variant = 'plain', disabled }: Prop
 
 const styles = StyleSheet.create({
   pill: { minHeight: 40, paddingHorizontal: 16, borderRadius: radius.pill, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  plain: { backgroundColor: colors.raised }, // Lifelog's Chip
+  plain: { ...frost }, // Lifelog's Chip
   on: { backgroundColor: colors.accent }, // Lifelog's active Chip
   solid: { backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', minHeight: 46, paddingHorizontal: 22 }, // Lifelog's PillButton
   text: { fontFamily: fonts.sansRegular, fontSize: 14 },
