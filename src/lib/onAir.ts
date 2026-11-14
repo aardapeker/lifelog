@@ -29,6 +29,8 @@ let armed = false; // buttons count only once the silence has really started (lo
 let lastIndex = 0; // which silent track is on: it changing is a ⏭ press (or the silence running out)
 let changedAt = 0; // when the track last changed: the reload right after looks like a pause + play
 const SETTLE_MS = 2500;
+const TOGGLE_WAIT_MS = 700; // a play/pause from the lock screen waits this long, in case it's really a ⏭
+let pendingToggle: ReturnType<typeof setTimeout> | null = null;
 
 async function silence(): Promise<string> {
   const file = new File(Paths.cache, 'radio-silence-60s.wav');
@@ -62,6 +64,9 @@ export async function goOnAir(title: string, station: string): Promise<void> {
     if (index === lastIndex) return;
     lastIndex = index;
     changedAt = Date.now();
+    // the "paused" that came just before was the ⏭ reloading the silence, not a pause tap
+    if (pendingToggle) clearTimeout(pendingToggle);
+    pendingToggle = null;
     if (armed && lastTime < TRACK_SECONDS - 3) remote?.next();
     lastTime = 0;
   };
@@ -76,9 +81,19 @@ export async function goOnAir(title: string, station: string): Promise<void> {
       // used to pause the song we had just skipped to (and play it again), so ⏭ needed several taps
       const reloading = s.isBuffering || !s.isLoaded || Date.now() - changedAt < SETTLE_MS;
       if (!reloading) {
-        if (!expectedChange) (s.playing ? remote?.play : remote?.pause)?.();
-        expectedChange = false;
         lastPlaying = s.playing;
+        if (expectedChange) expectedChange = false;
+        else {
+          // a ⏭ tap often reports "paused" BEFORE the track change: acting on it at once paused the
+          // show, and the skip that followed got lost (so the first tap seemed to do nothing). Wait a
+          // moment: if the track changes meanwhile, it was a skip, and trackMoved cancels this.
+          const wantPlay = s.playing;
+          if (pendingToggle) clearTimeout(pendingToggle);
+          pendingToggle = setTimeout(() => {
+            pendingToggle = null;
+            (wantPlay ? remote?.play : remote?.pause)?.();
+          }, TOGGLE_WAIT_MS);
+        }
       }
     }
     lastTime = s.currentTime;
@@ -116,6 +131,8 @@ export function onRemote(r: Remote): () => void {
 }
 
 export function goOffAir(): void {
+  if (pendingToggle) clearTimeout(pendingToggle);
+  pendingToggle = null;
   if (!keeper) return;
   try {
     keeper.clearLockScreenControls();
