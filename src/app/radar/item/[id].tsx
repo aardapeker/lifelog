@@ -5,7 +5,7 @@ import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'r
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AiSummary } from '../../../radar/components/AiSummary';
 import { CardMeta } from '../../../radar/components/CardMeta';
-import { VideoThumb } from '../../../radar/components/FeedCard';
+import { VideoPlayer } from '../../../radar/components/VideoPlayer';
 import { Header, HeaderIcon } from '../../../radar/components/Header';
 import { Pill } from '../../../radar/components/Pill';
 import { PostBody } from '../../../radar/components/PostBody';
@@ -76,11 +76,8 @@ function Detail({ item, onChange }: { item: FeedItem; onChange: (i: FeedItem) =>
         }
       />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 48 }]}>
-        {isVideo && (
-          <Pressable onPress={() => open()} accessibilityRole="button" accessibilityLabel="Play on YouTube" style={styles.media}>
-            <VideoThumb item={item} />
-          </Pressable>
-        )}
+        {/* plays right here; "Open on YouTube" below still goes to the app */}
+        {isVideo && <VideoPlayer item={item} />}
         {(item.type === 'ARTICLE' || item.type === 'DISCUSSION') && item.thumbnailUrl && (
           <Image source={{ uri: item.thumbnailUrl }} style={styles.hero} resizeMode="cover" />
         )}
