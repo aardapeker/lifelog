@@ -59,7 +59,7 @@ class CrashCatcherModule : Module() {
           val am = c.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
           val last = am.getHistoricalProcessExitReasons(c.packageName, 0, 1).firstOrNull()
           val seen = p.getLong("exitSeen", 0)
-          if (last != null && last.timestamp > seen && isBad(last.reason)) {
+          if (last != null && last.timestamp > seen && isBad(last)) {
             parts.add("Android: ${reasonName(last.reason)} at ${stamp(last.timestamp)}" + (last.description?.let { "\n$it" } ?: "") +
               (if (last.reason == ApplicationExitInfo.REASON_LOW_MEMORY || last.pss > 0) "\nmemory: ${last.pss / 1024} MB" else ""))
             // a native crash leaves a tombstone (Android 12+): the library and function names in it say what broke
@@ -126,9 +126,14 @@ class CrashCatcherModule : Module() {
     return telling.distinct().take(60).joinToString("\n")
   }
 
-  private fun isBad(reason: Int) = when (reason) {
+  /**
+   * Worth a popup. An out-of-memory kill counts only if Lifelog was on screen: Android clearing it
+   * from the background to make room for other apps (a cached process, a few MB) is normal, not a crash.
+   */
+  private fun isBad(info: ApplicationExitInfo) = when (info.reason) {
     ApplicationExitInfo.REASON_CRASH, ApplicationExitInfo.REASON_CRASH_NATIVE, ApplicationExitInfo.REASON_ANR,
-    ApplicationExitInfo.REASON_LOW_MEMORY, ApplicationExitInfo.REASON_INITIALIZATION_FAILURE -> true
+    ApplicationExitInfo.REASON_INITIALIZATION_FAILURE -> true
+    ApplicationExitInfo.REASON_LOW_MEMORY -> info.importance <= ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE
     else -> false
   }
 
