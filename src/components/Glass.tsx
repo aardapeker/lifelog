@@ -115,7 +115,7 @@ export function BlurSource({ target, children }: { target: Target; children: Rea
 /**
  * Frosted glass over a BlurSource it is NOT inside of: the blur, a light tint, a hairline edge.
  * The blur is redrawn every frame while the content moves, so it's kept light: a smaller radius
- * (cheaper on the GPU) with a slightly darker tint, and `live={false}` drops it while the bar is hidden.
+ * (cheaper on the GPU) with a light haze, and `live={false}` drops it while the bar is hidden.
  */
 export function FrostedGlass({
   target,
@@ -134,9 +134,10 @@ export function FrostedGlass({
   return (
     <View style={[{ overflow: 'hidden', borderRadius: radius ?? 0 }, style]}>
       {on && live ? (
-        <BlurView blurTarget={target} blurMethod="dimezisBlurViewSdk31Plus" intensity={32} tint="dark" style={StyleSheet.absoluteFill} />
+        // tint "default" = a light white haze (clear glasses, not sunglasses)
+        <BlurView blurTarget={target} blurMethod="dimezisBlurViewSdk31Plus" intensity={32} tint="default" style={StyleSheet.absoluteFill} />
       ) : null}
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: on ? 'rgba(24, 23, 23, 0.4)' : glass.solid }]} />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: on ? 'rgba(255, 255, 255, 0.03)' : 'rgba(72, 71, 71, 0.9)' }]} />
       <View
         style={[StyleSheet.absoluteFill, radius ? [styles.edge, { borderRadius: radius }] : { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: glass.edge }]}
         pointerEvents="none"
