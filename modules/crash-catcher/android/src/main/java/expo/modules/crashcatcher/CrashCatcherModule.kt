@@ -20,6 +20,8 @@ import java.util.Locale
  *  - on the next start, also asks Android why the app last ended (native crash, out of memory, ANR…)
  */
 class CrashCatcherModule : Module() {
+  private var createdAt = 0L
+
   private val context: Context?
     get() = appContext.reactContext?.applicationContext
 
@@ -30,7 +32,10 @@ class CrashCatcherModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("CrashCatcher")
 
-    OnCreate { install() }
+    OnCreate {
+      createdAt = android.os.SystemClock.elapsedRealtime()
+      install()
+    }
 
     Function("install") { install() }
 
@@ -76,6 +81,15 @@ class CrashCatcherModule : Module() {
     /** How long ago Android started this app's process, in ms (the zero point of the speed measurements). */
     Function("processAgeMs") {
       android.os.SystemClock.elapsedRealtime() - android.os.Process.getStartElapsedRealtime()
+    }
+
+    /**
+     * When Android had the app's native side ready (this module is created with the others, before the
+     * JavaScript bundle loads), in ms after the process started. Splits "Android + native modules"
+     * from "loading our JS" in the speed measurements.
+     */
+    Function("nativeReadyMs") {
+      if (createdAt == 0L) null else createdAt - android.os.Process.getStartElapsedRealtime()
     }
 
     Function("clear") {

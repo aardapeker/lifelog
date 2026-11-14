@@ -7,6 +7,7 @@ type CrashCatcher = {
   lastCrash(): string | null;
   clear(): void;
   processAgeMs(): number;
+  nativeReadyMs?(): number | null; // older builds don't have it
 };
 
 export default requireOptionalNativeModule<CrashCatcher>('CrashCatcher');

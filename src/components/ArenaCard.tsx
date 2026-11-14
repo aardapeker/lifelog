@@ -7,9 +7,11 @@ import { bossReady, getProgress, LANGS, rankOf, totalXp, type Progress } from '.
 import { colors, fonts, radius } from '../lib/theme';
 import { PressScale } from './motion';
 import { SectionTitle } from './ui';
+import { useLateFonts } from '../lib/lateFonts';
 
 /** Life tab: the way into Bug Arena, with your rank and streak (and a warning when a boss is waiting). */
 export function ArenaCard() {
+  useLateFonts(); // its logo/code fonts load after the start: redraw once they're in
   const db = useSQLiteContext();
   const [p, setP] = useState<Progress | null>(null);
   useFocusEffect(

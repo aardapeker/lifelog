@@ -322,3 +322,12 @@ export async function tooManyTries(db: SQLiteDatabase, key: string, error: unkno
   await setSetting(db, `tries.${key}`, String(tries));
   return tries >= max;
 }
+
+/**
+ * A cheap fingerprint of "has anything been written since?": this connection's write count plus
+ * SQLite's data_version (which moves when another connection, like the background task, commits).
+ */
+export async function changeStamp(db: SQLiteDatabase): Promise<string> {
+  const r = await db.getFirstAsync<{ t: number; v: number }>('SELECT total_changes() AS t, (SELECT data_version FROM pragma_data_version) AS v');
+  return `${r?.t}|${r?.v}`;
+}

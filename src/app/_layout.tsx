@@ -1,15 +1,5 @@
-import {
-  Inter_400Regular,
-  Inter_400Regular_Italic,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
-  Inter_800ExtraBold_Italic,
-  Inter_900Black,
-  Inter_900Black_Italic,
-} from '@expo-google-fonts/inter';
-import { LibreCaslonText_400Regular_Italic } from '@expo-google-fonts/libre-caslon-text';
-import { JetBrainsMono_500Medium, JetBrainsMono_700Bold } from '@expo-google-fonts/jetbrains-mono';
+import { Inter_400Regular, Inter_400Regular_Italic, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
+import { loadLateFonts } from '../lib/lateFonts';
 import { openWrite } from '../lib/write';
 import { useFonts } from 'expo-font';
 import * as Notifications from 'expo-notifications';
@@ -67,45 +57,40 @@ function ShareHandler() {
 function BackgroundSync() {
   const db = useSQLiteContext();
   useEffect(() => {
-    syncBackgroundTask(db).catch((e) => console.warn('background task registration failed', e));
     getSetting(db, 'haptics', '1').then((v) => haptic.setEnabled(v === '1')).catch(() => {});
+    // not during the start (it was one of the hiccups right after unlocking): it only has to happen sometime
+    const t = setTimeout(() => syncBackgroundTask(db).catch((e) => console.warn('background task registration failed', e)), 4000);
+    return () => clearTimeout(t);
   }, [db]);
   return null;
 }
 
 export default function RootLayout() {
-  const [loaded] = useFonts({
-    Inter_400Regular,
-    Inter_400Regular_Italic,
-    Inter_700Bold,
-    Inter_500Medium,
-    Inter_600SemiBold,
-    // the radio stations' logos
-    Inter_800ExtraBold_Italic,
-    Inter_900Black,
-    Inter_900Black_Italic,
-    LibreCaslonText_400Regular_Italic,
-    // code in Bug Arena
-    JetBrainsMono_500Medium,
-    JetBrainsMono_700Bold,
-  });
+  // only the app's own Inter before the first screen; the stations' and Bug Arena's fonts come later (lib/lateFonts)
+  const [loaded] = useFonts({ Inter_400Regular, Inter_400Regular_Italic, Inter_500Medium, Inter_600SemiBold, Inter_700Bold });
 
   useEffect(() => {
     if (!loaded) return;
     mark('fonts loaded');
     SplashScreen.hideAsync().catch(() => {});
     requestAnimationFrame(() => mark('first screen drawn'));
+    const t = setTimeout(loadLateFonts, 2500);
+    return () => clearTimeout(t);
   }, [loaded]);
 
   // Lifelog closed because of an error last time: say what it was (screenshot it for a fix)
   useEffect(() => {
     if (!loaded) return;
-    const native = nativeCrash(); // crashes inside Android (the JS log can't see those)
-    const crash = native ? null : lastCrash();
-    if (crash) clearCrash();
-    if (!native && (!crash || Date.now() - crash.at > 2 * 86_400_000)) return;
-    const report = native ?? `${crash!.message}\n\n${crash!.where}\n\n${new Date(crash!.at).toLocaleString()}`;
-    setTimeout(() => showCrash(native ? 'Lifelog closed last time (Android)' : 'Lifelog closed last time', report).catch(() => {}), 1200);
+    // a few seconds in, not during the start: reading Android's exit records takes a moment
+    const t = setTimeout(() => {
+      const native = nativeCrash(); // crashes inside Android (the JS log can't see those)
+      const crash = native ? null : lastCrash();
+      if (crash) clearCrash();
+      if (!native && (!crash || Date.now() - crash.at > 2 * 86_400_000)) return;
+      const report = native ?? `${crash!.message}\n\n${crash!.where}\n\n${new Date(crash!.at).toLocaleString()}`;
+      showCrash(native ? 'Lifelog closed last time (Android)' : 'Lifelog closed last time', report).catch(() => {});
+    }, 3000);
+    return () => clearTimeout(t);
   }, [loaded]);
 
   // tapping a check-in opens the chat, a day-off reminder the plan, a Read the article

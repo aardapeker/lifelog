@@ -1,5 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { fonts } from '../lib/theme';
+import { useLateFonts } from '../lib/lateFonts';
 
 /*
  * Code on a dark editor panel with line numbers and simple syntax colours (keywords, strings,
@@ -65,6 +66,7 @@ export function CodeBlock({
   picked?: number | null; // the line you tapped
   right?: number | null; // the broken line, shown after you answer
 }) {
+  useLateFonts(); // its logo/code fonts load after the start: redraw once they're in
   const lines = code.split('\n');
   return (
     <View style={styles.panel}>

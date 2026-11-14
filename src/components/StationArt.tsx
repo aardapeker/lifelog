@@ -2,6 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import type { Station } from '../lib/stations';
+import { useLateFonts } from '../lib/lateFonts';
 
 /*
  * Each station's artwork: a gradient in its colours with its own logo, set in type, like the genre
@@ -164,6 +165,7 @@ export function StationArt({
   label?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
+  useLateFonts(); // its logo/code fonts load after the start: redraw once they're in
   const l = lookOf(station.key);
   const [box, setBox] = useState<{ w: number; h: number } | null>(null);
   return (

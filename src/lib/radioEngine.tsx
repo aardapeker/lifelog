@@ -169,8 +169,12 @@ function useRadioEngine() {
     } catch {}
   }, [db]);
   useEffect(() => {
-    loadHistory();
-    setSetting(db, 'radio.live', '').catch(() => {}); // the old single "resume" slot
+    // a moment after the start (it's a big JSON list): the Radio tab is rarely the first thing opened
+    const t = setTimeout(() => {
+      loadHistory();
+      setSetting(db, 'radio.live', '').catch(() => {}); // the old single "resume" slot
+    }, 2000);
+    return () => clearTimeout(t);
   }, [db, loadHistory]);
   /** Updates the entry on air (and lifts it to the top). */
   const record = useCallback(

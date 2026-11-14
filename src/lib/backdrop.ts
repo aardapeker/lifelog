@@ -20,28 +20,41 @@ export const BACKDROPS: { key: string; label: string; color: string }[] = [
   { key: 'rgb(220, 80, 160)', label: 'Pink', color: 'rgb(220, 80, 160)' },
 ];
 
-let current = '';
-const listeners = new Set<() => void>();
-const subscribe = (l: () => void) => {
-  listeners.add(l);
-  return () => listeners.delete(l);
-};
-const announce = () => listeners.forEach((l) => l());
+/**
+ * A look setting the whole app reads (no db context needed): kept in memory, loaded once from the
+ * database, and every screen using it updates when it changes.
+ */
+function lookSetting(key: string, fallback: string) {
+  let current = fallback;
+  const listeners = new Set<() => void>();
+  const subscribe = (l: () => void) => {
+    listeners.add(l);
+    return () => listeners.delete(l);
+  };
+  const announce = () => listeners.forEach((l) => l());
+  const apply = (v: string) => {
+    if (v === current) return;
+    current = v;
+    announce();
+  };
+  return {
+    get: () => current,
+    load: (db: SQLiteDatabase) => getSetting(db, key, fallback).then(apply),
+    use: () => useSyncExternalStore(subscribe, () => current),
+    set: async (db: SQLiteDatabase, v: string) => {
+      apply(v);
+      await setSetting(db, key, v);
+    },
+  };
+}
+
+const backdrop = lookSetting('backdrop', '');
+/** Frosted glass on the top bar and the tab bar ('1'), or the plain dark bars ('0', lighter on the GPU). */
+export const frosted = lookSetting('frosted', '1');
 
 openDatabaseAsync(DB_NAME)
-  .then((db) => getSetting(db, 'backdrop', ''))
-  .then((v) => {
-    if (v !== current) {
-      current = v;
-      announce();
-    }
-  })
+  .then((db) => Promise.all([backdrop.load(db), frosted.load(db)]))
   .catch(() => {});
 
-export const useBackdrop = () => useSyncExternalStore(subscribe, () => current);
-
-export async function setBackdrop(db: SQLiteDatabase, color: string): Promise<void> {
-  current = color;
-  announce();
-  await setSetting(db, 'backdrop', color);
-}
+export const useBackdrop = backdrop.use;
+export const setBackdrop = backdrop.set;

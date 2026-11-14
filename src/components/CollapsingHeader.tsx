@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts } from '../lib/theme';
@@ -34,11 +34,17 @@ export function CollapsingHeader({ title, y, blur }: { title: string; y: Animate
   const insets = useSafeAreaInsets();
   const opacity = y.interpolate({ inputRange: [SHOW_AT - 20, SHOW_AT + 10], outputRange: [0, 1], extrapolate: 'clamp' });
   const shift = y.interpolate({ inputRange: [SHOW_AT - 20, SHOW_AT + 10], outputRange: [-10, 0], extrapolate: 'clamp' });
+  // the blur only exists while the bar can be seen (an invisible blur still costs the GPU every frame)
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const id = y.addListener(({ value }) => setShown(value > SHOW_AT - 20));
+    return () => y.removeListener(id);
+  }, [y]);
   return (
     <Animated.View pointerEvents="none" style={[styles.wrap, { opacity }]}>
       {/* frosted: the page blurred behind it (when the page's list is in a BlurSource), like iOS-style glass */}
       {blur ? (
-        <FrostedGlass target={blur} style={{ paddingTop: insets.top + 6, paddingBottom: 12 }}>
+        <FrostedGlass target={blur} live={shown} style={{ paddingTop: insets.top + 6, paddingBottom: 12 }}>
           <Animated.Text style={[styles.title, { transform: [{ translateY: shift }] }]} numberOfLines={1}>
             {title}
           </Animated.Text>

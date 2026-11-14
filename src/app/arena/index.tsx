@@ -27,9 +27,11 @@ import {
 import { getSetting, setSetting } from '../../lib/db';
 import { colors, fonts, radius } from '../../lib/theme';
 import { useFirstFrame } from '../../lib/perf';
+import { useLateFonts } from '../../lib/lateFonts';
 
 /** Bug Arena's home: your rank, the languages, and the three ways to play. */
 export default function ArenaHome() {
+  useLateFonts(); // its logo/code fonts load after the start: redraw once they're in
   useFirstFrame('Bug Arena'); // Settings → Privacy → Speed
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();

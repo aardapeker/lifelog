@@ -2,7 +2,7 @@ import Ionicons from '../../components/Icon';
 import { openWrite } from '../../lib/write';
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chip, IconButton, PillButton, SectionTitle } from '../../components/ui';
@@ -34,6 +34,9 @@ import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/the
 import { showAlert } from '../../lib/dialog';
 import { useFirstFrame } from '../../lib/perf';
 import { BlurSource, useBlurSource, useTabBlurSource } from '../../components/Glass';
+
+/** The background jobs ran once this launch (the first run waits a few seconds). */
+let warm = false;
 
 type Range = 'all' | 'week' | 'month';
 const RANGES: { key: Range; label: string; days: number }[] = [
@@ -145,13 +148,20 @@ export default function JournalScreen() {
       backupDue(db).then(setNeedsBackup);
       upcomingDayOff(db).then(setDayOff);
       unopenedRead(db).then(setNewRead);
-      // captions, embeddings, facts, the weekly letter, check-ins
-      runBackgroundJobs(db, { soft: true }).then(async () => {
-        const r = await latestRecap(db);
-        setRecap(r && Date.now() - r.created_at < 7 * 86_400_000 ? r : null);
-        photoMap(db).then(setPhotos);
-        setLearned((n) => n + 1); // new entries were read: maybe a milestone to suggest
-      });
+      // captions, embeddings, facts, the weekly letter, check-ins (right after a launch: a few seconds
+      // later, so they don't fight the first screen; they were the hiccups right after unlocking)
+      const jobs = () =>
+        runBackgroundJobs(db, { soft: true }).then(async () => {
+          const r = await latestRecap(db);
+          setRecap(r && Date.now() - r.created_at < 7 * 86_400_000 ? r : null);
+          photoMap(db).then(setPhotos);
+          setLearned((n) => n + 1); // new entries were read: maybe a milestone to suggest
+        });
+      if (warm) jobs();
+      else {
+        warm = true;
+        setTimeout(jobs, 3500);
+      }
   };
 
   // first launch → welcome screen
@@ -161,7 +171,13 @@ export default function JournalScreen() {
     });
   }, [db]);
 
+  // a new search (the first load comes from the focus refresh above, not twice)
+  const searched = useRef(false);
   useEffect(() => {
+    if (!searched.current) {
+      searched.current = true;
+      return;
+    }
     const t = setTimeout(load, 350);
     return () => clearTimeout(t);
   }, [load]);
@@ -373,6 +389,8 @@ export default function JournalScreen() {
       style={styles.screen}
       data={days}
       keyExtractor={(d) => d.key}
+      initialNumToRender={4} // the first screen shows 2-3 days; the rest come while you scroll
+      maxToRenderPerBatch={4}
       contentContainerStyle={contentStyle}
       keyboardShouldPersistTaps="handled"
       ListHeaderComponent={header}

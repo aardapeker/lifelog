@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from 'expo-router';
 import { createContext, useCallback, useContext, useRef, useSyncExternalStore, type ComponentRef, type ReactNode, type RefObject } from 'react';
 import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { frosted } from '../lib/backdrop';
 
 /*
  * Frosted glass. On Android a blur needs to know what's behind it, so screens that have
@@ -98,9 +99,12 @@ export const CAN_BLUR = Platform.OS === 'android' && Number(Platform.Version) >=
 
 export const useBlurSource = (): Target => useRef<ComponentRef<typeof View> | null>(null);
 
+/** Real blur right now: a phone that can, and Settings → Background → Frosted glass on. */
+export const useFrosted = () => frosted.use() === '1' && CAN_BLUR;
+
 /** The content a frosted bar next to it can blur. */
 export function BlurSource({ target, children }: { target: Target; children: ReactNode }) {
-  if (!CAN_BLUR) return <View style={{ flex: 1 }}>{children}</View>;
+  if (!useFrosted()) return <View style={{ flex: 1 }}>{children}</View>;
   return (
     <BlurTargetView ref={target} style={{ flex: 1 }}>
       {children}
@@ -108,14 +112,31 @@ export function BlurSource({ target, children }: { target: Target; children: Rea
   );
 }
 
-/** Frosted glass over a BlurSource it is NOT inside of: the blur, a light tint, a hairline edge. */
-export function FrostedGlass({ target, style, children, radius }: { target: Target; style?: StyleProp<ViewStyle>; children?: ReactNode; radius?: number }) {
+/**
+ * Frosted glass over a BlurSource it is NOT inside of: the blur, a light tint, a hairline edge.
+ * The blur is redrawn every frame while the content moves, so it's kept light: a smaller radius
+ * (cheaper on the GPU) with a slightly darker tint, and `live={false}` drops it while the bar is hidden.
+ */
+export function FrostedGlass({
+  target,
+  style,
+  children,
+  radius,
+  live = true,
+}: {
+  target: Target;
+  style?: StyleProp<ViewStyle>;
+  children?: ReactNode;
+  radius?: number;
+  live?: boolean;
+}) {
+  const on = useFrosted();
   return (
     <View style={[{ overflow: 'hidden', borderRadius: radius ?? 0 }, style]}>
-      {CAN_BLUR ? (
-        <BlurView blurTarget={target} blurMethod="dimezisBlurViewSdk31Plus" intensity={45} tint="dark" style={StyleSheet.absoluteFill} />
+      {on && live ? (
+        <BlurView blurTarget={target} blurMethod="dimezisBlurViewSdk31Plus" intensity={32} tint="dark" style={StyleSheet.absoluteFill} />
       ) : null}
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: CAN_BLUR ? 'rgba(24, 23, 23, 0.32)' : glass.solid }]} />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: on ? 'rgba(24, 23, 23, 0.4)' : glass.solid }]} />
       <View
         style={[StyleSheet.absoluteFill, radius ? [styles.edge, { borderRadius: radius }] : { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: glass.edge }]}
         pointerEvents="none"

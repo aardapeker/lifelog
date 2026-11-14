@@ -26,6 +26,7 @@ import {
 } from '../../lib/arena';
 import { colors, fonts, radius } from '../../lib/theme';
 import { showAlert } from '../../lib/dialog';
+import { useLateFonts } from '../../lib/lateFonts';
 
 // while it writes the first batch
 const WAITING = [
@@ -40,6 +41,7 @@ const LIVES = { round: 3, boss: 3, speed: 0 } as const;
 
 /** One round: questions one after another, lives, combo, XP, then the results. */
 export default function ArenaPlay() {
+  useLateFonts(); // its logo/code fonts load after the start: redraw once they're in
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ lang: Lang; mode: Mode }>();

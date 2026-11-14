@@ -34,6 +34,12 @@ const add = (e: Entry) => {
   scheduleSave();
 };
 
+// Android had the native side ready here (before our JS bundle started loading): splits the wait before "JS started"
+try {
+  const ready = CrashCatcher?.nativeReadyMs?.();
+  if (typeof ready === 'number' && ready > 0) run.entries.push({ at: ready, label: 'native side ready', kind: 'mark' });
+} catch {}
+
 /** A moment on the startup timeline (only the first time each label happens). */
 export function mark(label: string): void {
   if (run.entries.some((e) => e.kind === 'mark' && e.label === label)) return;

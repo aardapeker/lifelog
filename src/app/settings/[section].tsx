@@ -1,5 +1,5 @@
 import Ionicons, { ICON_STYLES, setIconStyle, useIconStyle } from '../../components/Icon';
-import { BACKDROPS, setBackdrop, useBackdrop } from '../../lib/backdrop';
+import { BACKDROPS, frosted, setBackdrop, useBackdrop } from '../../lib/backdrop';
 import { ColorPicker } from '../../components/ColorPicker';
 import * as Clipboard from 'expo-clipboard';
 import { clearRuns, describe, pastRuns, summary, useFirstFrame, type Run } from '../../lib/perf';
@@ -79,7 +79,7 @@ import { getCrashToken, sendCrash, setCrashToken } from '../../lib/crashReport';
 import { useBottomSpace } from '../../components/MiniPlayer';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 import { showAlert } from '../../lib/dialog';
-import { BlurSource, useBlurSource } from '../../components/Glass';
+import { BlurSource, CAN_BLUR, useBlurSource } from '../../components/Glass';
 
 /** A field name or a switch at the very top of a panel doesn't need the space it keeps above itself elsewhere. */
 function flushTop(children: ReactNode): ReactNode {
@@ -983,6 +983,7 @@ function BackdropSection() {
   const chosen = useBackdrop();
   const [picking, setPicking] = useState(false);
   const custom = chosen && !BACKDROPS.some((b) => b.key === chosen) ? chosen : null; // a colour from the picker
+  const frost = frosted.use() === '1';
   return (
     <Section title="Background" hint="The app's colour when no music is playing. While a show plays, the song's colour takes over.">
       <View style={styles.swatches}>
@@ -1022,6 +1023,14 @@ function BackdropSection() {
           setBackdrop(db, c);
         }}
       />
+      {CAN_BLUR && (
+        <Toggle
+          label="Frosted glass"
+          hint="The top bar and the tab bar blur what scrolls under them. Turn it off if scrolling feels heavy: the bars go plain dark."
+          value={frost}
+          onChange={(v) => frosted.set(db, v ? '1' : '0')}
+        />
+      )}
     </Section>
   );
 }

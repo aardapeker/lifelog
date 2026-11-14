@@ -1,5 +1,5 @@
 import Ionicons from '../../components/Icon';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -42,7 +42,8 @@ import { GroceryCard } from '../../components/GroceryCard';
 import { TopBar } from '../../components/TopBar';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
 import { showAlert } from '../../lib/dialog';
-import { time, useFirstFrame } from '../../lib/perf';
+import { useFirstFrame } from '../../lib/perf';
+import { useFocusReload } from '../../lib/focusReload';
 
 const WEEKS = 12;
 const WEEKDAY = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -191,12 +192,7 @@ export default function InsightsScreen() {
     setWeek(await weekStats(db));
   }, [db]);
 
-  useFocusEffect(
-    useCallback(() => {
-      const t = setTimeout(() => time('Life tab: database reads', load), 250); // after the tab switch, so it stays smooth
-      return () => clearTimeout(t);
-    }, [load]),
-  );
+  useFocusReload(db, 'Life tab: database reads', load); // only when something changed since the last visit
 
   const createGoal = async (title: string) => {
     if (!title.trim()) return;
