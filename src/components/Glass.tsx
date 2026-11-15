@@ -4,6 +4,7 @@ import { useFocusEffect } from 'expo-router';
 import { createContext, useCallback, useContext, useRef, useSyncExternalStore, type ComponentRef, type ReactNode, type RefObject } from 'react';
 import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { frosted } from '../lib/backdrop';
+import { ShowWash } from './radioParts';
 
 /*
  * Frosted glass. On Android a blur needs to know what's behind it, so screens that have
@@ -107,6 +108,9 @@ export function BlurSource({ target, children }: { target: Target; children: Rea
   if (!useFrosted()) return <View style={{ flex: 1 }}>{children}</View>;
   return (
     <BlurTargetView ref={target} style={{ flex: 1 }}>
+      {/* the page's colour inside what gets blurred: without it the frosted bars only saw the
+          content (transparent around it) and came out flat grey instead of tinted */}
+      <ShowWash />
       {children}
     </BlurTargetView>
   );

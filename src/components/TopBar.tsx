@@ -91,7 +91,8 @@ const styles = StyleSheet.create({
   bar: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 22 },
   letter: { backgroundColor: colors.raised, alignItems: 'center', justifyContent: 'center' },
   letterText: { fontFamily: fonts.serif, color: colors.text },
-  kicker: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.muted },
+  // over any background colour: light text with a soft shadow, instead of grey that vanished on light covers
+  kicker: { fontFamily: fonts.sansRegular, fontSize: 13, color: 'rgba(255, 255, 255, 0.75)', textShadowColor: 'rgba(0, 0, 0, 0.35)', textShadowRadius: 6 },
   title: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 26, color: colors.text, marginTop: 1 },
   dot: {
     position: 'absolute',

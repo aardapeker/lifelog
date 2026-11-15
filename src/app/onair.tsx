@@ -5,7 +5,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BuildProgress } from '../components/BuildProgress';
 import { SeekBar } from '../components/expressive';
-import { Glass, GlassArea } from '../components/Glass';
+import { BlurSource, FrostedGlass, Glass, useBlurSource } from '../components/Glass';
 import Ionicons from '../components/Icon';
 import { FadeIn, PressScale, Pulse } from '../components/motion';
 import { Ban, ColourWash, GlowingCover, Heart, KeepAwake, showName, WASH_BASE, withAlpha } from '../components/radioParts';
@@ -34,6 +34,8 @@ export default function OnAirScreen() {
   const [talkOpen, setTalkOpen] = useState(true);
   /** ⋯ : the show's less frequent actions (a bottom sheet: Android's alert drops a 4th button and traps you). */
   const [menu, setMenu] = useState(false);
+  const blur = useBlurSource();
+  const [scrolled, setScrolled] = useState(false);
   const more = () => setMenu(true);
   const actions: SheetAction[] = [
     { label: r.liveKept ? 'Unsave the show' : 'Save the show (with its voices)', icon: r.liveKept ? 'bookmark' : 'bookmark-outline', onPress: r.keepLive },
@@ -45,14 +47,18 @@ export default function OnAirScreen() {
 
   return (
     <View style={styles.screen}>
-      {/* everything sits in a blur area, so the player panel is real frosted glass over the cover's colours */}
-      <GlassArea>
+      {/* the page is what the top bar blurs once you scroll (the bar sits outside it, never inside) */}
+      <BlurSource target={blur}>
       {/* the same background as the playlist: the song's colour at the top, fading into black */}
       <ColourWash glow={phase === 'onair' || phase === 'done' ? (palette?.glow ?? null) : null} />
       {phase === 'onair' && <KeepAwake />}
       <ActionSheet visible={menu} title={show ? showName(show) : 'The show'} actions={actions} onClose={() => setMenu(false)} />
 
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 74, paddingBottom: insets.bottom + 40 }]}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 74, paddingBottom: insets.bottom + 40 }]}
+        onScroll={(e) => setScrolled(e.nativeEvent.contentOffset.y > 12)}
+        scrollEventThrottle={32}
+      >
         {phase === 'building' && <BuildProgress steps={steps} station={station} />}
 
         {phase === 'review' && draft && (
@@ -200,9 +206,12 @@ export default function OnAirScreen() {
         )}
         <StatusLine status={status} />
       </ScrollView>
+      </BlurSource>
 
-      {/* the header floats over the page, so the cover's glow isn't cut off at a line */}
+      {/* the header floats over the page, so the cover's glow isn't cut off at a line; once the page
+          scrolls under it, it turns into frosted glass (like the other pages' top bars) */}
       <View style={[styles.bar, { paddingTop: insets.top + 8 }]}>
+        {scrolled && <FrostedGlass target={blur} style={StyleSheet.absoluteFill} />}
         <IconButton icon="chevron-down" label="Close" onPress={close} />
         <View style={styles.barMid}>
           <View style={styles.onAir}>
@@ -219,7 +228,6 @@ export default function OnAirScreen() {
           <View style={{ width: 44 }} />
         )}
       </View>
-      </GlassArea>
     </View>
   );
 }
