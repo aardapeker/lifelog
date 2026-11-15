@@ -130,7 +130,10 @@ function useRadioEngine() {
       setTrying((t) => (t === voice ? null : t));
     }
   };
-  const [wish, setWish] = useState('');
+  // each station keeps its own wish ("guitar solos" on Gebze Rock didn't belong on Arabesk FM)
+  const [wishes, setWishes] = useState<Record<string, string>>({});
+  const wish = wishes[stationKey] ?? '';
+  const setWish = (w: string) => setWishes((all) => ({ ...all, [stationKey]: w }));
   const [length, setLength] = useState(8); // songs per show
   const [miniCollapsed, setMiniCollapsed] = useState(false); // the docked player, folded into a bubble
   const [voice, setVoice] = useState(true);
