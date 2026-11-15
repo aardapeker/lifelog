@@ -285,7 +285,7 @@ export default function JournalScreen() {
         <TextInput
           style={styles.searchInput}
           placeholder="Search your days"
-          placeholderTextColor={colors.muted}
+          placeholderTextColor="rgba(255, 255, 255, 0.7)" // light, so it reads on light cover colours too
           value={query}
           onChangeText={setQuery}
           returnKeyType="search"

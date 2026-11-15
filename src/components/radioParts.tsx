@@ -8,7 +8,6 @@ import { useBackdrop } from '../lib/backdrop';
 import { useRadioDock } from '../lib/radioEngine';
 import { colors, radius } from '../lib/theme';
 import { showAlert } from '../lib/dialog';
-import { hslToRgb, toHsl } from '../lib/color';
 
 /*
  * Pieces shared by the radio's screens (home, station, on air, playlist).
@@ -92,23 +91,8 @@ export function GlowingCover({ uri, glow, live, talking }: { uri: string; glow: 
  * The radio's background (the playlist look, which the player uses too): the song's colour at the top,
  * fading into near-black. A new song's colour cross-fades in.
  */
-/**
- * A cover's colour can be very light (a beige sleeve, a white one): the wash at full strength then
- * made the app's white and grey text unreadable. Same hue, lightness capped, so text always reads.
- */
-const MAX_WASH_L = 0.42;
-function readableWash(c: string): string {
-  const hsl = toHsl(c);
-  if (!hsl || hsl.l <= MAX_WASH_L) return c;
-  // Keep how colourful it really is (its chroma), not HSL's "saturation": darkening a pale cream
-  // at the same saturation turned every light cover into the same strong mustard yellow.
-  const chroma = (1 - Math.abs(2 * hsl.l - 1)) * hsl.s;
-  const s = Math.min(1, chroma / (1 - Math.abs(2 * MAX_WASH_L - 1)));
-  return hslToRgb({ h: hsl.h, s, l: MAX_WASH_L });
-}
-
 export function ColourWash({ glow }: { glow: string | null }) {
-  const c = readableWash(glow ?? 'rgb(150, 90, 190)');
+  const c = glow ?? 'rgb(150, 90, 190)'; // the cover's own colour, as it is (light ones too: the text over it copes)
   return (
     <View style={[StyleSheet.absoluteFill, { backgroundColor: WASH_BASE }]} pointerEvents="none">
       <FadeIn key={c} from={0} style={StyleSheet.absoluteFill}>
