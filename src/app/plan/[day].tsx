@@ -18,7 +18,8 @@ import {
   type PlanItem,
 } from '../../lib/planner';
 import { setPendingShare } from '../../lib/share';
-import { colors, fonts, radius } from '../../lib/theme';
+import { colors, fonts, radius, frost } from '../../lib/theme';
+import { ShowWash } from '../../components/radioParts';
 
 const KIND_LABEL: Record<PlanItem['kind'], string> = {
   social: 'With people',
@@ -80,6 +81,7 @@ export default function PlanScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+      <ShowWash />
       <View style={styles.bar}>
         <IconButton icon="arrow-back" label="Back" onPress={() => router.back()} />
         <Text style={styles.barTitle}>Day off</Text>
@@ -190,7 +192,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 14 },
   barTitle: { fontFamily: fonts.serif, fontSize: 18, color: colors.text },
-  sheet: { flex: 1, backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg },
+  sheet: { flex: 1, ...frost, borderBottomWidth: 0, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg },
   content: { padding: 22 },
   title: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 32, lineHeight: 38, color: colors.text, marginBottom: 16 },
   making: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 20 },

@@ -14,7 +14,7 @@ import { fixGrammar } from '../lib/grammar';
 import { deleteNote, entryTitle, formatTime, getNote, saveNote } from '../lib/notes';
 import { deleteNotePhotos, deletePhotoFile, importPhoto, listPhotos, photoUri, pickPhoto, syncPhotos } from '../lib/photos';
 import { takePendingShare } from '../lib/share';
-import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../lib/theme';
+import { colors, inputColors, fonts, radius, TAB_BAR_SPACE, frost } from '../lib/theme';
 import { useKeyboardVisible } from '../lib/useKeyboardVisible';
 import { prepareMicrophone, transcribe, VOICE_RECORDING } from '../lib/voice';
 import { showAlert } from '../lib/dialog';
@@ -450,7 +450,7 @@ const styles = StyleSheet.create({
   editing: { fontFamily: fonts.sans, fontSize: 11, color: colors.muted, letterSpacing: 1, textTransform: 'uppercase' },
   sheet: {
     flex: 1,
-    backgroundColor: colors.surface,
+    ...frost, borderBottomWidth: 0,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
   },
@@ -479,7 +479,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     padding: 0,
   },
-  footer: { paddingHorizontal: 20, paddingTop: 12, backgroundColor: colors.surface },
+  footer: { paddingHorizontal: 20, paddingTop: 12, backgroundColor: frost.backgroundColor }, // continues the frosted sheet
   footerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   recording: {
     height: 56,
@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 22,
     borderRadius: radius.pill,
-    backgroundColor: colors.raised,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
   },
   recDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.danger },
   recText: { flex: 1, fontFamily: fonts.sans, fontSize: 15, color: colors.text },

@@ -5,7 +5,8 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton, PillButton, StatusLine, type Status } from '../../components/ui';
 import { getRecap, weekLabel, writeRecap, type Recap } from '../../lib/recap';
-import { colors, fonts, radius } from '../../lib/theme';
+import { colors, fonts, radius, frost } from '../../lib/theme';
+import { ShowWash } from '../../components/radioParts';
 
 /** The friend's Sunday letter about your week. */
 export default function RecapScreen() {
@@ -33,6 +34,7 @@ export default function RecapScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+      <ShowWash />
       <View style={styles.bar}>
         <IconButton icon="arrow-back" label="Back" onPress={() => router.back()} />
         <Text style={styles.barTitle}>{recap ? weekLabel(recap.week_start) : ''}</Text>
@@ -60,7 +62,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   barTitle: { fontFamily: fonts.serif, fontSize: 18, color: colors.text },
-  sheet: { flex: 1, backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg },
+  sheet: { flex: 1, ...frost, borderBottomWidth: 0, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg },
   content: { padding: 24 },
   title: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 38, lineHeight: 44, color: colors.text, marginBottom: 22 },
   body: { fontFamily: fonts.serif, fontSize: 18, lineHeight: 30, color: colors.text },

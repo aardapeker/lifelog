@@ -5,8 +5,9 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FadeIn, stagger } from '../../components/motion';
 import { IconButton, PillButton, StatusLine, type Status } from '../../components/ui';
-import { colors, fonts, radius } from '../../lib/theme';
+import { colors, fonts, radius, frost } from '../../lib/theme';
 import { getWrapped, makeWrapped, monthName, type Wrapped } from '../../lib/wrapped';
+import { ShowWash } from '../../components/radioParts';
 
 /** Monthly Wrapped, unhinged: big numbers, fake awards, a movie plot, a verdict. */
 export default function WrappedScreen() {
@@ -49,6 +50,7 @@ export default function WrappedScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+      <ShowWash />
       <View style={styles.bar}>
         <IconButton icon="arrow-back" label="Back" onPress={() => router.back()} />
         <Text style={styles.barTitle}>📼 {month ? monthName(month) : ''}</Text>
@@ -136,7 +138,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 14 },
   barTitle: { fontFamily: fonts.sans, fontSize: 17, color: colors.text },
-  sheet: { flex: 1, backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg },
+  sheet: { flex: 1, ...frost, borderBottomWidth: 0, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg },
   content: { padding: 24 },
   kicker: { fontFamily: fonts.sans, fontSize: 12, letterSpacing: 1.2, color: '#E8825A', marginBottom: 10 },
   title: { fontFamily: fonts.display, letterSpacing: -0.6, fontSize: 36, lineHeight: 42, color: colors.text, marginBottom: 12 },

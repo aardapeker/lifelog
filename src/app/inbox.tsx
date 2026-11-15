@@ -9,6 +9,7 @@ import { IconButton } from '../components/ui';
 import { IconTile } from '../components/IconTile';
 import { clearInbox, inboxItems, KIND_LOOK, markAllRead, markRead, openNotification, type InboxItem } from '../lib/notify';
 import { colors, fonts, radius, frost } from '../lib/theme';
+import { ShowWash } from '../components/radioParts';
 
 const ago = (at: number) => {
   const m = Math.round((Date.now() - at) / 60_000);
@@ -44,6 +45,7 @@ export default function InboxScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+      <ShowWash />
       <View style={styles.bar}>
         <IconButton icon="arrow-back" label="Back" onPress={() => router.back()} />
         <Text style={styles.barTitle}>Notifications</Text>

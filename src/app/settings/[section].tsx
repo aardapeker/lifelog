@@ -80,6 +80,7 @@ import { useBottomSpace } from '../../components/MiniPlayer';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE, frost } from '../../lib/theme';
 import { showAlert } from '../../lib/dialog';
 import { BlurSource, CAN_BLUR, useBlurSource } from '../../components/Glass';
+import { ShowWash } from '../../components/radioParts';
 
 /** A field name or a switch at the very top of a panel doesn't need the space it keeps above itself elsewhere. */
 function flushTop(children: ReactNode): ReactNode {
@@ -1322,6 +1323,7 @@ export default function SettingsScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+      <ShowWash />
       <BlurSource target={blur}>
       <Animated.ScrollView
         onScroll={onScroll}
@@ -1497,7 +1499,7 @@ const styles = StyleSheet.create({
   songRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
   songName: { fontFamily: fonts.sans, fontSize: 15, color: colors.text },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1 }, // see-through: the app's background (ShowWash) behind
   content: { paddingHorizontal: 20, gap: 30 },
   title: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 34, color: colors.text },
 

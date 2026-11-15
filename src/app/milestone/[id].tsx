@@ -14,6 +14,7 @@ import {
 } from '../../lib/milestones';
 import { colors, fonts, inputColors, radius } from '../../lib/theme';
 import { showAlert } from '../../lib/dialog';
+import { ShowWash } from '../../components/radioParts';
 
 const EMOJIS = ['💼', '🏠', '🎓', '❤️', '🛵', '✈️', '🏆', '🐈', '👶', '🕊️', '🏥', '🎬'];
 
@@ -66,6 +67,7 @@ export default function MilestoneScreen() {
 
   return (
     <KeyboardAvoidingView style={styles.screen} behavior="height">
+      <ShowWash />
       <View style={[styles.bar, { paddingTop: insets.top + 8 }]}>
         <IconButton icon="close" label="Close" onPress={() => router.back()} />
         <Text style={styles.barTitle}>{isNew ? 'New milestone' : 'Milestone'}</Text>

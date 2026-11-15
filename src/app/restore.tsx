@@ -6,8 +6,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton, PillButton, StatusLine, type Status } from '../components/ui';
 import { restoreFromUri, setPassphrase } from '../lib/backup';
 import { clearPendingBackup, peekPendingBackup } from '../lib/share';
-import { colors, fonts, inputColors, radius } from '../lib/theme';
+import { colors, fonts, inputColors, radius, frost } from '../lib/theme';
 import { showAlert } from '../lib/dialog';
+import { ShowWash } from '../components/radioParts';
 
 /** Opens when a .lifelog backup is shared into the app (Drive → ⋮ → Send a copy → Lifelog). */
 export default function RestoreScreen() {
@@ -51,6 +52,7 @@ export default function RestoreScreen() {
 
   return (
     <KeyboardAvoidingView style={[styles.screen, { paddingTop: insets.top + 8 }]} behavior="padding">
+      <ShowWash />
       <View style={styles.bar}>
         <IconButton icon="close" label="Cancel" onPress={close} />
         <Text style={styles.barTitle}>Restore</Text>
@@ -94,7 +96,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 14 },
   barTitle: { fontFamily: fonts.serif, fontSize: 18, color: colors.text },
-  sheet: { flex: 1, backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg },
+  sheet: { flex: 1, ...frost, borderBottomWidth: 0, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg },
   content: { padding: 24 },
   title: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 36, lineHeight: 42, color: colors.text, marginBottom: 20 },
   file: { backgroundColor: colors.raised, borderRadius: radius.sm, padding: 14, marginBottom: 16 },

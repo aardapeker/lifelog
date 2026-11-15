@@ -27,6 +27,7 @@ import {
 } from '../lib/groceries';
 import { colors, fonts, inputColors, radius, frost } from '../lib/theme';
 import { useFirstFrame } from '../lib/perf';
+import { ShowWash } from '../components/radioParts';
 
 const DISTANCES = [1, 2, 3, 5];
 
@@ -130,6 +131,7 @@ export default function GroceriesScreen() {
 
   return (
     <View style={styles.screen}>
+      <ShowWash />
       <GlassArea>
         <View style={[styles.bar, { paddingTop: insets.top + 8 }]}>
           <IconButton icon="arrow-back" label="Back" onPress={() => router.back()} />

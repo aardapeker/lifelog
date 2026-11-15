@@ -25,7 +25,7 @@ import { addMessage, chatMessages, chatTitle, createChat, getChat, latestChat } 
 import { deliverDue } from '../../lib/checkins';
 import { buildSystemPrompt, searchTool } from '../../lib/context';
 import { songsTool, spotifyConnected } from '../../lib/spotify';
-import { colors, inputColors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
+import { colors, inputColors, fonts, radius, TAB_BAR_SPACE, frost } from '../../lib/theme';
 import { useKeyboardVisible } from '../../lib/useKeyboardVisible';
 import { useFirstFrame } from '../../lib/perf';
 
@@ -295,7 +295,7 @@ export default function ChatScreen() {
         })}
       </ScrollView>
 
-      <Glass radius={26} style={[styles.composer, { marginBottom: keyboardOpen ? 8 : TAB_BAR_SPACE - 30 + insets.bottom }]}>
+      <Glass radius={26} fill="rgba(255, 255, 255, 0.1)" style={[styles.composer, { marginBottom: keyboardOpen ? 8 : TAB_BAR_SPACE - 30 + insets.bottom }]}>
         <TextInput
           style={styles.input}
           multiline
@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
   center: { justifyContent: 'center', paddingHorizontal: 28 },
   top: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, marginBottom: 10 },
   title: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 24, color: colors.text },
-  switch: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 6, backgroundColor: colors.raised, borderRadius: 999, padding: 4 },
+  switch: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 6, ...frost, borderRadius: 999, padding: 4 },
   switchItem: { flex: 1, paddingVertical: 9, borderRadius: 999, alignItems: 'center' },
   switchOn: { backgroundColor: colors.accent },
   switchText: { fontFamily: fonts.sansRegular, fontSize: 14, color: colors.muted },
@@ -340,20 +340,23 @@ const styles = StyleSheet.create({
   muted: { fontFamily: fonts.sansRegular, fontSize: 15, lineHeight: 22, color: colors.muted, maxWidth: 320 },
   starters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 24 },
 
-  // the friend writes like a letter: no bubble, serif
-  theirs: { alignSelf: 'stretch', paddingRight: 20 },
-  theirsText: { fontFamily: fonts.serif, fontSize: 17, lineHeight: 27, color: colors.text },
-  // you: white bubble on the right
+  // glass bubbles, like the page behind them is seen through frosted glass:
+  // the friend's letter in a clear frosted card (still serif, like a letter)…
+  theirs: { alignSelf: 'flex-start', maxWidth: '94%', ...frost, borderRadius: radius.md, borderTopLeftRadius: 6, paddingHorizontal: 16, paddingVertical: 14 },
+  theirsText: { fontFamily: fonts.serif, fontSize: 16, lineHeight: 25, color: colors.text },
+  // …and yours on the right in brighter glass
   mine: {
     alignSelf: 'flex-end',
     maxWidth: '82%',
-    backgroundColor: colors.accent,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.24)',
     borderRadius: radius.md,
     borderBottomRightRadius: 6,
     paddingHorizontal: 16,
     paddingVertical: 11,
   },
-  mineText: { fontFamily: fonts.sansRegular, fontSize: 15, lineHeight: 21, color: colors.accentText },
+  mineText: { fontFamily: fonts.sansRegular, fontSize: 15, lineHeight: 21, color: colors.text },
 
   composer: {
     flexDirection: 'row',

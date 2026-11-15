@@ -28,6 +28,7 @@ import { getSetting, setSetting } from '../../lib/db';
 import { colors, fonts, radius, frost } from '../../lib/theme';
 import { useFirstFrame } from '../../lib/perf';
 import { useLateFonts } from '../../lib/lateFonts';
+import { ShowWash } from '../../components/radioParts';
 
 /** Bug Arena's home: your rank, the languages, and the three ways to play. */
 export default function ArenaHome() {
@@ -82,6 +83,7 @@ export default function ArenaHome() {
 
   return (
     <View style={styles.screen}>
+      <ShowWash />
       {/* the chosen language's colour, glowing from the top */}
       <LinearGradient colors={[`${info.color}33`, 'transparent']} style={styles.glow} pointerEvents="none" />
       <View style={[styles.bar, { paddingTop: insets.top + 8 }]}>

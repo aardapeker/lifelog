@@ -7,8 +7,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton } from '../components/ui';
 import { chatTitle, deleteChat, listChats, type ChatSummary } from '../lib/chats';
 import { formatDate } from '../lib/notes';
-import { colors, fonts, radius } from '../lib/theme';
+import { colors, fonts, radius, frost } from '../lib/theme';
 import { showAlert } from '../lib/dialog';
+import { ShowWash } from '../components/radioParts';
 
 /** All conversations, newest first. Tap to continue one, hold to delete it. */
 export default function ChatHistoryScreen() {
@@ -42,6 +43,7 @@ export default function ChatHistoryScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+      <ShowWash />
       <View style={styles.bar}>
         <IconButton icon="arrow-back" label="Back" onPress={() => router.back()} />
         <Text style={styles.barTitle}>Chat history</Text>
@@ -91,7 +93,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 14 },
   barTitle: { fontFamily: fonts.serif, fontSize: 18, color: colors.text },
-  sheet: { flex: 1, backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg },
+  sheet: { flex: 1, ...frost, borderBottomWidth: 0, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg },
   content: { padding: 20 },
   row: {
     flexDirection: 'row',

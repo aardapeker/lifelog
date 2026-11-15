@@ -13,6 +13,7 @@ import { deletePhotoFile, pickPhoto, photoUri } from '../lib/photos';
 import { colors, fonts, radius, frost } from '../lib/theme';
 import { SETTINGS_PAGES, type SettingsPage } from '../lib/settingsPages';
 import { showAlert } from '../lib/dialog';
+import { ShowWash } from '../components/radioParts';
 
 type Stats = { entries: number; words: number; since: number | null; milestones: number };
 
@@ -82,7 +83,9 @@ export default function YouScreen() {
   const days = stats?.since ? Math.max(1, Math.round((Date.now() - stats.since) / 86_400_000)) : 0;
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 40, paddingHorizontal: 20 }}>
+    <View style={styles.screen}>
+    <ShowWash />
+    <ScrollView contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 40, paddingHorizontal: 20 }}>
       <View style={styles.bar}>
         <IconButton icon="arrow-back" label="Back" onPress={() => router.back()} />
       </View>
@@ -128,6 +131,7 @@ export default function YouScreen() {
         })}
       </View>
     </ScrollView>
+    </View>
   );
 }
 

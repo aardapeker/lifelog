@@ -3,8 +3,9 @@ import type { ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatDate, type Note } from '../lib/notes';
-import { colors, fonts, radius } from '../lib/theme';
+import { colors, fonts, radius, frost } from '../lib/theme';
 import { IconButton } from './ui';
+import { ShowWash } from './radioParts';
 
 /** Shared layout for goal and person pages: round back button, serif headline on a sheet, entry list. */
 export function DetailScreen(props: {
@@ -18,6 +19,7 @@ export function DetailScreen(props: {
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+      <ShowWash />
       <View style={styles.bar}>
         <IconButton icon="arrow-back" label="Back" onPress={() => router.back()} />
         <Text style={styles.barTitle}>{props.barTitle}</Text>
@@ -50,7 +52,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 14 },
   barTitle: { fontFamily: fonts.serif, fontSize: 18, color: colors.text },
-  sheet: { flex: 1, backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg },
+  sheet: { flex: 1, ...frost, borderBottomWidth: 0, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg },
   content: { padding: 22 },
   title: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 34, lineHeight: 40, color: colors.text, marginBottom: 16 },
   section: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 20, color: colors.text, marginTop: 22, marginBottom: 10 },
