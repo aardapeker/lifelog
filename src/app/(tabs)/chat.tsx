@@ -13,7 +13,7 @@ import {
   type ScrollViewInstance,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Glass, BlurSource, useBlurSource, useTabBlurSource } from '../../components/Glass';
+import { BlurSource, FrostedGlass, useBlurSource, useTabBlurSource } from '../../components/Glass';
 import { LinkedText } from '../../components/LinkedText';
 import { FadeIn, PressScale, TypingDots } from '../../components/motion';
 import { Chip, IconButton, PillButton } from '../../components/ui';
@@ -80,6 +80,9 @@ export default function ChatScreen() {
   const [label, setLabel] = useState('');
   const scrollRef = useRef<ScrollViewInstance>(null);
   const keyboardOpen = useKeyboardVisible();
+  const [composerH, setComposerH] = useState(52);
+  const dockGap = keyboardOpen ? 8 : TAB_BAR_SPACE - 30 + insets.bottom; // room under the message box (the tab bar sits there)
+  const under = composerH + dockGap; // how far the page reaches under the message box
   const opened = useRef<{ id: number | null; at: number } | null>(null); // what's on screen, and since when
   const old = useRef(new Set<string>()); // messages that were already there when the chat opened: no entrance animation
 
@@ -216,8 +219,12 @@ export default function ChatScreen() {
   const isEmptyNew = chatId === null && messages.length === 0;
 
   return (
+    <KeyboardAvoidingView style={styles.screen} behavior="padding">
+    {/* the page reaches down under the message box and the tab bar (a negative margin), so the
+        thread scrolls behind them and they frost it, like the bars */}
+    <View style={{ flex: 1, marginBottom: tab === 'chat' ? -under : 0 }}>
     <BlurSource target={blur}>
-    <KeyboardAvoidingView style={[styles.screen, { paddingTop: insets.top + 12 }]} behavior="padding">
+    <View style={[styles.screen, { paddingTop: insets.top + 12 }]}>
       <View style={styles.top}>
         <Avatar size={42} />
         <View style={{ flex: 1 }}>
@@ -255,7 +262,7 @@ export default function ChatScreen() {
       <ScrollView
         ref={scrollRef}
         style={{ flex: 1 }}
-        contentContainerStyle={styles.thread}
+        contentContainerStyle={[styles.thread, { paddingBottom: under + 16 }]}
         keyboardShouldPersistTaps="handled"
         onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
       >
@@ -294,8 +301,19 @@ export default function ChatScreen() {
           );
         })}
       </ScrollView>
+      </>
+      )}
+    </View>
+    </BlurSource>
+    </View>
 
-      <Glass radius={26} fill="rgba(255, 255, 255, 0.1)" style={[styles.composer, { marginBottom: keyboardOpen ? 8 : TAB_BAR_SPACE - 30 + insets.bottom }]}>
+      {tab === 'chat' && (
+      <FrostedGlass
+        target={blur}
+        radius={26}
+        style={[styles.composer, { marginBottom: dockGap }]}
+      >
+        <View style={styles.composerRow} onLayout={(e) => setComposerH(e.nativeEvent.layout.height)}>
         <TextInput
           style={styles.input}
           multiline
@@ -306,7 +324,7 @@ export default function ChatScreen() {
           {...inputColors}
         />
         <PressScale
-          style={[styles.send, !canSend && { backgroundColor: '#4A4949' }]}
+          style={[styles.send, !canSend && { backgroundColor: 'rgba(255, 255, 255, 0.12)' }]}
           onPress={() => send()}
           disabled={!canSend}
           scaleTo={0.85}
@@ -314,11 +332,10 @@ export default function ChatScreen() {
         >
           <Ionicons name="arrow-up" size={20} color={canSend ? colors.accentText : colors.muted} />
         </PressScale>
-      </Glass>
-      </>
+        </View>
+      </FrostedGlass>
       )}
     </KeyboardAvoidingView>
-    </BlurSource>
   );
 }
 
@@ -358,10 +375,10 @@ const styles = StyleSheet.create({
   },
   mineText: { fontFamily: fonts.sansRegular, fontSize: 15, lineHeight: 21, color: colors.text },
 
-  composer: {
+  composer: { marginHorizontal: 16 },
+  composerRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    marginHorizontal: 16,
     paddingLeft: 20,
     paddingRight: 5,
     paddingVertical: 5,
