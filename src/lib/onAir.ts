@@ -30,8 +30,8 @@ let armed = false; // buttons count only once the silence has really started (lo
 let lastIndex = 0; // which silent track is on: it changing is a ⏭ press (or the silence running out)
 let changedAt = 0; // when the track last changed: the reload right after looks like a pause + play
 const SETTLE_MS = 2500;
-const TOGGLE_WAIT_MS = 700; // a play/pause from the lock screen waits this long, in case it's really a ⏭
-let pendingToggle: ReturnType<typeof setTimeout> | null = null;
+const SKIP_LOOKS_LIKE_PAUSE_MS = 1500; // a ⏭ often reports "paused" just before its track change
+let pausedAt = 0; // when a lock-screen ⏸ was passed on to the show
 
 async function silence(): Promise<string> {
   const file = new File(Paths.cache, 'radio-silence-60s.wav');
@@ -67,11 +67,11 @@ export async function goOnAir(title: string, station: string): Promise<void> {
     const previousIndex = lastIndex;
     lastIndex = index;
     changedAt = Date.now();
-    // the "paused" that came just before was the ⏭ reloading the silence, not a pause tap
-    if (pendingToggle) clearTimeout(pendingToggle);
-    pendingToggle = null;
     const forward = (index - previousIndex + TRACKS) % TRACKS === 1;
     if (armed) {
+      // the "paused" that came just before was this ⏭ reloading the silence, not a pause tap: undo it
+      if (pausedAt && Date.now() - pausedAt < SKIP_LOOKS_LIKE_PAUSE_MS) remote?.play();
+      pausedAt = 0;
       if (!forward) remote?.previous();
       else if (lastTime < TRACK_SECONDS - 3) remote?.next(); // (near the end it's the silence running out by itself)
     }
@@ -90,16 +90,13 @@ export async function goOnAir(title: string, station: string): Promise<void> {
       if (!reloading) {
         lastPlaying = s.playing;
         if (expectedChange) expectedChange = false;
+        else if (s.playing) remote?.play();
         else {
-          // a ⏭ tap often reports "paused" BEFORE the track change: acting on it at once paused the
-          // show, and the skip that followed got lost (so the first tap seemed to do nothing). Wait a
-          // moment: if the track changes meanwhile, it was a skip, and trackMoved cancels this.
-          const wantPlay = s.playing;
-          if (pendingToggle) clearTimeout(pendingToggle);
-          pendingToggle = setTimeout(() => {
-            pendingToggle = null;
-            (wantPlay ? remote?.play : remote?.pause)?.();
-          }, TOGGLE_WAIT_MS);
+          // At once. It used to wait 700 ms (in case it was a ⏭), but on a locked phone a paused
+          // app gets no more updates and its timers freeze, so the wait never ended: ⏸ did nothing.
+          // If a track change follows, it was a ⏭ after all, and trackMoved plays on (see above).
+          pausedAt = Date.now();
+          remote?.pause();
         }
       }
     }
@@ -140,8 +137,7 @@ export function onRemote(r: Remote): () => void {
 }
 
 export function goOffAir(): void {
-  if (pendingToggle) clearTimeout(pendingToggle);
-  pendingToggle = null;
+  pausedAt = 0;
   if (!keeper) return;
   try {
     keeper.clearLockScreenControls();
