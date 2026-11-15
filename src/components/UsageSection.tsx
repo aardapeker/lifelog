@@ -253,7 +253,7 @@ function StoragePanel({ d }: { d: RadioStorage }) {
 
 function Tile({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <Glass radius={radius.md} style={styles.tile}>
+    <Glass radius={radius.md} style={styles.tile} fill={frost.backgroundColor}>
       <Text style={styles.tileLabel}>{label}</Text>
       <Text style={styles.tileValue} numberOfLines={1} adjustsFontSizeToFit>
         {value}

@@ -9,6 +9,7 @@ import { IconButton, InfoTile, PillButton } from '../../components/ui';
 import { deleteResearch, getResearch, researchSources, type Research } from '../../lib/autonomy';
 import { formatDate } from '../../lib/notes';
 import { showAlert } from '../../lib/dialog';
+import { ShowWash } from '../../components/radioParts';
 
 /** One thing the friend looked up on its own, laid out like a short blog post. */
 export default function ResearchScreen() {
@@ -43,6 +44,7 @@ export default function ResearchScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+      <ShowWash />
       <View style={styles.bar}>
         <IconButton icon="arrow-back" label="Back" onPress={() => router.back()} />
         <Text style={styles.barTitle}>Looked into</Text>

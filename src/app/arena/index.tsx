@@ -25,7 +25,7 @@ import {
   type Progress,
 } from '../../lib/arena';
 import { getSetting, setSetting } from '../../lib/db';
-import { colors, fonts, radius } from '../../lib/theme';
+import { colors, fonts, radius, frost } from '../../lib/theme';
 import { useFirstFrame } from '../../lib/perf';
 import { useLateFonts } from '../../lib/lateFonts';
 
@@ -106,7 +106,7 @@ export default function ArenaHome() {
 
         {/* your rank */}
         <FadeIn delay={stagger(1)}>
-          <Glass radius={radius.md} style={styles.rank}>
+          <Glass radius={radius.md} style={styles.rank} fill={frost.backgroundColor}>
             <View style={styles.rankTop}>
               <Text style={styles.rankEmoji}>{rank.emoji}</Text>
               <View style={{ flex: 1 }}>

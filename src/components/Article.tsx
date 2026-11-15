@@ -1,6 +1,6 @@
 import Ionicons from './Icon';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fonts, radius } from '../lib/theme';
+import { colors, fonts, radius, frost } from '../lib/theme';
 
 /*
  * The magazine look shared by Reads and "Looked Into" pages:
@@ -61,7 +61,7 @@ export const articleStyles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 14 },
   barTitle: { fontFamily: fonts.serif, fontSize: 18, color: colors.text },
-  sheet: { flex: 1, backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg },
+  sheet: { flex: 1, ...frost, borderBottomWidth: 0, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg }, // frosted, the page's colour behind
   content: { paddingHorizontal: 24, paddingTop: 28 },
 
   title: { fontFamily: fonts.display, fontSize: 38, lineHeight: 44, color: colors.text, letterSpacing: -0.5 },
@@ -72,7 +72,7 @@ export const articleStyles = StyleSheet.create({
   heading: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 23, lineHeight: 30, color: colors.text, marginBottom: 10 },
   body: { fontFamily: fonts.serif, fontSize: 17, lineHeight: 29, color: '#E8E6E3', marginBottom: 14 },
 
-  news: { marginTop: 18, backgroundColor: colors.raised, borderRadius: radius.md, padding: 18, gap: 10 },
+  news: { marginTop: 18, ...frost, borderRadius: radius.md, padding: 18, gap: 10 },
   boxTitle: { fontFamily: fonts.serif, fontSize: 19, color: colors.text, marginBottom: 4 },
   newsRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.text, marginTop: 9 },

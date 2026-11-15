@@ -8,6 +8,7 @@ import { IconButton, InfoTile, PillButton } from '../../components/ui';
 import { formatDate } from '../../lib/notes';
 import { articleOf, deleteRead, getRead, markOpened, type Article, type Read } from '../../lib/reads';
 import { showAlert } from '../../lib/dialog';
+import { ShowWash } from '../../components/radioParts';
 
 const styles = articleStyles;
 
@@ -48,6 +49,7 @@ export default function ReadScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+      <ShowWash />
       <View style={styles.bar}>
         <IconButton icon="arrow-back" label="Back" onPress={() => router.back()} />
         <Text style={styles.barTitle}>A read for you</Text>

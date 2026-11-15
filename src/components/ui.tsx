@@ -66,7 +66,7 @@ export function IconButton(props: {
           <Ionicons name={props.icon} size={size * 0.45} color={colors.accentText} />
         </View>
       ) : (
-        <Glass radius={size / 2} style={styles.round}>
+        <Glass radius={size / 2} style={styles.round} fill="rgba(255, 255, 255, 0.12)">
           <Ionicons name={props.icon} size={size * 0.45} color={colors.text} />
         </Glass>
       )}
@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
   chipText: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.text },
   chipTextActive: { fontFamily: fonts.sans, color: colors.accentText },
 
-  tile: { backgroundColor: colors.raised, borderRadius: radius.sm, paddingHorizontal: 14, paddingVertical: 10 },
+  tile: { ...frost, borderRadius: radius.sm, paddingHorizontal: 14, paddingVertical: 10 },
   tileLabel: { fontFamily: fonts.serif, fontSize: 14, color: colors.muted, marginBottom: 4 },
   tileValue: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.text },
 

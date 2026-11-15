@@ -25,7 +25,7 @@ import {
   type Priced,
   type Product,
 } from '../lib/groceries';
-import { colors, fonts, inputColors, radius } from '../lib/theme';
+import { colors, fonts, inputColors, radius, frost } from '../lib/theme';
 import { useFirstFrame } from '../lib/perf';
 
 const DISTANCES = [1, 2, 3, 5];
@@ -277,7 +277,7 @@ function Verdict({ b }: { b: Basket }) {
   const oneShop = full[0] ?? b.chains[0];
   const saves = oneShop && !oneShop.missing.length ? oneShop.total - b.split.total : 0;
   return (
-    <Glass radius={radius.md} style={styles.verdict}>
+    <Glass radius={radius.md} style={styles.verdict} fill={frost.backgroundColor}>
       <Text style={styles.vLabel}>CHEAPEST WAY</Text>
       <Text style={styles.vBig}>{tl(b.split.total)}</Text>
       {b.split.stops.map((st) => (

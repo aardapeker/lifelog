@@ -13,6 +13,7 @@ import { entryTitle, formatDate, formatTime, getNote, type Note } from '../../li
 import { listPhotos, photoUri, type Photo } from '../../lib/photos';
 import { colors, fonts, radius } from '../../lib/theme';
 import { useFirstFrame } from '../../lib/perf';
+import { ShowWash } from '../../components/radioParts';
 
 /** **bold** and *italic* inside a paragraph. */
 function inline(text: string): ReactNode[] {
@@ -89,6 +90,7 @@ export default function EntryScreen() {
 
   return (
     <View style={[articleStyles.screen, { paddingTop: insets.top + 8 }]}>
+      <ShowWash />
       <View style={articleStyles.bar}>
         <IconButton icon="arrow-back" label="Back" onPress={() => router.back()} />
         <Text style={articleStyles.barTitle}>{note ? formatDate(note.created_at).split(',').slice(0, 2).join(',') : ''}</Text>
