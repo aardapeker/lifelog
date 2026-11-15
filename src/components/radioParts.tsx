@@ -99,7 +99,12 @@ export function GlowingCover({ uri, glow, live, talking }: { uri: string; glow: 
 const MAX_WASH_L = 0.42;
 function readableWash(c: string): string {
   const hsl = toHsl(c);
-  return hsl && hsl.l > MAX_WASH_L ? hslToRgb({ ...hsl, l: MAX_WASH_L }) : c;
+  if (!hsl || hsl.l <= MAX_WASH_L) return c;
+  // Keep how colourful it really is (its chroma), not HSL's "saturation": darkening a pale cream
+  // at the same saturation turned every light cover into the same strong mustard yellow.
+  const chroma = (1 - Math.abs(2 * hsl.l - 1)) * hsl.s;
+  const s = Math.min(1, chroma / (1 - Math.abs(2 * MAX_WASH_L - 1)));
+  return hslToRgb({ h: hsl.h, s, l: MAX_WASH_L });
 }
 
 export function ColourWash({ glow }: { glow: string | null }) {
