@@ -1,5 +1,6 @@
 import { File, Paths } from 'expo-file-system';
 import { useEffect, useRef } from 'react';
+import { AppState } from 'react-native';
 import CrashCatcher from '../../modules/crash-catcher';
 
 /*
@@ -26,13 +27,27 @@ const processAgeAtJsStart = (() => {
 const since = () => (processAgeAtJsStart ?? 0) + (Date.now() - jsStartWall);
 
 export type Entry = { at: number; label: string; ms?: number; kind: 'mark' | 'freeze' | 'screen' | 'work' };
-export type Run = { started: string; native: boolean; entries: Entry[] };
+/** background: Android started the app off screen (the background job, a notification) and it was opened later. */
+export type Run = { started: string; native: boolean; background?: boolean; entries: Entry[] };
 
 const run: Run = { started: new Date(jsStartWall).toISOString(), native: processAgeAtJsStart !== null, entries: [] };
 const add = (e: Entry) => {
   run.entries.push(e);
   scheduleSave();
 };
+
+// Started off screen? Then the JS timers sleep until it's opened, which looked like a 27 s "freeze" and
+// a 10 s "start". Such launches stay in the list but out of the startup numbers.
+if (AppState.currentState !== 'active') {
+  // decided by the wall clock: off screen, timers sleep too
+  const sub = AppState.addEventListener('change', (st) => {
+    if (st !== 'active') return;
+    sub.remove();
+    if (Date.now() - jsStartWall < 2000) return; // a normal start, just not on screen yet
+    run.background = true;
+    add({ at: since(), label: 'opened on screen', kind: 'mark' });
+  });
+}
 
 // Android had the native side ready here (before our JS bundle started loading): splits the wait before "JS started"
 try {
@@ -92,7 +107,8 @@ const MIN_FREEZE = 150;
   const tick = () => {
     const now = Date.now();
     const late = now - last - TICK;
-    if (late >= MIN_FREEZE) add({ at: since() - late, label: 'JS thread stuck', ms: late, kind: 'freeze' });
+    // off screen the timers sleep: that's not a freeze
+    if (late >= MIN_FREEZE && !run.background) add({ at: since() - late, label: 'JS thread stuck', ms: late, kind: 'freeze' });
     last = now;
     if (now < stopAt) setTimeout(tick, TICK);
     else mark('freeze watch ended (20 s)');
@@ -141,7 +157,8 @@ export function describe(r: Run): string {
       const at = `${(e.at / 1000).toFixed(2)}s`.padStart(7);
       return e.kind === 'mark' ? `${at}  ${e.label}` : `${at}  ${e.kind === 'freeze' ? '🧊' : e.kind === 'screen' ? '🧱' : '🗄️'} ${e.label}: ${e.ms} ms`;
     });
-  return `${new Date(r.started).toLocaleString()}${r.native ? '' : ' (times from JS start, not process start)'}\n${lines.join('\n')}`;
+  const note = r.background ? ' (started in the background, opened later)' : r.native ? '' : ' (times from JS start, not process start)';
+  return `${new Date(r.started).toLocaleString()}${note}\n${lines.join('\n')}`;
 }
 
 /**
@@ -154,8 +171,11 @@ export function summary(runs: Run[]): string {
   const push = (k: string, v: number) => by.set(k, [...(by.get(k) ?? []), v]);
   let freezes = 0;
   let worstFreeze = 0;
+  let offScreen = 0;
   for (const r of runs) {
+    if (r.background) offScreen++;
     for (const e of r.entries) {
+      if (r.background && e.kind !== 'screen' && e.kind !== 'work') continue; // its timeline waited for you, not for the app
       if (e.kind === 'freeze') {
         freezes++;
         worstFreeze = Math.max(worstFreeze, e.ms ?? 0);
@@ -169,9 +189,9 @@ export function summary(runs: Run[]): string {
     .sort((a, b) => (a[0].startsWith('⏱️') === b[0].startsWith('⏱️') ? median(a[1]) - median(b[1]) : a[0].startsWith('⏱️') ? -1 : 1))
     .map(([k, v]) => `${k}: typical ${fmt(k, median(v))}, worst ${fmt(k, Math.max(...v))} (×${v.length})`);
   return [
-    `${runs.length} launch${runs.length === 1 ? '' : 'es'} this week`,
+    `${runs.length} launch${runs.length === 1 ? '' : 'es'} this week${offScreen ? ` (${offScreen} started in the background, left out of the start times)` : ''}`,
     ...rows,
-    `🧊 JS thread stuck ≥ ${MIN_FREEZE} ms: ${freezes} time${freezes === 1 ? '' : 's'} in total, ${(freezes / runs.length).toFixed(1)} per launch, worst ${worstFreeze} ms`,
+    `🧊 JS thread stuck ≥ ${MIN_FREEZE} ms: ${freezes} time${freezes === 1 ? '' : 's'} in total, ${(freezes / Math.max(1, runs.length - offScreen)).toFixed(1)} per launch, worst ${worstFreeze} ms`,
   ].join('\n');
 }
 

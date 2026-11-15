@@ -1,5 +1,5 @@
 import * as Haptics from 'expo-haptics';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, View, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
 import { colors } from '../lib/theme';
 
@@ -198,3 +198,16 @@ const styles = StyleSheet.create({
   dots: { flexDirection: 'row', gap: 6, paddingVertical: 10 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.text },
 });
+
+/**
+ * false on a screen's first frame, true right after. Heavy details (a 54-bar waveform…) wait for it, so
+ * a new screen slides in at once and fills in during the slide instead of making the tap wait.
+ */
+export function useAfterFirstFrame(): boolean {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setReady(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  return ready;
+}

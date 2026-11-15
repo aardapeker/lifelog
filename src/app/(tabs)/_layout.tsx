@@ -1,5 +1,5 @@
 import Ionicons from '../../components/Icon';
-import { Tabs } from 'expo-router';
+import { router, Tabs, type Href } from 'expo-router';
 import { useEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -67,8 +67,17 @@ function BarGlass({ children }: { children: ReactNode }) {
   );
 }
 
+/** Tabs built quietly in the background after the start, one by one, so the first tap on each is instant. */
+const PRELOAD: Href[] = ['/insights', '/chat', '/radio'];
+
 function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
   const insets = useSafeAreaInsets();
+  // A tab is normally built on its first tap (that was the 150-330 ms "lag" on new screens). Build
+  // them while you're reading instead: a few seconds after the start, one at a time.
+  useEffect(() => {
+    const timers = PRELOAD.map((href, i) => setTimeout(() => router.prefetch(href), 4000 + i * 1500)); // their data still loads only when opened
+    return () => timers.forEach(clearTimeout);
+  }, []);
   const keyboardOpen = useKeyboardVisible();
   const [width, setWidth] = useState(0);
   // each name's width, measured once from hidden copies (a guess until then)

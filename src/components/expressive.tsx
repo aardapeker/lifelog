@@ -2,7 +2,7 @@ import Ionicons from './Icon';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, View, type LayoutChangeEvent } from 'react-native';
 import { colors } from '../lib/theme';
-import { PressScale } from './motion';
+import { PressScale, useAfterFirstFrame } from './motion';
 
 /*
  * Bits of Google's "Material 3 Expressive" style: shapes that morph with their state,
@@ -128,6 +128,7 @@ export function SeekBar({
   if (bars.current.seed !== seed) bars.current = { seed, h: waveform(seed, BARS) };
   const at = (x: number) => Math.max(0, Math.min(1, x / Math.max(1, width)));
   const shown = drag ?? Math.max(0, Math.min(1, progress));
+  const ready = useAfterFirstFrame(); // the bars come a frame later: the player opens faster
   return (
     <View style={{ marginTop: 18 }}>
       <View
@@ -146,7 +147,7 @@ export function SeekBar({
         accessibilityRole="adjustable"
         accessibilityLabel="Song position"
       >
-        {bars.current.h.map((v, i) => (
+        {ready && bars.current.h.map((v, i) => (
           <View
             key={i}
             pointerEvents="none"
