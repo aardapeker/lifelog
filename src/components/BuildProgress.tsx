@@ -22,6 +22,7 @@ function labelOf(key: string, st: Station, tr: boolean): string {
     writing: [`${host} is writing the show`, `${host} programı yazıyor`],
     songs: ['Finding the songs on Spotify', "Şarkılar Spotify'da aranıyor"],
     voice: [`${host} & ${side} are warming up the mic`, `${host} ve ${side} mikrofonu ısıtıyor`],
+    tuning: ['Tuning in', 'Frekans ayarlanıyor'],
   };
   if (!st.sidekick) L.voice = [`${host} is warming up the mic`, `${host} mikrofonu ısıtıyor`];
   return (L[key] ?? [key, key])[tr ? 1 : 0];

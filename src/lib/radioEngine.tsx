@@ -606,7 +606,18 @@ function useRadioEngine() {
    * our queue (the app was closed mid-show) it just catches up, without stopping the music.
    * `from`: start at that song, with its talk (a finished show's set list: tap a song to play from there).
    */
+  // one start at a time: taps while it's still tuning in used to start the show again (and again)
+  const startingPast = useRef(false);
   const playPast = async (id: string, fromStart: boolean, from?: number) => {
+    if (startingPast.current) return;
+    startingPast.current = true;
+    try {
+      await startPast(id, fromStart, from);
+    } finally {
+      startingPast.current = false;
+    }
+  };
+  const startPast = async (id: string, fromStart: boolean, from?: number) => {
     const h = historyRef.current.find((x) => x.id === id);
     if (!h) return;
     const s = h.show;
@@ -614,6 +625,7 @@ function useRadioEngine() {
     const at = from ?? (again ? 0 : h.index);
     setStationKey(s.station.key);
     setStatus({ kind: 'idle' });
+    setSteps([{ key: 'tuning' }]); // the player shows "Tuning in" with dots right away
     setPhase('building');
     try {
       preview.current?.stop();
@@ -623,7 +635,6 @@ function useRadioEngine() {
       live.current = { show: s, index: at, speaking: false, paused: false, startedAt: Date.now(), voice, talked: again ? at - 1 : at, overlapping: false };
       clips.current = new Map();
       retried.current = new Set();
-      setSteps([]);
       if (again && voice) {
         step('voice');
         prepare(at);

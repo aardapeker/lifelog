@@ -1,6 +1,6 @@
 import Ionicons from '../../components/Icon';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurSource, Glass, GlassArea, useBlurSource, useTabBlurSource } from '../../components/Glass';
@@ -30,9 +30,15 @@ export default function RadioHome() {
   useFocusEffect(useCallback(() => { loadHistory(); }, [loadHistory])); // Settings may have changed how long shows are kept
 
   const live = phase === 'building' || phase === 'review' || phase === 'onair';
+  // the player opens at once with "Tuning in…"; extra taps while it's on its way are ignored
+  // (they used to stack the player several times, and start the show again each time)
+  const opening = useRef(false);
   const resume = (id: string, fromStart: boolean) => {
+    if (opening.current) return;
+    opening.current = true;
+    setTimeout(() => (opening.current = false), 1500);
+    router.navigate('/onair');
     playPast(id, fromStart);
-    router.push('/onair');
   };
 
   return (
