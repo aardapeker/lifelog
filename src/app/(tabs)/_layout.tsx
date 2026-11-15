@@ -68,14 +68,15 @@ function BarGlass({ children }: { children: ReactNode }) {
 }
 
 /** Tabs built quietly in the background after the start, one by one, so the first tap on each is instant. */
-const PRELOAD: Href[] = ['/insights', '/chat', '/radio'];
+const PRELOAD: Href[] = ['/insights', '/radio', '/chat']; // the Friend's long chat is the heaviest: last
 
 function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
   const insets = useSafeAreaInsets();
   // A tab is normally built on its first tap (that was the 150-330 ms "lag" on new screens). Build
-  // them while you're reading instead: a few seconds after the start, one at a time.
+  // them while you're reading instead: a few seconds after the start, one at a time with breathing room
+  // in between (all at once was a burst of work right when the phone is busiest).
   useEffect(() => {
-    const timers = PRELOAD.map((href, i) => setTimeout(() => router.prefetch(href), 4000 + i * 1500)); // their data still loads only when opened
+    const timers = PRELOAD.map((href, i) => setTimeout(() => router.prefetch(href), 6000 + i * 3000)); // their data still loads only when opened
     return () => timers.forEach(clearTimeout);
   }, []);
   const keyboardOpen = useKeyboardVisible();

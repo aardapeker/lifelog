@@ -12,6 +12,8 @@ import { ensureRecap } from './recap';
 import { checkAchievements } from './achievements';
 import { ensureWrapped } from './wrapped';
 import { radarJob } from '../radar/local';
+import { getSetting, setSetting } from './db';
+import { time } from './perf';
 
 /**
  * Everything the app does "on its own", run when it opens or after you save.
@@ -19,17 +21,32 @@ import { radarJob } from '../radar/local';
  */
 let running: Promise<void> | null = null;
 let lastRun = 0;
+const SOFT_GAP = 2 * 60_000;
+const COLD_GAP = 15 * 60_000;
 
 /**
  * soft: from coming back to the Journal. Skipped if a run is going or one finished in the last
  * 2 minutes (it used to run all 13 jobs on every tab switch, which made switching sluggish).
+ * Android often closes Lifelog in the background, so most openings are fresh starts: the time of the
+ * last run is kept in the database too, and a fresh start skips the jobs if they ran in the last
+ * 15 minutes (they were part of the warm phone right after opening).
  */
 export function runBackgroundJobs(db: SQLiteDatabase, opts: { soft?: boolean } = {}): Promise<void> {
   if (running) return running;
-  if (opts.soft && Date.now() - lastRun < 2 * 60_000) return Promise.resolve();
-  running = runAll(db).finally(() => {
-    running = null;
+  if (opts.soft && Date.now() - lastRun < SOFT_GAP) return Promise.resolve();
+  running = (async () => {
+    if (opts.soft && lastRun === 0) {
+      const before = Number(await getSetting(db, 'jobs.lastRun', '0'));
+      if (Date.now() - before < COLD_GAP) {
+        lastRun = before;
+        return;
+      }
+    }
+    await time('background jobs', () => runAll(db));
     lastRun = Date.now();
+    await setSetting(db, 'jobs.lastRun', String(lastRun)).catch(() => {});
+  })().finally(() => {
+    running = null;
   });
   return running;
 }

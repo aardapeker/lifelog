@@ -149,7 +149,7 @@ export default function JournalScreen() {
       upcomingDayOff(db).then(setDayOff);
       unopenedRead(db).then(setNewRead);
       // captions, embeddings, facts, the weekly letter, check-ins (right after a launch: a few seconds
-      // later, so they don't fight the first screen; they were the hiccups right after unlocking)
+      // later, so they don't fight the first screen or warm the phone right at the start)
       const jobs = () =>
         runBackgroundJobs(db, { soft: true }).then(async () => {
           const r = await latestRecap(db);
@@ -160,7 +160,7 @@ export default function JournalScreen() {
       if (warm) jobs();
       else {
         warm = true;
-        setTimeout(jobs, 3500);
+        setTimeout(jobs, 15_000); // well after the start: the first seconds are busy enough
       }
   };
 
