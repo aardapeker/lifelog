@@ -291,7 +291,7 @@ function useRadioEngine() {
     live.current.index = i;
     setIndex(i);
     setProgress(0);
-    updateOnAir(s.slots[i].track.name, `${s.station.name} · ${s.slots[i].track.artist}`);
+    updateOnAir(s.slots[i].track.name, `${s.slots[i].track.artist} · ${s.station.name}`, s.slots[i].track.image);
     const start = () => {
       live.current.speaking = false;
       live.current.overlapping = false;
@@ -653,7 +653,7 @@ function useRadioEngine() {
           live.current.index = k;
           live.current.talked = k;
           setIndex(k);
-          updateOnAir(s.slots[k].track.name, `${s.station.name} · ${s.slots[k].track.artist}`);
+          updateOnAir(s.slots[k].track.name, `${s.slots[k].track.artist} · ${s.station.name}`, s.slots[k].track.image);
           prepare(k + 1);
           prepare(k + 2);
           poll.current = onBeat(tick);

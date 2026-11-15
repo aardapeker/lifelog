@@ -114,9 +114,10 @@ export async function goOnAir(title: string, station: string): Promise<void> {
   breadcrumb('on air: done');
 }
 
-export function updateOnAir(title: string, station: string): void {
+/** The lock screen card, like Spotify's: the song, its artist, and its cover (Android colours the card from it). */
+export function updateOnAir(title: string, station: string, artworkUrl?: string | null): void {
   try {
-    keeper?.updateLockScreenMetadata({ title, artist: station });
+    keeper?.updateLockScreenMetadata({ title, artist: station, ...(artworkUrl ? { artworkUrl } : {}) });
   } catch {}
 }
 
