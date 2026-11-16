@@ -1,6 +1,7 @@
-# 📦 Builds a signed Android App Bundle (AAB) on every push to main and sends it to Google Play's
-# Internal testing track (once the PLAY_SERVICE_ACCOUNT_JSON secret exists). Each build is also attached
-# to a GitHub Release. Install / update the app from Google Play.
+# 📦 On every push to main: a signed Android App Bundle (AAB) for Google Play's Internal testing track
+# (uploaded automatically once the PLAY_SERVICE_ACCOUNT_JSON secret exists) and an APK, both attached
+# to a GitHub Release. The APK is debug-signed like the old ones; the Play app is signed by Google:
+# a phone uses one or the other.
 # Secrets: UPLOAD_KEYSTORE_B64, UPLOAD_KEYSTORE_PASSWORD, UPLOAD_KEY_ALIAS (the upload key),
 #          PLAY_SERVICE_ACCOUNT_JSON (optional: automatic upload to Play).
 name: Build APK
@@ -70,19 +71,29 @@ jobs:
           -PLIFELOG_UPLOAD_KEY_ALIAS='${{ secrets.UPLOAD_KEY_ALIAS }}'
           -PLIFELOG_UPLOAD_KEY_PASSWORD='${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}'
 
-      - name: Rename bundle
+      # the APK as before, for installing from GitHub: debug-signed (no upload-key properties here), so it
+      # updates an app installed from earlier APKs. It can't update the Play install (different key).
+      - name: Build release APK (arm64)
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
+
+      - name: Rename files
         id: apk
         run: |
           VERSION=$(node -p "require('./app.json').expo.version")
-          NAME="lifelog-v${VERSION}-build${GITHUB_RUN_NUMBER}.aab"
-          cp android/app/build/outputs/bundle/release/app-release.aab "$NAME"
-          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          BASE="lifelog-v${VERSION}-build${GITHUB_RUN_NUMBER}"
+          cp android/app/build/outputs/bundle/release/app-release.aab "$BASE.aab"
+          cp android/app/build/outputs/apk/release/app-release.apk "$BASE.apk"
+          echo "name=$BASE.aab" >> "$GITHUB_OUTPUT"
+          echo "apk=$BASE.apk" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.apk.outputs.name }}
-          path: ${{ steps.apk.outputs.name }}
+          name: lifelog-build${{ github.run_number }}
+          path: |
+            ${{ steps.apk.outputs.name }}
+            ${{ steps.apk.outputs.apk }}
 
       - name: Send to Google Play (Internal testing)
         if: ${{ env.HAS_PLAY == 'true' }}
@@ -99,7 +110,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v${{ steps.apk.outputs.version }}-build${GITHUB_RUN_NUMBER}" "${{ steps.apk.outputs.name }}" \
+          gh release create "v${{ steps.apk.outputs.version }}-build${GITHUB_RUN_NUMBER}" "${{ steps.apk.outputs.name }}" "${{ steps.apk.outputs.apk }}" \
             --title "Lifelog v${{ steps.apk.outputs.version }} (build ${GITHUB_RUN_NUMBER})" \
             --notes "$(git log -1 --pretty=%B)" \
             --latest
