@@ -1,6 +1,7 @@
 # 📦 On every push to main: a signed Android App Bundle (AAB) for Google Play's Internal testing track
-# (uploaded automatically once the PLAY_SERVICE_ACCOUNT_JSON secret exists) and an APK, both attached
-# to a GitHub Release. The APK is debug-signed like the old ones; the Play app is signed by Google:
+# (uploaded automatically once the PLAY_SERVICE_ACCOUNT_JSON secret exists) and/or an APK, attached
+# to a GitHub Release. Which one: a "Build: apk", "Build: aab" or "Build: both" line in the pushed
+# commit's message (no line = both), or the choice when started by hand (Actions → Run workflow). The APK is debug-signed like the old ones; the Play app is signed by Google:
 # a phone uses one or the other.
 # Secrets: UPLOAD_KEYSTORE_B64, UPLOAD_KEYSTORE_PASSWORD, UPLOAD_KEY_ALIAS (the upload key),
 #          PLAY_SERVICE_ACCOUNT_JSON (optional: automatic upload to Play).
@@ -11,6 +12,12 @@ on:
     branches: [main]
     paths-ignore: ["README.md"]
   workflow_dispatch:
+    inputs:
+      build:
+        description: What to build
+        type: choice
+        options: [both, apk, aab]
+        default: both
 
 permissions:
   contents: write
@@ -27,6 +34,19 @@ jobs:
       HAS_PLAY: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }} # step "if"s can't read secrets directly
     steps:
       - uses: actions/checkout@v5
+
+      - name: What to build
+        id: what
+        env:
+          MSG: ${{ github.event.head_commit.message }}
+          CHOICE: ${{ inputs.build }}
+        run: |
+          W="$CHOICE"
+          [ -z "$W" ] && W=$(printf '%s\n' "$MSG" | grep -ioP '^build:\s*\K(apk|aab|both)' | tail -1 | tr 'A-Z' 'a-z')
+          W=${W:-both}
+          echo "Building: $W"
+          echo "apk=$([ "$W" = apk ] || [ "$W" = both ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "aab=$([ "$W" = aab ] || [ "$W" = both ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v5
         with:
@@ -56,6 +76,7 @@ jobs:
         run: npx expo prebuild --platform android --no-install
 
       - name: Upload key
+        if: steps.what.outputs.aab == 'true'
         env:
           KEYSTORE_B64: ${{ secrets.UPLOAD_KEYSTORE_B64 }}
         run: |
@@ -63,6 +84,7 @@ jobs:
           echo "$KEYSTORE_B64" | base64 -d > android/app/upload.keystore
 
       - name: Build release bundle (AAB)
+        if: steps.what.outputs.aab == 'true'
         working-directory: android
         run: >
           ./gradlew bundleRelease --no-daemon
@@ -74,6 +96,7 @@ jobs:
       # the APK as before, for installing from GitHub: debug-signed (no upload-key properties here), so it
       # updates an app installed from earlier APKs. It can't update the Play install (different key).
       - name: Build release APK (arm64)
+        if: steps.what.outputs.apk == 'true'
         working-directory: android
         run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
 
@@ -82,21 +105,24 @@ jobs:
         run: |
           VERSION=$(node -p "require('./app.json').expo.version")
           BASE="lifelog-v${VERSION}-build${GITHUB_RUN_NUMBER}"
-          cp android/app/build/outputs/bundle/release/app-release.aab "$BASE.aab"
-          cp android/app/build/outputs/apk/release/app-release.apk "$BASE.apk"
-          echo "name=$BASE.aab" >> "$GITHUB_OUTPUT"
-          echo "apk=$BASE.apk" >> "$GITHUB_OUTPUT"
+          FILES=""
+          if [ -f android/app/build/outputs/bundle/release/app-release.aab ]; then
+            cp android/app/build/outputs/bundle/release/app-release.aab "$BASE.aab"; FILES="$FILES $BASE.aab"
+            echo "name=$BASE.aab" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
+            cp android/app/build/outputs/apk/release/app-release.apk "$BASE.apk"; FILES="$FILES $BASE.apk"
+          fi
+          echo "files=$FILES" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
         with:
           name: lifelog-build${{ github.run_number }}
-          path: |
-            ${{ steps.apk.outputs.name }}
-            ${{ steps.apk.outputs.apk }}
+          path: lifelog-v*-build${{ github.run_number }}.*
 
       - name: Send to Google Play (Internal testing)
-        if: ${{ env.HAS_PLAY == 'true' }}
+        if: ${{ env.HAS_PLAY == 'true' && steps.what.outputs.aab == 'true' }}
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
@@ -110,7 +136,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v${{ steps.apk.outputs.version }}-build${GITHUB_RUN_NUMBER}" "${{ steps.apk.outputs.name }}" "${{ steps.apk.outputs.apk }}" \
+          gh release create "v${{ steps.apk.outputs.version }}-build${GITHUB_RUN_NUMBER}" ${{ steps.apk.outputs.files }} \
             --title "Lifelog v${{ steps.apk.outputs.version }} (build ${GITHUB_RUN_NUMBER})" \
             --notes "$(git log -1 --pretty=%B)" \
             --latest
