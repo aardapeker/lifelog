@@ -21,9 +21,12 @@ import { photosDir } from './photos';
 const MAGIC = new Uint8Array([76, 76, 66, 75, 49]); // LLBK1
 const PASS_KEY = 'backup.passphrase';
 // Order matters: parents before children when inserting, reverse when deleting.
+// (the life timeline, Radar, the notifications list and AI usage joined later: a backup made before
+// that restores them empty, since an old backup is upgraded to today's tables first)
 const TABLES = [
   'notes', 'chunks', 'photos', 'chats', 'facts', 'goals', 'note_goals', 'ideas',
   'messages', 'recaps', 'plans', 'research', 'reads', 'kv',
+  'milestones', 'inbox', 'usage', 'radar_topics', 'radar_items', 'radar_sites',
 ];
 
 export const getPassphrase = () => SecureStore.getItemAsync(PASS_KEY);
