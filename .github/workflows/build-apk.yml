@@ -1,5 +1,8 @@
-# 📦 Builds a release APK on every push to main and attaches it to a GitHub Release.
-# Download it on your phone: github.com/aardapeker/lifelog/releases/latest
+# 📦 Builds a signed Android App Bundle (AAB) on every push to main and sends it to Google Play's
+# Internal testing track (once the PLAY_SERVICE_ACCOUNT_JSON secret exists). Each build is also attached
+# to a GitHub Release. Install / update the app from Google Play.
+# Secrets: UPLOAD_KEYSTORE_B64, UPLOAD_KEYSTORE_PASSWORD, UPLOAD_KEY_ALIAS (the upload key),
+#          PLAY_SERVICE_ACCOUNT_JSON (optional: automatic upload to Play).
 name: Build APK
 
 on:
@@ -19,6 +22,8 @@ jobs:
   apk:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      HAS_PLAY: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }} # step "if"s can't read secrets directly
     steps:
       - uses: actions/checkout@v5
 
@@ -45,18 +50,32 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Generate Android project
+        env:
+          VERSION_CODE: ${{ github.run_number }} # every build gets a higher versionCode (Play needs it)
         run: npx expo prebuild --platform android --no-install
 
-      - name: Build release APK (arm64)
-        working-directory: android
-        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
+      - name: Upload key
+        env:
+          KEYSTORE_B64: ${{ secrets.UPLOAD_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then echo "::error::UPLOAD_KEYSTORE_B64 secret is missing (Play rejects debug-signed bundles)"; exit 1; fi
+          echo "$KEYSTORE_B64" | base64 -d > android/app/upload.keystore
 
-      - name: Rename APK
+      - name: Build release bundle (AAB)
+        working-directory: android
+        run: >
+          ./gradlew bundleRelease --no-daemon
+          -PLIFELOG_UPLOAD_STORE_FILE=upload.keystore
+          -PLIFELOG_UPLOAD_STORE_PASSWORD='${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}'
+          -PLIFELOG_UPLOAD_KEY_ALIAS='${{ secrets.UPLOAD_KEY_ALIAS }}'
+          -PLIFELOG_UPLOAD_KEY_PASSWORD='${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}'
+
+      - name: Rename bundle
         id: apk
         run: |
           VERSION=$(node -p "require('./app.json').expo.version")
-          NAME="lifelog-v${VERSION}-build${GITHUB_RUN_NUMBER}.apk"
-          cp android/app/build/outputs/apk/release/app-release.apk "$NAME"
+          NAME="lifelog-v${VERSION}-build${GITHUB_RUN_NUMBER}.aab"
+          cp android/app/build/outputs/bundle/release/app-release.aab "$NAME"
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
@@ -64,6 +83,17 @@ jobs:
         with:
           name: ${{ steps.apk.outputs.name }}
           path: ${{ steps.apk.outputs.name }}
+
+      - name: Send to Google Play (Internal testing)
+        if: ${{ env.HAS_PLAY == 'true' }}
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: dev.arda.lifelog
+          releaseFiles: ${{ steps.apk.outputs.name }}
+          track: internal
+          status: completed
+          releaseName: v${{ steps.apk.outputs.version }} (build ${{ github.run_number }})
 
       - name: Publish release
         env:

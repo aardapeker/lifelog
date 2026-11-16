@@ -108,6 +108,7 @@
         }
       ],
       "./plugins/withSpotifyRemote",
+      "./plugins/withReleaseSigning",
       [
         "expo-location",
         {
