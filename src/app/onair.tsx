@@ -12,6 +12,7 @@ import { Ban, ColourWash, GlowingCover, Heart, KeepAwake, showName, WASH_BASE, w
 import { IconButton, PillButton, StatusLine } from '../components/ui';
 import { breadcrumb } from '../lib/crashLog';
 import { ActionSheet, type SheetAction } from '../components/ActionSheet';
+import { SongPicker } from '../components/SongPicker';
 import { useRadio } from '../lib/radioEngine';
 import { colors, fonts, radius } from '../lib/theme';
 import { useFirstFrame } from '../lib/perf';
@@ -37,6 +38,8 @@ export default function OnAirScreen() {
   const blur = useBlurSource();
   const [scrolled, setScrolled] = useState(false);
   const more = () => setMenu(true);
+  // the song picker: "add" on the review list, "request" during the show
+  const [picking, setPicking] = useState<'add' | 'request' | null>(null);
   const actions: SheetAction[] = [
     { label: r.liveKept ? 'Unsave the show' : 'Save the show (with its voices)', icon: r.liveKept ? 'bookmark' : 'bookmark-outline', onPress: r.keepLive },
     { label: 'Save the songs to Spotify', icon: 'musical-notes-outline', onPress: r.save },
@@ -53,6 +56,12 @@ export default function OnAirScreen() {
       <ColourWash glow={phase === 'onair' || phase === 'done' ? (palette?.glow ?? null) : null} />
       {phase === 'onair' && <KeepAwake />}
       <ActionSheet visible={menu} title={show ? showName(show) : 'The show'} actions={actions} onClose={() => setMenu(false)} />
+      <SongPicker
+        visible={picking !== null}
+        title={picking === 'request' ? '🎵 Request a song' : '＋ Add a song to the show'}
+        onPick={(t) => (picking === 'request' ? r.requestSong(t) : r.addDraft(t))}
+        onClose={() => setPicking(null)}
+      />
 
       <ScrollView
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 74, paddingBottom: insets.bottom + 40 }]}
@@ -71,6 +80,7 @@ export default function OnAirScreen() {
                 <Text style={styles.rowNum}>{i + 1}</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.rowName} numberOfLines={1}>
+                    {t.requested ? '🎵 ' : ''}
                     {t.name}
                   </Text>
                   <Text style={styles.rowArtist} numberOfLines={1}>
@@ -88,6 +98,7 @@ export default function OnAirScreen() {
                 </Pressable>
               </View>
             ))}
+            <PillButton label="＋ Add a song" onPress={() => setPicking('add')} ghost style={{ alignSelf: 'flex-start', marginTop: 12 }} />
             <View style={styles.after}>
               <PillButton label="Write the show" onPress={r.writeDraft} />
               <PillButton
@@ -174,6 +185,14 @@ export default function OnAirScreen() {
                     : '🎵 Just the music'}
                 </Text>
               </Pressable>
+              {phase === 'onair' && (
+                <Tap
+                  icon={r.requesting ? 'hourglass-outline' : 'musical-note-outline'}
+                  label={r.requesting ? 'The hosts are getting your request ready' : 'Request a song'}
+                  onPress={() => !r.requesting && setPicking('request')}
+                  small
+                />
+              )}
               <Tap icon="ellipsis-horizontal" label="More" onPress={more} small />
             </View>
 

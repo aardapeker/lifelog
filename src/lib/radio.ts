@@ -139,6 +139,15 @@ export function sameArtist(asked: string, found: string): boolean {
 
 const persona = (p: Persona, role: string) => `- ${p.name} (${role}): ${p.bio}`;
 
+type RawLine = { who?: string; text?: string };
+/** The AI's lines as spoken lines: only real cast names (anything else goes to the host), no empty ones. */
+function spoken(station: Station, guest: Persona | undefined, raw?: RawLine[]): SpokenLine[] {
+  const cast = [station.host.name, station.sidekick?.name, guest?.name].filter(Boolean) as string[];
+  return (raw ?? [])
+    .filter((l) => l.text?.trim())
+    .map((l) => ({ speaker: cast.includes(l.who ?? '') ? l.who! : cast[0], text: l.text!.trim() }));
+}
+
 /** What making a show is busy with, for the progress list on the Radio screen. */
 export type BuildStep = 'journal' | 'favourites' | 'picking' | 'songs' | 'writing';
 
@@ -344,7 +353,7 @@ export async function buildShow(
     prompt:
       `Now: ${formatDate(Date.now())}, ${shiftFor(shifts, Date.now())} shift week${city ? `, in ${city}` : ''}.\n` +
       `Show name idea: ${pick.title ?? station.name}\n` +
-      `The playlist:\n${tracks.map((t, k) => `${k + 1}. "${t.name}" by ${t.artist}`).join('\n')}\n` +
+      `The playlist:\n${tracks.map((t, k) => `${k + 1}. "${t.name}" by ${t.artist}${t.requested ? ' (the listener added this one HIMSELF: the hosts notice and make a little moment of it)' : ''}`).join('\n')}\n` +
       (welcome.length ? `Their favourites (greet these like old friends when they come): ${welcome.map(songLine).join('; ')}\n` : '') +
       (wish.trim() ? `The listener asked for: ${wish.trim()}\n` : '') +
       `\n${notesText}` +
@@ -359,11 +368,7 @@ export async function buildShow(
     outro?: { who?: string; text?: string }[];
   }>(reply);
 
-  const cast = [station.host.name, station.sidekick?.name, guest?.name].filter(Boolean) as string[];
-  const lines = (raw?: { who?: string; text?: string }[]) =>
-    (raw ?? [])
-      .filter((l) => l.text?.trim())
-      .map((l) => ({ speaker: cast.includes(l.who ?? '') ? l.who! : cast[0], text: l.text!.trim() }));
+  const lines = (raw?: RawLine[]) => spoken(station, guest, raw);
   // each talk goes with its song: by the number it gives, else by position
   const talks = plan.talks ?? [];
   const slots: Slot[] = tracks.map((track, k) => {
@@ -386,3 +391,45 @@ export async function buildShow(
 /** The voices a show needs, for the speech engine. */
 export const castOf = (station: Station, guest?: Persona) =>
   [station.host, station.sidekick, guest].filter((p): p is Persona => !!p).map((p) => ({ name: p.name, voice: p.voice, style: p.style }));
+
+/**
+ * A live request during the show: the hosts' short dedication before the requested song, and the talk
+ * after it rewritten (it was written to follow a different song). `at` is where the request goes.
+ * One small AI call; both come back in the show's language and the hosts' voices.
+ */
+export async function requestTalks(db: SQLiteDatabase, show: Show, at: number, track: Track): Promise<{ intro: SpokenLine[]; next: SpokenLine[] | null }> {
+  const writer = await getRadioConfig(db);
+  if (!writer.apiKey) throw new Error('Add an AI key in Settings first.');
+  const { station, guest } = show;
+  const before = show.slots[at - 1]?.track;
+  const after = show.slots[at]?.track;
+  const names = [station.host.name, station.sidekick?.name].filter(Boolean).map((n) => `"${n}"`).join(' or ');
+  const reply = await writer.adapter.complete({
+    feature: 'radio',
+    apiKey: writer.apiKey,
+    model: writer.model,
+    json: true,
+    maxTokens: 1200,
+    temperature: 1.1,
+    system:
+      `You write two short talks for a live private radio show on "${station.name} ${station.freq}" (${station.tagline}) for ONE listener.\n` +
+      `Hosts:\n${persona(station.host, 'host')}\n${station.sidekick ? persona(station.sidekick, 'sidekick, the comedian') : ''}\n\n` +
+      'The listener just sent a SONG REQUEST in the middle of the show. Write:\n' +
+      '1. "intro": the hosts announce the request before it plays, like a real radio dedication, excited and a bit teasing ' +
+      '(why would he pick this one right now?). 2 to 4 short lines.\n' +
+      (after ? '2. "next": the talk after the request, leading into the next song: it may react to the request that just played. 1 to 3 lines.\n' : '') +
+      'Name songs and artists exactly as given; never invent facts about them; never quote lyrics. Lines are SPOKEN aloud: ' +
+      'no emojis, no markdown, no stage directions, short natural sentences. ' +
+      (show.lang.startsWith('tr') ? 'Speak Turkish (natural, warm Istanbul Turkish).' : 'Speak English.') +
+      `\n\nReturn {"intro":[{"who":${names},"text":"…"}]${after ? `,"next":[{"who":${names},"text":"…"}]` : ''}}`,
+    prompt:
+      `Show: ${show.title}\n` +
+      (before ? `Just played: "${before.name}" by ${before.artist}\n` : '') +
+      `REQUEST from the listener: "${track.name}" by ${track.artist}\n` +
+      (after ? `After it: "${after.name}" by ${after.artist}\n` : ''),
+  });
+  const out = parseJsonReply<{ intro?: RawLine[]; next?: RawLine[] }>(reply);
+  const intro = spoken(station, guest, out.intro);
+  const next = after ? spoken(station, guest, out.next) : [];
+  return { intro, next: next.length ? next : null };
+}

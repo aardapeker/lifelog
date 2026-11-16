@@ -9,7 +9,7 @@ import type { Status } from '../components/ui';
 import { albumColors, type Palette } from './albumColors';
 import { getSetting, setSetting } from './db';
 import { goOffAir, goOnAir, onBeat, onRemote, setOnAirPlaying, updateOnAir, waitMs } from './onAir';
-import { buildShow, castOf, type Show } from './radio';
+import { buildShow, castOf, requestTalks, type Show } from './radio';
 import { countShow } from './achievements';
 import {
   nudgeSpotify,
@@ -474,6 +474,8 @@ function useRadioEngine() {
       return next;
     });
   const dropDraft = (i: number) => setDraft((d) => (d && d.length > 1 ? d.filter((_, k) => k !== i) : d));
+  /** ＋ Add a song: your own pick on the list (the hosts are told you chose it). */
+  const addDraft = (t: Track) => setDraft((d) => (d && !d.some((x) => x.id === t.id) ? [...d, { ...t, requested: true }] : d));
   const writeDraft = () => {
     if (!draft) return;
     breadcrumb(`radio: Write the show tapped (${draft.length} songs)`);
@@ -569,6 +571,55 @@ function useRadioEngine() {
   };
 
   const skip = () => jumpTo(live.current.index + 1);
+
+  /**
+   * 🎵 A live request: it plays right after the current song, with the hosts announcing it, and the talk
+   * after it rewritten so it follows the request. Slots after it move one place, so their voices (made
+   * ahead, and the saved ones) are made again when needed.
+   */
+  const [requesting, setRequesting] = useState(false);
+  const requestSong = async (picked: Track) => {
+    const s0 = live.current.show;
+    if (!s0 || requesting) return;
+    const t = { ...picked, requested: true };
+    setRequesting(true);
+    breadcrumb(`radio: request ${t.name}`);
+    try {
+      const at0 = live.current.index + 1;
+      // no AI (no key, offline): the request still plays, just without a dedication
+      const talks = await requestTalks(db, s0, at0, t).catch(() => ({ intro: [], next: null }));
+      const s = live.current.show;
+      if (!s) return;
+      // the show may have moved on while the hosts wrote it: the request goes after whatever plays now
+      const at = Math.min(live.current.index + 1, s.slots.length);
+      const slots = [...s.slots];
+      if (talks.next && slots[at] && slots[at].track.id === s0.slots[at0]?.track.id) {
+        slots[at] = { ...slots[at], talk: talks.next, label: null, overlap: 0 };
+      }
+      slots.splice(at, 0, { track: t, talk: talks.intro, label: null, overlap: 0 });
+      const next: Show = { ...s, slots };
+      for (const k of [...clips.current.keys()]) if (k >= at) clips.current.delete(k);
+      const id = liveId.current;
+      if (id) {
+        for (let k = at; k <= s.slots.length; k++) {
+          try {
+            const f = showVoiceFile(id, k);
+            if (f.exists) f.delete();
+          } catch {}
+        }
+      }
+      retried.current = new Set([...retried.current].filter((k) => k < at));
+      live.current.show = next;
+      setShow(next);
+      record({ show: next });
+      prepare(at);
+      prepare(at + 1);
+      if (!hearts.has(t.id)) toggleHeart(t).catch(() => {}); // a request is a song you love: future shows learn it
+      setStatus({ kind: 'ok', msg: `🎵 Your request plays next: ${t.name}` });
+    } finally {
+      setRequesting(false);
+    }
+  };
 
   /** Like a music app: a few seconds in, ⏮ restarts the song; at the start, it goes back one. */
   const previous = () => {
@@ -783,7 +834,7 @@ function useRadioEngine() {
     [],
   );
 
-  return { seek, draft, reviewFirst, setReviewFirst, moveDraft, dropDraft, writeDraft, cancelDraft, replay, steps, history, loadHistory, playPast, forgetShow, keepShow, liveKept, keepLive, banned, ban, miniCollapsed, setMiniCollapsed, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
+  return { seek, draft, reviewFirst, setReviewFirst, moveDraft, dropDraft, addDraft, requestSong, requesting, writeDraft, cancelDraft, replay, steps, history, loadHistory, playPast, forgetShow, keepShow, liveKept, keepLive, banned, ban, miniCollapsed, setMiniCollapsed, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
 }
 
 export type RadioEngine = ReturnType<typeof useRadioEngine>;

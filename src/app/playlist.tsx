@@ -69,6 +69,7 @@ export default function PlaylistScreen() {
                     style={[styles.name, i < index && phase === 'onair' && { color: colors.muted }, gone && styles.gone]}
                     numberOfLines={1}
                   >
+                    {s.track.requested ? '🎵 ' : ''}
                     {s.track.name}
                   </Text>
                   <Text style={styles.artist} numberOfLines={1}>

@@ -34,7 +34,8 @@ const SCOPES = [
 const CLIENT_KEY = 'spotify.clientId';
 const TOKENS_KEY = 'spotify.tokens';
 
-export type Track = { id: string; uri: string; name: string; artist: string; image: string | null; durationMs: number };
+/** requested: you added it yourself (on the review list, or as a live request): the hosts make a moment of it. */
+export type Track = { id: string; uri: string; name: string; artist: string; image: string | null; durationMs: number; requested?: boolean };
 type Tokens = { access: string; refresh: string | null; expiresAt: number };
 
 export class SpotifyError extends Error {
@@ -160,6 +161,22 @@ export async function findTrack(title: string, artist = ''): Promise<Track | nul
     if (t) return toTrack(t);
   }
   return null;
+}
+
+/**
+ * Songs for a search box: up to 10 (Spotify's limit since 2026). A pasted Spotify link
+ * (open.spotify.com/track/… or spotify:track:…) gives that exact song.
+ */
+export async function searchTracks(query: string): Promise<Track[]> {
+  const q = query.trim();
+  if (!q) return [];
+  const link = q.match(/(?:open\.spotify\.com\/(?:intl-\w+\/)?track\/|spotify:track:)([A-Za-z0-9]+)/);
+  if (link) {
+    const t = await getTrack(link[1]);
+    return t ? [t] : [];
+  }
+  const res = await api<{ tracks: { items: ApiTrack[] } }>(`/search?type=track&limit=10&q=${encodeURIComponent(q)}`);
+  return (res?.tracks.items ?? []).filter((t) => t?.uri?.startsWith('spotify:track:')).map(toTrack);
 }
 
 export async function getTrack(id: string): Promise<Track | null> {
@@ -394,7 +411,7 @@ export async function musicTaste(db: SQLiteDatabase): Promise<string[]> {
  * Your Spotify Liked Songs (newest 200), refreshed once a day. Empty if Spotify isn't connected,
  * or if it was connected before Liked Songs access existed (connect again in Settings).
  */
-export async function spotifyLikedSongs(db: SQLiteDatabase): Promise<{ id: string; uri: string; name: string; artist: string }[]> {
+export async function spotifyLikedSongs(db: SQLiteDatabase): Promise<Track[]> {
   if (!(await spotifyConnected())) return [];
   const today = new Date().toDateString();
   try {
