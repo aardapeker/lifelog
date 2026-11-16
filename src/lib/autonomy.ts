@@ -6,7 +6,7 @@ import * as TaskManager from 'expo-task-manager';
 import { digestTimeOn, getAutonomySettings, isNeverResearch } from './autonomySettings';
 import { getChatConfig, PROVIDERS } from './chat';
 import { cancelPending, ensureNotificationPermission } from './checkins';
-import { aboutUser } from './context';
+import { aboutUser, REFERENCES } from './context';
 import { getSetting, setSetting, tooManyTries } from './db';
 import { groundedSearch } from './gemini';
 import { getKey } from './keys';
@@ -223,6 +223,8 @@ export async function maybeSendDigest(db: SQLiteDatabase, force = false): Promis
           'without being asked, and now you message them about it. Casual, short, a little funny, like a text from a friend. ' +
           'Mention each item briefly and keep every URL exactly as given, each on its own line. ' +
           "Write in the language of their journal. No headings, no bullet lists unless there are 3+ items.\n\n" +
+          REFERENCES +
+          "\n\n" +
           (await aboutUser(db)),
         prompt: parts.join('\n\n'),
       })

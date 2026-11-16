@@ -3,7 +3,7 @@ import { cancelNotify, notify } from './notify';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getBackgroundConfig, parseJsonReply } from './chat';
 import { addMessage, chatForIncoming } from './chats';
-import { aboutUser, renderNotes } from './context';
+import { aboutUser, renderNotes, REFERENCES } from './context';
 import { getSetting, setSetting } from './db';
 import { formatDate, recentNotes } from './notes';
 import { weekStart } from './recap';
@@ -132,6 +132,8 @@ export async function planCheckins(db: SQLiteDatabase): Promise<number> {
         '(their phone is locked away while working). Write one short message per slot: one or two sentences, ' +
         'casual, specific to what they wrote recently, sometimes a question, sometimes just encouragement or a joke. ' +
         'Never generic, and never the same message twice. Same language as their journal. Return {"messages":["…", …]} with exactly one per slot, in order.\n\n' +
+        REFERENCES +
+        '\n\n' +
         about +
         (quiet.length
           ? `\n\nGoals they haven't mentioned in a while (nudge about one of these at most once): ${quiet.map((g) => g.title).join('; ')}`

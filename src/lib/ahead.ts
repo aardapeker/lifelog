@@ -4,7 +4,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { digestTimeOn, getAutonomySettings } from './autonomySettings';
 import { getBackgroundConfig, parseJsonReply } from './chat';
 import { cancelPending, ensureNotificationPermission, getCheckinSettings, shiftFor } from './checkins';
-import { aboutUser, renderNotes } from './context';
+import { aboutUser, renderNotes, REFERENCES } from './context';
 import { getSetting, setSetting } from './db';
 import { formatDate, recentNotes } from './notes';
 import { dayParam, midnight } from './planner';
@@ -92,6 +92,8 @@ async function writeAhead(
       "to something they wrote, a joke, encouragement. If they'll have been quiet for 2+ days, notice it: first lightly " +
       '("you went quiet, all good?"), more directly the longer it lasts, but never guilt-trip. ' +
       'Same language as their journal. Return {"messages":["…", …]} with exactly one per day, in order.\n\n' +
+        REFERENCES +
+        '\n\n' +
       about,
     prompt:
       `Recent entries:\n${renderNotes(recent) || '(none yet)'}\n\n` +
