@@ -34,6 +34,8 @@ jobs:
       HAS_PLAY: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }} # step "if"s can't read secrets directly
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # the whole history + tags: the release notes list everything since the last build
 
       - name: What to build
         id: what
@@ -136,7 +138,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # every change since the previous build (its tag), one line each; the "Build: apk" markers left out
+          PREV=$(git describe --tags --abbrev=0 --match 'v*-build*' HEAD^ 2>/dev/null || true)
+          {
+            echo "## What's new"
+            echo
+            git log ${PREV:+"$PREV..HEAD"} ${PREV:--20} --no-merges --pretty='format:- %s%n' | grep -vE '^- Build: (apk|aab|both)$' | grep -v '^$'
+            echo
+            echo "Files: ${{ steps.apk.outputs.files }}"
+          } > notes.md
+          cat notes.md
           gh release create "v${{ steps.apk.outputs.version }}-build${GITHUB_RUN_NUMBER}" ${{ steps.apk.outputs.files }} \
             --title "Lifelog v${{ steps.apk.outputs.version }} (build ${GITHUB_RUN_NUMBER})" \
-            --notes "$(git log -1 --pretty=%B)" \
+            --notes-file notes.md \
             --latest
