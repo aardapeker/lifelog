@@ -55,8 +55,9 @@ function Detail({ item, onChange }: { item: FeedItem; onChange: (i: FeedItem) =>
   const insets = useSafeAreaInsets();
   const pageBottom = usePageBottom(); // room for the docked mini player
   const isVideo = item.type === 'VIDEO' || item.type === 'SHORT';
-  // videos open in the YouTube app; pages in an in-app browser tab
-  const open = (url = item.url) => (isVideo && url === item.url ? Linking.openURL(url) : WebBrowser.openBrowserAsync(url, { toolbarColor: colors.ink }));
+  // videos open in the YouTube app; pages in an in-app browser tab, inside Lifelog's own task
+  // (createTask: false), or it stayed behind as a second "Lifelog" card in recent apps even after ✕
+  const open = (url = item.url) => (isVideo && url === item.url ? Linking.openURL(url) : WebBrowser.openBrowserAsync(url, { toolbarColor: colors.ink, createTask: false }));
   const second = item.mediaUrl && item.type === 'DISCUSSION' ? { url: item.mediaUrl, label: 'Linked article' } : null;
   const save = () => {
     r.setSaved(item.id, !item.saved).catch(() => {});
