@@ -3,6 +3,7 @@ import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { Directory, File, Paths } from 'expo-file-system';
 import { jsonHeaders } from './gemini';
 import { onBeat, waitMs } from './heartbeat';
+import { phoneFilter } from './phoneLine';
 import { getKey } from './keys';
 import { recordUsage, textTokens } from './usage';
 
@@ -22,7 +23,8 @@ const MODELS = ['gemini-3.8-flash-tts', 'gemini-3.8-flash-lite-tts'];
 export type VoiceStyle = { voice: string; style: string };
 /** One spoken line; `speaker` is the persona's name when a show has two voices. */
 export type SpokenLine = { speaker: string; text: string };
-type Cast = (VoiceStyle & { name: string })[];
+/** `phone`: this person is on a phone line (a radio caller), so their lines sound like one. */
+type Cast = (VoiceStyle & { name: string; phone?: boolean })[];
 
 /** Speaker ids must be simple: "Kaan \"Riff\" Demir" → "Speaker1"-style, stable per cast slot. */
 const speakerOf = (name: string, cast: { name: string }[]) => `Speaker${Math.max(0, cast.findIndex((c) => c.name === name)) + 1}`;
@@ -288,12 +290,17 @@ export async function synthesize(lines: SpokenLine[], cast: Cast): Promise<strin
   // line, so a 16-song show ate most of the 100-a-day voice quota. If the audio comes back much too
   // short for the words (the two-speaker mode dropped someone), it's voiced line by line after all
   const speakers = cast.filter((c) => turns.some((t) => t.speaker === c.name));
-  if (turns.length > 1 && speakers.length === 2) {
+  // a caller's lines get the phone sound on their own, so a talk with a caller is voiced line by line
+  if (turns.length > 1 && speakers.length === 2 && !speakers.some((c) => c.phone)) {
     const both = await tryDuo(apiKey, turns, speakers);
     if (both && wavSeconds(both) >= expectedSeconds(turns) * 0.5) parts.push(both);
     else if (both) duoMisses++; // came back too short: someone was dropped
   }
-  if (!parts.length) for (const t of turns) parts.push(await voiceBytes(apiKey, [t], [voiceFor(t.speaker)]));
+  if (!parts.length)
+    for (const t of turns) {
+      const bytes = await voiceBytes(apiKey, [t], [voiceFor(t.speaker)]);
+      parts.push(voiceFor(t.speaker).phone ? onPhone(bytes) : bytes);
+    }
   const file = new File(Paths.cache, `voice-${Date.now()}-${Math.round(Math.random() * 1e6)}.wav`);
   file.create();
   await file.write(joinWavs(parts, 0.35));
@@ -510,6 +517,12 @@ function pcmOf(w: Uint8Array): { pcm: Uint8Array; rate: number } {
     o += 8 + size + (size % 2);
   }
   return { pcm: w.subarray(44), rate };
+}
+
+/** The clip as if it came down a phone line. */
+function onPhone(w: Uint8Array): Uint8Array {
+  const { pcm, rate } = pcmOf(w);
+  return wav(phoneFilter(pcm, rate), rate);
 }
 
 /** Joins WAV clips (16-bit mono) into one, with `gap` seconds of silence between them. */

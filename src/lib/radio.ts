@@ -2,11 +2,11 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { getRadioConfig, parseJsonReply } from './chat';
 import { getCheckinSettings, shiftFor } from './checkins';
 import { aboutUser, renderNotes } from './context';
-import { getSetting } from './db';
+import { getSetting, setSetting } from './db';
 import { formatDate, olderNotes, recentNotes } from './notes';
 import { bannedSongs, FAVOURITES_PER_SHOW, getRadioPrefs, likedSongs, playedSongs, playsThisMonth, songLine } from './songMemory';
 import { findTrack, musicTaste, spotifyLikedSongs, type Track } from './spotify';
-import { STATIONS, type Persona, type Station } from './stations';
+import { freeVoice, STATIONS, type Persona, type Station } from './stations';
 import type { SpokenLine } from './tts';
 
 /*
@@ -19,7 +19,16 @@ import type { SpokenLine } from './tts';
 export type Slot = { track: Track; talk: SpokenLine[]; label: string | null; overlap: number };
 /** outro: the goodbye after the last song. */
 /** `guest`: a host from another station who wandered into this show (a crossover), with their voice. */
-export type Show = { title: string; lang: string; station: Station; slots: Slot[]; outro: SpokenLine[]; guest?: Persona & { from: string } };
+/** `regular`: one of the station's own sketch characters (a caller, a live report, a studio visitor). */
+export type Show = {
+  title: string;
+  lang: string;
+  station: Station;
+  slots: Slot[];
+  outro: SpokenLine[];
+  guest?: Persona & { from: string };
+  regular?: Persona;
+};
 
 const CROSSOVER_CHANCE = 1 / 8;
 /** Sometimes a host from another station barges in: Kederli Kemal lost on Neon FM, Max Volt on Şemistan Chill… */
@@ -31,8 +40,29 @@ function pickGuest(station: Station): (Persona & { from: string }) | undefined {
   const pool = STATIONS.filter((s) => s.key !== station.key).flatMap((s) =>
     [s.host, s.sidekick].filter((p): p is Persona => !!p && GUEST_STARS.includes(p.name)).map((p) => ({ ...p, from: `${s.name} ${s.freq}` })),
   );
-  return pool.length ? pool[Math.floor(Math.random() * pool.length)] : undefined;
+  return pool.length ? freeVoice(pool[Math.floor(Math.random() * pool.length)], station) : undefined;
 }
+
+/**
+ * The regular for this show, like a sketch show's recurring characters: one per show, never the one
+ * from the station's last show. None when a crossover guest is already visiting (one extra voice is plenty).
+ */
+async function pickRegular(db: SQLiteDatabase, station: Station, guest: Persona | undefined): Promise<Persona | undefined> {
+  if (guest || !station.regulars?.length) return undefined;
+  const key = `radio.lastRegular.${station.key}`;
+  const last = await getSetting(db, key, '');
+  const pool = station.regulars.filter((r) => r.name !== last);
+  const regular = (pool.length ? pool : station.regulars)[Math.floor(Math.random() * (pool.length || station.regulars.length))];
+  await setSetting(db, key, regular.name);
+  return freeVoice(regular, station);
+}
+
+/** How a regular comes on air, for the writer. */
+const ENTRANCE: Record<NonNullable<Persona['via']>, string> = {
+  phone: 'calls in: the host takes the call on air ("we have a caller on line one"), and the whole bit happens over the phone',
+  live: 'reports live from out there: the host hands over to them, and they talk over the line from where they are',
+  studio: 'barges into the studio in person',
+};
 
 /**
  * Draws the favourites for one show. Every list a song is on is one more ticket in the bag (Spotify
@@ -143,8 +173,8 @@ const persona = (p: Persona, role: string) => `- ${p.name} (${role}): ${p.bio}`;
 
 type RawLine = { who?: string; text?: string };
 /** The AI's lines as spoken lines: only real cast names (anything else goes to the host), no empty ones. */
-function spoken(station: Station, guest: Persona | undefined, raw?: RawLine[]): SpokenLine[] {
-  const cast = [station.host.name, station.sidekick?.name, guest?.name].filter(Boolean) as string[];
+function spoken(station: Station, visitors: (Persona | undefined)[], raw?: RawLine[]): SpokenLine[] {
+  const cast = [station.host.name, station.sidekick?.name, ...visitors.map((v) => v?.name)].filter(Boolean) as string[];
   return (raw ?? [])
     .filter((l) => l.text?.trim())
     .map((l) => ({ speaker: cast.includes(l.who ?? '') ? l.who! : cast[0], text: l.text!.trim() }));
@@ -204,7 +234,8 @@ export async function buildShow(
     : [];
   const duo = !!station.sidekick;
   const guest = pickGuest(station);
-  const names = [station.host.name, station.sidekick?.name, guest?.name]
+  const regular = await pickRegular(db, station, guest);
+  const names = [station.host.name, station.sidekick?.name, guest?.name, regular?.name]
     .filter(Boolean)
     .map((n) => `"${n}"`)
     .join(' or ');
@@ -336,6 +367,14 @@ export async function buildShow(
           `the studio by mistake: ${guest.bio} They stay for one or two talks, completely in their own character and ` +
           `style, clash comically with the hosts, then leave (or get escorted out). Their lines use "who":"${guest.name}". `
         : '') +
+      (regular
+        ? `REGULAR: ${regular.name} is one of this station's recurring characters, like in a sketch comedy show: ` +
+          `${regular.bio}. Their running gag, the same every time they appear: ${regular.bit}. Somewhere in the middle ` +
+          `of the show (never the first or the last talk, and not in a commercial or the news), ${regular.name} ` +
+          `${ENTRANCE[regular.via ?? 'studio']}. They get ONE or TWO talks, a little longer than usual, stay completely ` +
+          `in character, deliver their gag with a fresh twist about THIS listener's life, give the hosts a hard time, ` +
+          `then hang up or leave. The hosts treat them like an old, exhausting acquaintance. Their lines use "who":"${regular.name}". `
+        : '') +
       'Like a real DJ, sometimes talk over the END of a song: for each talk after the first, set "overlap" to the ' +
       'seconds (4 to 12) the talk may run over the outro of the PREVIOUS song, but only when that previous ' +
       'song fades out or ends on a long instrumental tail; use 0 when it ends abruptly, on a big final line or a ' +
@@ -370,7 +409,7 @@ export async function buildShow(
     outro?: { who?: string; text?: string }[];
   }>(reply);
 
-  const lines = (raw?: RawLine[]) => spoken(station, guest, raw);
+  const lines = (raw?: RawLine[]) => spoken(station, [guest, regular], raw);
   // each talk goes with its song: by the number it gives, else by position
   const talks = plan.talks ?? [];
   const slots: Slot[] = tracks.map((track, k) => {
@@ -387,12 +426,16 @@ export async function buildShow(
     slots,
     outro: lines(plan.outro),
     guest,
+    regular,
   };
 }
 
 /** The voices a show needs, for the speech engine. */
-export const castOf = (station: Station, guest?: Persona) =>
-  [station.host, station.sidekick, guest].filter((p): p is Persona => !!p).map((p) => ({ name: p.name, voice: p.voice, style: p.style }));
+// `phone`: callers and live reports sound like a phone line
+export const castOf = (station: Station, ...visitors: (Persona | undefined)[]) =>
+  [station.host, station.sidekick, ...visitors]
+    .filter((p): p is Persona => !!p)
+    .map((p) => ({ name: p.name, voice: p.voice, style: p.style, phone: p.via === 'phone' || p.via === 'live' }));
 
 /**
  * A live request during the show: the hosts' short dedication before the requested song, and the talk
@@ -431,7 +474,7 @@ export async function requestTalks(db: SQLiteDatabase, show: Show, at: number, t
       (after ? `After it: "${after.name}" by ${after.artist}\n` : ''),
   });
   const out = parseJsonReply<{ intro?: RawLine[]; next?: RawLine[] }>(reply);
-  const intro = spoken(station, guest, out.intro);
-  const next = after ? spoken(station, guest, out.next) : [];
+  const intro = spoken(station, [guest], out.intro);
+  const next = after ? spoken(station, [guest], out.next) : [];
   return { intro, next: next.length ? next : null };
 }

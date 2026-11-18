@@ -6,7 +6,17 @@
 
 export type Gender = 'male' | 'female';
 /** gender: only voices of it are offered for this persona (left out = any voice fits, like Deniz). */
-export type Persona = { name: string; voice: string; style: string; bio: string; gender?: Gender };
+export type Persona = {
+  name: string;
+  voice: string;
+  style: string;
+  bio: string;
+  gender?: Gender;
+  /** Regulars only: how they come on air. 'phone' and 'live' sound like a phone line, 'studio' doesn't. */
+  via?: 'phone' | 'live' | 'studio';
+  /** Regulars only: their running gag, the same every time they show up. */
+  bit?: string;
+};
 
 export type Station = {
   key: string;
@@ -17,6 +27,8 @@ export type Station = {
   music: string; // what the station plays (the AI picks real songs from this brief)
   host: Persona;
   sidekick: Persona | null;
+  /** Sketch-show regulars: one of them shows up in each show (never the same one twice in a row). */
+  regulars?: Persona[];
   ads: string; // the flavour of its commercials
   lang: Lang; // what the hosts speak (you can change it per station)
   wishes: string[]; // the quick "Anything else?" picks, in the station's spirit
@@ -75,6 +87,35 @@ export const STATIONS: Station[] = [
       style: 'a sarcastic, deadpan comedian sidekick, dry and unimpressed, mumbling the punchlines',
       bio: "Candy's co-host, a broke comedian who mocks everything, especially the listener's life choices",
     },
+    regulars: [
+      {
+        name: 'Chad Turbo',
+        gender: 'male',
+        voice: 'Fenrir',
+        via: 'phone',
+        style: 'an overexcited 1980s yuppie shouting into a brick-sized car phone, fast, cocky, a bit out of breath',
+        bio: 'calls from his car phone and firmly believes it is still 1987',
+        bit: 'gives the listener hot investment tips on VHS tapes, fax machines and shoulder pads, always ends with "Chad Turbo, out!"',
+      },
+      {
+        name: 'Madame Lorraine',
+        gender: 'female',
+        voice: 'Gacrux',
+        via: 'phone',
+        style: 'a mysterious, theatrical psychic hotline lady, slow and dramatic, long pauses',
+        bio: "runs the station's live horoscope line",
+        bit: "reads the listener's horoscope, and every prediction somehow ends with a box betraying him",
+      },
+      {
+        name: 'Gary from Accounting',
+        gender: 'male',
+        voice: 'Schedar',
+        via: 'phone',
+        style: 'a dull, nasal office clerk, monotone, reading slowly from a document',
+        bio: 'a listener who calls in to file formal complaints',
+        bit: 'reads a formal complaint about the last song like an office memo, with reference numbers and "regards"',
+      },
+    ],
     ads: "cheesy 1980s TV commercials with fake phone numbers like 1-800-..., absurd products made for the listener's exact problems",
     lang: 'en',
   },
@@ -101,6 +142,34 @@ export const STATIONS: Station[] = [
       style: 'a casual, tired, sarcastic night-shift coworker, unimpressed, yawning',
       bio: 'a fellow night-shift worker (a woman) who keeps bringing Max back to boring reality',
     },
+    regulars: [
+      {
+        name: 'Officer Doyle',
+        gender: 'male',
+        voice: 'Alnilam',
+        via: 'live',
+        style: 'a tense night security guard whispering into a radio, like a soldier behind enemy lines',
+        bio: 'night security guard reporting live from his patrol',
+        bit: 'reports on his patrol of an empty parking lot like a war zone; a plastic bag is "hostile movement"',
+      },
+      {
+        name: 'The Vending Machine',
+        voice: 'Rasalgethi',
+        via: 'studio',
+        style: 'a cold, robotic, slightly menacing machine voice, calm and polite like a villain',
+        bio: 'the break-room vending machine, which has become self-aware and gets wheeled into the studio',
+        bit: 'holds the snacks hostage and makes absurd demands; never gives back the coins',
+      },
+      {
+        name: 'Dr. Snooze',
+        gender: 'male',
+        voice: 'Sadaltager',
+        via: 'studio',
+        style: 'a smug, sleepy pseudo-scientist, confident and slow, yawning in the middle of words',
+        bio: 'a "sleep scientist" with a degree of doubtful origin who drops by the studio',
+        bit: 'gives night-shift workers terrible sleep tips with fake studies ("a study of three people and a hamster")',
+      },
+    ],
     ads: 'fake ads for energy drinks, coffee, sleep and miracle products for night-shift workers, read like action trailers',
     lang: 'en',
   },
@@ -126,6 +195,35 @@ export const STATIONS: Station[] = [
       style: 'a sharp, energetic producer, firm and witty, fact-checking him',
       bio: "the station's producer who exposes Riff's fake stories",
     },
+    regulars: [
+      {
+        name: 'Metal Murat',
+        gender: 'male',
+        voice: 'Algenib',
+        via: 'studio',
+        style: 'a loud, bitter old metalhead, gravelly, offended by everything',
+        bio: "Riff's old bandmate from the 90s, who storms into the studio",
+        bit: 'claims the song that just played stole his riff from a 1994 demo tape that nobody has ever heard',
+      },
+      {
+        name: 'Hüsnü',
+        gender: 'male',
+        voice: 'Fenrir',
+        via: 'live',
+        style: 'an overexcited traffic reporter shouting over wind noise, dramatic and breathless',
+        bio: 'the station\'s traffic reporter, "live from the helicopter"',
+        bit: 'reports Gebze traffic from a "helicopter" that is very obviously a ladder; someone keeps asking him to get off it',
+      },
+      {
+        name: 'Downstairs Teyze',
+        gender: 'female',
+        voice: 'Gacrux',
+        via: 'phone',
+        style: 'an angry Turkish auntie on the phone, sharp, nagging, then slowly enjoying herself',
+        bio: 'the neighbour below the studio, calling about the noise',
+        bit: 'calls to complain about the noise, then turns out to be a huge metal fan who requests something even louder',
+      },
+    ],
     ads: 'fake ads for guitar shops, earplugs, hair products and bad bands, read with rock attitude',
     lang: 'auto',
   },
@@ -151,6 +249,35 @@ export const STATIONS: Station[] = [
       style: 'a dramatic, entitled house cat who can talk, demanding and theatrical, sometimes meowing',
       bio: "the listener's actual cat, demanding food and attention, judging the music and the owner",
     },
+    regulars: [
+      {
+        name: 'Paşa',
+        gender: 'male',
+        voice: 'Algenib',
+        via: 'studio',
+        style: 'a cat who talks like an old mafia boss, slow, raspy, threatening in a calm way',
+        bio: "the neighbour's cat and Şemistan's sworn enemy, who climbs in through the studio window",
+        bit: 'talks like a mafia boss about "his" territory (the balcony, the garbage bins); Şemistan and he can never agree',
+      },
+      {
+        name: 'Nilüfer Hoca',
+        gender: 'female',
+        voice: 'Vindemiatrix',
+        via: 'studio',
+        style: 'a gentle meditation teacher who gets more and more stressed, soft at first, then tense and snapping',
+        bio: 'a meditation teacher who leads a breathing exercise in the studio',
+        bit: 'starts a calm breathing exercise and slowly loses her temper at every small noise',
+      },
+      {
+        name: 'Kargo Ramazan',
+        gender: 'male',
+        voice: 'Zubenelgenubi',
+        via: 'phone',
+        style: 'a rushed, casual delivery courier on the phone, fast, slightly out of breath, unbothered',
+        bio: 'a courier who calls about a parcel',
+        bit: 'insists "adreste bulunamadınız" while clearly standing right in front of the door; never rings the bell',
+      },
+    ],
     ads: 'fake ads from the cat\'s point of view: premium tuna, sunny windowsills, boxes to sit in',
     lang: 'tr',
   },
@@ -179,6 +306,35 @@ export const STATIONS: Station[] = [
       style: 'a cheerful, chatty Istanbul tea seller, fast, friendly, totally unbothered, a bit of street humour',
       bio: 'brings Kemal tea, never understands why everyone is so sad, has a practical (and funny) answer for every tragedy',
     },
+    regulars: [
+      {
+        name: 'Jetonlu Ferhat',
+        gender: 'male',
+        voice: 'Algenib',
+        via: 'phone',
+        style: 'a heartbroken man calling from an old token pay phone, sobbing, dramatic, running out of coins',
+        bio: 'a listener who calls from a pay phone with his tragic love story',
+        bit: 'tells a devastating love story that turns out to be about a lost umbrella; the line always cuts off when his jetons run out',
+      },
+      {
+        name: 'Falcı Gülizar Teyze',
+        gender: 'female',
+        voice: 'Gacrux',
+        via: 'studio',
+        style: 'a dramatic old coffee-cup fortune teller, mysterious, slow, gasping at what she sees',
+        bio: 'a fortune teller who brings her own Turkish coffee cup to the studio',
+        bit: "reads the listener's coffee grounds live; she sees the company servis in every cup",
+      },
+      {
+        name: 'Dolmuşçu Sabri',
+        gender: 'male',
+        voice: 'Fenrir',
+        via: 'live',
+        style: 'a loud, cheerful minibus driver shouting over traffic noise, fast Istanbul street talk',
+        bio: 'a dolmuş driver calling in live from the driver\'s seat',
+        bit: 'dedicates songs between stops ("İnecek var mı?") and keeps shouting the route at passengers mid-sentence',
+      },
+    ],
     ads: 'fake ads for çay ocakları, kaset dükkanları, dolmuş lines, lahmacun places and tespih shops, read with arabesk drama',
     lang: 'tr',
   },
@@ -229,6 +385,17 @@ export const FRIEND_VOICES: { gender: Gender; label: string; voice: string }[] =
 
 /** The voices to offer a persona: its gender's (plus whatever it uses now, so a past choice never vanishes). */
 export const voicesFor = (p: Persona) => VOICES.filter((v) => !p.gender || v.gender === p.gender || v.name === p.voice);
+
+/**
+ * A visitor (regular or crossover guest) with a voice the hosts aren't using: you can change the hosts'
+ * voices, so a regular's own voice may clash with one of them. Then the next free voice of its gender takes over.
+ */
+export function freeVoice<T extends Persona>(p: T, station: Station): T {
+  const taken = [station.host.voice, station.sidekick?.voice];
+  if (!taken.includes(p.voice)) return p;
+  const free = voicesFor(p).find((v) => !taken.includes(v.name));
+  return free ? { ...p, voice: free.name } : p;
+}
 
 /** Your own choices per station: { neon: { host: 'Kore', sidekick: 'Charon', lang: 'en' } }. */
 export type VoiceChoices = Record<string, { host?: string; sidekick?: string; lang?: Lang }>;
