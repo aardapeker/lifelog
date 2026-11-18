@@ -353,7 +353,7 @@ export async function buildShow(
     prompt:
       `Now: ${formatDate(Date.now())}, ${shiftFor(shifts, Date.now())} shift week${city ? `, in ${city}` : ''}.\n` +
       `Show name idea: ${pick.title ?? station.name}\n` +
-      `The playlist:\n${tracks.map((t, k) => `${k + 1}. "${t.name}" by ${t.artist}${t.requested ? ' (the listener added this one HIMSELF: the hosts notice and make a little moment of it)' : ''}`).join('\n')}\n` +
+      `The playlist:\n${tracks.map((t, k) => `${k + 1}. "${t.name}" by ${t.artist}`).join('\n')}\n` +
       (welcome.length ? `Their favourites (greet these like old friends when they come): ${welcome.map(songLine).join('; ')}\n` : '') +
       (wish.trim() ? `The listener asked for: ${wish.trim()}\n` : '') +
       `\n${notesText}` +

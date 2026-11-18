@@ -474,7 +474,7 @@ function useRadioEngine() {
       return next;
     });
   const dropDraft = (i: number) => setDraft((d) => (d && d.length > 1 ? d.filter((_, k) => k !== i) : d));
-  /** ＋ Add a song: your own pick on the list (the hosts are told you chose it). */
+  /** ＋ Add a song: your own pick on the list. The hosts treat it like any other song (only live requests get a dedication). */
   const addDraft = (t: Track) => setDraft((d) => (d && !d.some((x) => x.id === t.id) ? [...d, { ...t, requested: true }] : d));
   const writeDraft = () => {
     if (!draft) return;
