@@ -74,6 +74,17 @@ export function parseFeed(xml: string): Entry[] {
   });
 }
 
+/** The picture of a feed entry: media:thumbnail / media:content, an image enclosure, or the first <img> in its HTML. */
+export function imageOf(e: Entry): string | null {
+  const media = deep(e.el, 'media:thumbnail') ?? deep(e.el, 'media:content');
+  const fromMedia = media ? getAttributeValue(media, 'url') : null;
+  if (fromMedia && !/\.(mp3|mp4|m4a|ogg)(\?|$)/i.test(fromMedia)) return fromMedia;
+  const enc = deep(e.el, 'enclosure');
+  if (enc && (getAttributeValue(enc, 'type') ?? '').startsWith('image/')) return getAttributeValue(enc, 'url') ?? null;
+  const img = e.description?.match(/<img[^>]+src=["']([^"']+)["']/i)?.[1] ?? childText(e.el, 'content:encoded')?.match(/<img[^>]+src=["']([^"']+)["']/i)?.[1];
+  return img && img.startsWith('http') ? img : null;
+}
+
 export async function fetchFeed(url: string): Promise<Entry[]> {
   return parseFeed(await get(url, 15_000, 'application/rss+xml, application/atom+xml, application/xml;q=0.9, */*;q=0.8'));
 }

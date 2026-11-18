@@ -27,6 +27,7 @@ const OPEN_LABEL: Partial<Record<FeedItem['type'], string>> = {
   RELEASE: 'Open on GitHub',
   DISCUSSION: 'Open the discussion',
   POST: 'Open on Mastodon',
+  PAPER: 'Open on arXiv',
 };
 
 export default function ItemScreen() {

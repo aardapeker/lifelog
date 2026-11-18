@@ -21,7 +21,8 @@ with the phone acting as its server. When the server exists, it moves back out.
 ## The on-phone backend (`local/`)
 Ports of the Java services:
 - `sources/`: one `ContentSource` per platform (Bing News RSS, Hacker News Algolia, YouTube channel
-  feeds, GitHub releases/tags Atom, Mastodon public tag timelines). No accounts, ever (Bluesky banned
+  feeds, GitHub releases/tags Atom, Mastodon public tag timelines, any RSS/Atom feed you add, dev.to
+  tags via its public API, arXiv category feeds for topics with arXiv on). No accounts, ever (Bluesky banned
   Radar for logging in as Arda; see the radar repo's CLAUDE.md). YouTube has no API key here, so
   topics list channels (`@handle` or `UC…` id) instead of keyword search.
 - `ingest.ts`: IngestionService (exclude words, dedupe by topic+url, Latin-script filter, story

@@ -86,7 +86,17 @@ export default function RadarSettingsScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.topicName}>{t.name}</Text>
                 <Text style={ui.muted} numberOfLines={2}>
-                  {[t.keywords.join(', '), ...(t.sources.youtubeChannels ?? []), ...t.sources.githubRepos, ...t.sources.mastodonTags.map((x) => `#${x}`)].filter(Boolean).join(' · ')}
+                  {[
+                    t.keywords.join(', '),
+                    ...(t.sources.youtubeChannels ?? []),
+                    ...t.sources.githubRepos,
+                    ...t.sources.mastodonTags.map((x) => `#${x}`),
+                    t.sources.feeds?.length ? `${t.sources.feeds.length} RSS` : '',
+                    ...(t.sources.devtoTags ?? []).map((x) => `dev.to/${x}`),
+                    t.sources.arxiv ? 'arXiv' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
                 </Text>
               </View>
               <Text style={ui.muted}>Edit</Text>
@@ -180,6 +190,9 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
   const [youtube, setYoutube] = useState(topic?.sources.youtubeChannels?.join(', ') ?? '');
   const [repos, setRepos] = useState(topic?.sources.githubRepos.join(', ') ?? '');
   const [tags, setTags] = useState(topic?.sources.mastodonTags.join(', ') ?? '');
+  const [feeds, setFeeds] = useState(topic?.sources.feeds?.join('\n') ?? '');
+  const [devtoTags, setDevtoTags] = useState(topic?.sources.devtoTags?.join(', ') ?? '');
+  const [arxiv, setArxiv] = useState(topic?.sources.arxiv ?? false);
   const [busy, setBusy] = useState(false);
   const ok = name.trim() && splitList(keywords).length > 0;
   const save = async () => {
@@ -195,7 +208,9 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
           githubRepos: splitList(repos),
           mastodonTags: splitList(tags).map((t) => t.replace(/^#/, '')),
           youtubeChannels: splitList(youtube),
-          arxiv: topic?.sources.arxiv ?? false,
+          feeds: feeds.split(/[\s,]+/).map((f) => f.trim()).filter((f) => /^https?:\/\//i.test(f)),
+          devtoTags: splitList(devtoTags).map((t) => t.replace(/^#/, '').toLowerCase()),
+          arxiv,
           stockSymbol: topic?.sources.stockSymbol ?? null,
         },
       });
@@ -216,6 +231,18 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
       <Field label="YouTube channels" value={youtube} onChange={setYoutube} placeholder="@TheLinuxEXP, @DistroTube" />
       <Field label="GitHub repos (new releases)" value={repos} onChange={setRepos} placeholder="torvalds/linux" />
       <Field label="Mastodon hashtags" value={tags} onChange={setTags} placeholder="linux, fedora" />
+      <Field
+        label="RSS feeds (one per line: everything they post comes in)"
+        value={feeds}
+        onChange={setFeeds}
+        placeholder={'https://www.phoronix.com/rss.php\nhttps://fedoramagazine.org/feed/'}
+        multiline
+      />
+      <Field label="DEV (dev.to) tags" value={devtoTags} onChange={setDevtoTags} placeholder="typescript, react, java" />
+      <View style={styles.switchRow}>
+        <Text style={[ui.body, { flex: 1 }]}>arXiv papers (AI, languages, software, OS, security) that mention the keywords</Text>
+        <Switch value={arxiv} onValueChange={setArxiv} trackColor={{ true: colors.up }} />
+      </View>
       <View style={styles.chips}>
         <Pill label={busy ? 'Saving…' : 'Save'} variant="solid" onPress={save} disabled={!ok || busy} />
         <Pill label="Cancel" onPress={onCancel} />
@@ -225,7 +252,7 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
   );
 }
 
-function Field({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder: string }) {
+function Field({ label, value, onChange, placeholder, multiline }: { label: string; value: string; onChange: (v: string) => void; placeholder: string; multiline?: boolean }) {
   return (
     <View style={{ gap: 6 }}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -235,7 +262,8 @@ function Field({ label, value, onChange, placeholder }: { label: string; value: 
         placeholder={placeholder}
         placeholderTextColor={colors.muted}
         autoCapitalize="none"
-        style={styles.input}
+        multiline={multiline}
+        style={[styles.input, multiline && { minHeight: 90, textAlignVertical: 'top' }]}
         {...inputColors}
       />
     </View>

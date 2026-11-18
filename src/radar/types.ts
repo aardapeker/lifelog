@@ -83,6 +83,8 @@ export interface TopicSources {
   arxiv: boolean;
   stockSymbol: string | null;
   youtubeChannels?: string[]; // "@handle" or a channel id "UC…"
+  feeds?: string[]; // RSS / Atom feed URLs: everything they post (minus the skip words)
+  devtoTags?: string[]; // dev.to tags: typescript, react, java…
 }
 
 export interface Topic {
