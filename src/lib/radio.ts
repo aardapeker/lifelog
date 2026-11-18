@@ -23,13 +23,15 @@ export type Show = { title: string; lang: string; station: Station; slots: Slot[
 
 const CROSSOVER_CHANCE = 1 / 8;
 /** Sometimes a host from another station barges in: Kederli Kemal lost on Neon FM, Max Volt on Şemistan Chill… */
+/** The only ones funny enough to crash another station's show (Arda's call): Rico, Riff and Kederli Kemal. */
+const GUEST_STARS = ['Rico', 'Kaan "Riff" Demir', 'Kederli Kemal'];
+
 function pickGuest(station: Station): (Persona & { from: string }) | undefined {
   if (Math.random() >= CROSSOVER_CHANCE) return undefined;
-  const others = STATIONS.filter((s) => s.key !== station.key && s.key !== 'friend');
-  const from = others[Math.floor(Math.random() * others.length)];
-  const pool = [from.host, from.sidekick].filter((p): p is Persona => !!p);
-  const who = pool[Math.floor(Math.random() * pool.length)];
-  return { ...who, from: `${from.name} ${from.freq}` };
+  const pool = STATIONS.filter((s) => s.key !== station.key).flatMap((s) =>
+    [s.host, s.sidekick].filter((p): p is Persona => !!p && GUEST_STARS.includes(p.name)).map((p) => ({ ...p, from: `${s.name} ${s.freq}` })),
+  );
+  return pool.length ? pool[Math.floor(Math.random() * pool.length)] : undefined;
 }
 
 /**
