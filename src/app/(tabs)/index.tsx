@@ -7,7 +7,6 @@ import { Animated, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, Vi
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chip, IconButton, PillButton, SectionTitle } from '../../components/ui';
 import { getSetting } from '../../lib/db';
-import { backupDue, backupNow, getPassphrase } from '../../lib/backup';
 import { runBackgroundJobs } from '../../lib/background';
 import { photoMap, photoUri } from '../../lib/photos';
 import { dayParam, getPlannerSettings, midnight, upcomingDayOff } from '../../lib/planner';
@@ -112,7 +111,6 @@ export default function JournalScreen() {
   const [photos, setPhotos] = useState<Map<number, string[]>>(new Map());
   const [recap, setRecap] = useState<Recap | null>(null);
   const [memories, setMemories] = useState<{ label: string; note: Note }[]>([]);
-  const [needsBackup, setNeedsBackup] = useState(false);
   const [dayOff, setDayOff] = useState<number | null>(null);
   const [newRead, setNewRead] = useState<Read | null>(null);
   const isSearch = query.trim().length > 0;
@@ -145,7 +143,6 @@ export default function JournalScreen() {
       getSetting(db, 'name').then(setName);
       photoMap(db).then(setPhotos);
       onThisDay(db).then(setMemories);
-      backupDue(db).then(setNeedsBackup);
       upcomingDayOff(db).then(setDayOff);
       unopenedRead(db).then(setNewRead);
       // captions, embeddings, facts, the weekly letter, check-ins (right after a launch: a few seconds
@@ -188,33 +185,8 @@ export default function JournalScreen() {
     return groupByDay(notes.filter((n) => n.created_at >= since));
   }, [notes, range]);
 
-  const backup = async () => {
-    if (!(await getPassphrase())) {
-      showAlert('Set a passphrase first', 'Backups are encrypted with a passphrase only you know.', [
-        { text: 'Later', style: 'cancel' },
-        { text: 'Open Settings', onPress: () => router.push('/settings/privacy') },
-      ]);
-      return;
-    }
-    try {
-      await backupNow(db);
-      setNeedsBackup(false);
-    } catch (e) {
-      showAlert("Couldn't back up", e instanceof Error ? e.message : String(e));
-    }
-  };
-
   const extras = !isSearch && range === 'all' && (
     <View style={{ gap: 10, marginTop: 22 }}>
-      {needsBackup && (
-        <View style={styles.banner}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.bannerTitle}>Back up today's pages</Text>
-            <Text style={styles.bannerText}>Everything lives on this phone. Save a copy to Drive.</Text>
-          </View>
-          <PillButton label="Back up" onPress={backup} />
-        </View>
-      )}
       {newRead && (
         <PressScale scaleTo={0.97} style={styles.memory} onPress={() => router.push(`/read/${newRead.id}`)}>
           <Text style={styles.memoryLabel}>A new read for you</Text>
@@ -458,16 +430,6 @@ const styles = StyleSheet.create({
   thumbs: { flexDirection: 'row', gap: 6, marginTop: 12 },
   thumb: { width: 64, height: 64, borderRadius: 10, backgroundColor: colors.raised },
 
-  banner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    ...frost,
-    borderRadius: radius.md,
-    padding: 16,
-  },
-  bannerTitle: { fontFamily: fonts.serif, fontSize: 17, color: colors.text },
-  bannerText: { fontFamily: fonts.sansRegular, fontSize: 13, lineHeight: 18, color: colors.muted, marginTop: 3 },
   // the big cards (Plan my day, the weekly letter): frosted too, a bit brighter so they still lead
   letter: { ...frost, backgroundColor: 'rgba(255, 255, 255, 0.12)', borderColor: 'rgba(255, 255, 255, 0.18)', borderRadius: radius.md, padding: 20 },
   letterLabel: { fontFamily: fonts.sansRegular, fontSize: 12, color: colors.muted },
