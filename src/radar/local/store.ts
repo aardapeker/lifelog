@@ -93,11 +93,47 @@ const STARTERS: TopicInput[] = [
   },
 ];
 
+/** One starter per newer source (Nov 2026), so each shows how it works; delete any you don't want. */
+const STARTERS_2: TopicInput[] = [
+  {
+    name: 'Radiohead',
+    color: '#C79BFF',
+    keywords: ['Radiohead', 'Thom Yorke'],
+    excludeWords: [],
+    sources: { ...EMPTY_SOURCES, artists: ['Radiohead'] },
+  },
+  {
+    name: 'Movies',
+    color: '#FF6B8B',
+    keywords: [],
+    excludeWords: [],
+    sources: { ...EMPTY_SOURCES, tmdbLists: ['upcoming', 'now_playing'] },
+  },
+  {
+    name: 'Deprem',
+    color: '#7FE0D0',
+    keywords: ['deprem', 'AFAD'],
+    excludeWords: [],
+    sources: { ...EMPTY_SOURCES, quakeMinMag: 4, quakeArea: 'near' },
+  },
+  {
+    name: 'Formula 1',
+    color: '#FFB347',
+    keywords: ['Formula 1', 'F1 Grand Prix'],
+    excludeWords: [],
+    sources: { ...EMPTY_SOURCES, f1: true },
+  },
+];
+
 export async function ensureStarterTopics(db: SQLiteDatabase): Promise<void> {
-  if ((await getSetting(db, 'radar.seeded', '')) === '1') return;
-  await setSetting(db, 'radar.seeded', '1');
-  if (await db.getFirstAsync('SELECT 1 FROM radar_topics')) return;
-  for (const t of STARTERS) await saveTopic(db, null, t);
+  const seeded = await getSetting(db, 'radar.seeded', '');
+  if (seeded === '2') return;
+  await setSetting(db, 'radar.seeded', '2');
+  const fresh = !(await db.getFirstAsync('SELECT 1 FROM radar_topics'));
+  // a new phone gets every starter; an older install only the new ones, and none it already has by name
+  const add = [...(fresh && seeded !== '1' ? STARTERS : []), ...STARTERS_2];
+  const names = new Set((await db.getAllAsync<{ name: string }>('SELECT name FROM radar_topics')).map((r) => r.name.toLowerCase()));
+  for (const t of add) if (!names.has(t.name.toLowerCase())) await saveTopic(db, null, t);
 }
 
 // ── settings ──
