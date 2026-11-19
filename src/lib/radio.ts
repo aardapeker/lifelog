@@ -190,8 +190,11 @@ export async function buildShow(
   wish: string,
   length = 8,
   onStep: (step: BuildStep, detail?: string) => void = () => {},
-  /** Optional: shows the checked playlist to you (reorder, remove) before the talks are written. */
-  review?: (tracks: Track[]) => Promise<Track[]>,
+  /**
+   * Optional: shows the checked playlist to you (reorder, remove) before the talks are written.
+   * `bench`: spares already found on Spotify, to fill in for songs you remove.
+   */
+  review?: (tracks: Track[], bench: Track[]) => Promise<Track[]>,
 ): Promise<Show> {
   const SHOW_LENGTH = length;
   // spare songs: when Spotify can't find a song (or finds another artist's), a spare takes its place,
@@ -352,7 +355,10 @@ export async function buildShow(
         ),
       );
       for (const x of [...(more.songs ?? []), ...(more.spares ?? [])]) {
-        if (tracks.length >= SHOW_LENGTH) break;
+        if (tracks.length >= SHOW_LENGTH) {
+          spares.push(x); // not needed now: it may fill in for a song you remove
+          continue;
+        }
         const track = await usable(x);
         if (track) tracks.push(track);
         onStep('songs', found());
@@ -362,8 +368,16 @@ export async function buildShow(
     }
   }
   if (!tracks.length) throw new Error("Couldn't find those songs on Spotify. Try again?");
-  // your turn: the talks are written for the order you leave it in
-  if (review) tracks = (await review(tracks)).filter(Boolean);
+  // your turn: the talks are written for the order you leave it in. The unused spares are checked
+  // too (a few more Spotify lookups), so a song you remove is replaced instead of just leaving a gap
+  if (review) {
+    const bench: Track[] = [];
+    while (bench.length < 4 && spares.length) {
+      const track = await check(spares.shift()!);
+      if (track && !bench.some((b) => b.id === track.id)) bench.push({ ...track, spare: true });
+    }
+    tracks = (await review(tracks, bench)).filter(Boolean);
+  }
   if (!tracks.length) throw new Error('The playlist is empty.');
 
   // ── 3. the script, for the playlist that will really play ──

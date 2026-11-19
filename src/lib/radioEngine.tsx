@@ -484,9 +484,11 @@ function useRadioEngine() {
     setSetting(db, 'radio.review', on ? '1' : '0').catch(() => {});
   };
   const decide = useRef<{ ok: (t: Track[]) => void; no: (e: Error) => void } | null>(null);
-  const review = (tracks: Track[]) =>
+  const bench = useRef<Track[]>([]); // found spares, waiting to fill in for a song you remove
+  const review = (tracks: Track[], spares: Track[]) =>
     new Promise<Track[]>((ok, no) => {
       decide.current = { ok, no };
+      bench.current = spares;
       setDraft(tracks);
       setPhase('review');
     });
@@ -497,7 +499,15 @@ function useRadioEngine() {
       [next[i], next[i + by]] = [next[i + by], next[i]];
       return next;
     });
-  const dropDraft = (i: number) => setDraft((d) => (d && d.length > 1 ? d.filter((_, k) => k !== i) : d));
+  /** Removes song i; the next spare takes its place (until the spares run out, then the list just gets shorter). */
+  const dropDraft = (i: number) => {
+    const d = draft;
+    if (!d || d.length <= 1) return;
+    // taken from the bench here, not inside a state updater (React may run one twice)
+    const spare = bench.current.find((b) => !d.some((x) => x.id === b.id));
+    if (spare) bench.current = bench.current.filter((b) => b !== spare);
+    setDraft(spare ? d.map((x, k) => (k === i ? spare : x)) : d.filter((_, k) => k !== i));
+  };
   /** ＋ Add a song: your own pick on the list. The hosts treat it like any other song (only live requests get a dedication). */
   const addDraft = (t: Track) => setDraft((d) => (d && !d.some((x) => x.id === t.id) ? [...d, { ...t, requested: true }] : d));
   const writeDraft = () => {

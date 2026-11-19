@@ -84,6 +84,7 @@ export default function OnAirScreen() {
                     {t.name}
                   </Text>
                   <Text style={styles.rowArtist} numberOfLines={1}>
+                    {t.spare ? 'Spare · ' : ''}
                     {t.artist}
                   </Text>
                 </View>

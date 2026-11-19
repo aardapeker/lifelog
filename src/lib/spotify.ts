@@ -35,7 +35,17 @@ const CLIENT_KEY = 'spotify.clientId';
 const TOKENS_KEY = 'spotify.tokens';
 
 /** requested: you added it yourself (on the review list, or as a live request): the hosts make a moment of it. */
-export type Track = { id: string; uri: string; name: string; artist: string; image: string | null; durationMs: number; requested?: boolean };
+/** requested: you added it yourself. spare: it filled in for a song you removed from the list. */
+export type Track = {
+  id: string;
+  uri: string;
+  name: string;
+  artist: string;
+  image: string | null;
+  durationMs: number;
+  requested?: boolean;
+  spare?: boolean;
+};
 type Tokens = { access: string; refresh: string | null; expiresAt: number };
 
 export class SpotifyError extends Error {
