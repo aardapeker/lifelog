@@ -9,7 +9,7 @@ import { CardMeta } from './CardMeta'
 import { PostBody } from './PostBody'
 
 /** Types whose `author` line is worth showing (channel, paper authors, HN user...). */
-const SHOWS_AUTHOR = new Set(['VIDEO', 'SHORT', 'PAPER', 'PODCAST', 'DISCUSSION', 'MOVIE'])
+const SHOWS_AUTHOR = new Set(['VIDEO', 'SHORT', 'PAPER', 'PODCAST', 'DISCUSSION', 'MOVIE', 'MUSIC'])
 
 /** One card for every type; the type decides the media and the extras. Opened items are dimmed. */
 export function FeedCard({ item, onPress }: { item: FeedItem; onPress: () => void }) {
@@ -40,6 +40,7 @@ export function FeedCard({ item, onPress }: { item: FeedItem; onPress: () => voi
             </View>
             {sideImage && <Image source={{ uri: item.thumbnailUrl ?? undefined }} style={styles.side} resizeMode="cover" />}
             {item.type === 'MOVIE' && item.thumbnailUrl && <Image source={{ uri: item.thumbnailUrl }} style={styles.poster} resizeMode="cover" />}
+            {item.type === 'MUSIC' && item.thumbnailUrl && <Image source={{ uri: item.thumbnailUrl }} style={styles.cover} resizeMode="cover" />}
           </View>
         </>
       )}
@@ -82,6 +83,7 @@ const styles = StyleSheet.create({
   extras: { color: colors.muted, fontFamily: mono, fontSize: 12 },
   side: { width: 96, height: 72, borderRadius: 10 },
   poster: { width: 80, height: 120, borderRadius: 8 }, // TMDB posters are 2:3
+  cover: { width: 88, height: 88, borderRadius: 8, backgroundColor: colors.line }, // album art (a plain square if there is none)
   video: { aspectRatio: 16 / 9, backgroundColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   play: {
     width: 56,

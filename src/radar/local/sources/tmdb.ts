@@ -1,5 +1,5 @@
 import { get } from '../feeds';
-import { truncate } from '../text';
+import { shortDate, truncate } from '../text';
 import { item, type ContentSource, type FetchedItem } from './types';
 
 /*
@@ -36,16 +36,10 @@ type Title = {
   media_type?: string;
 };
 
-/** "4 Dec 2026", or null for a missing/odd date */
-const day = (iso?: string) => {
-  const t = iso ? Date.parse(iso) : NaN;
-  return Number.isNaN(t) ? null : new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-};
-
 export function toItem(t: Title, tv: boolean): FetchedItem | null {
   const title = (tv ? t.name : t.title) ?? t.title ?? t.name;
   if (!title) return null;
-  const date = day(tv ? t.first_air_date : t.release_date);
+  const date = shortDate(tv ? t.first_air_date : t.release_date);
   const future = date && Date.parse((tv ? t.first_air_date : t.release_date)!) > Date.now();
   return item({
     type: 'MOVIE',

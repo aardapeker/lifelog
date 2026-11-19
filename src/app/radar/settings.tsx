@@ -22,6 +22,7 @@ import { testTmdbKey, TMDB_LISTS } from '../../radar/local/sources/tmdb';
 const COLORS = ['#F5C211', '#9AD8AE', '#51A2DA', '#D97757', '#C79BFF', '#FF6B8B', '#7FE0D0', '#FFB347'];
 const TIMES = ['05:30', '06:00', '07:00', '08:00', '12:00', '18:00'];
 const MIN_POINTS = [0, 5, 20, 50, 100];
+const QUAKE_MAGS = [0, 3, 3.5, 4, 4.5, 5]; // 0 = off
 
 export default function RadarSettingsScreen() {
   const r = useRadar();
@@ -102,6 +103,9 @@ export default function RadarSettingsScreen() {
                     t.sources.arxiv ? 'arXiv' : '',
                     ...TMDB_LISTS.filter((l) => t.sources.tmdbLists?.includes(l.id)).map((l) => l.label),
                     ...(t.sources.tmdbPeople ?? []),
+                    ...(t.sources.artists ?? []).map((a) => `♪ ${a}`),
+                    t.sources.quakeMinMag ? `quakes M${t.sources.quakeMinMag}+` : '',
+                    t.sources.f1 ? 'F1' : '',
                   ]
                     .filter(Boolean)
                     .join(' · ')}
@@ -249,6 +253,10 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
   const [arxiv, setArxiv] = useState(topic?.sources.arxiv ?? false);
   const [tmdbLists, setTmdbLists] = useState<string[]>(topic?.sources.tmdbLists ?? []);
   const [tmdbPeople, setTmdbPeople] = useState(topic?.sources.tmdbPeople?.join(', ') ?? '');
+  const [artists, setArtists] = useState(topic?.sources.artists?.join(', ') ?? '');
+  const [quakeMin, setQuakeMin] = useState(topic?.sources.quakeMinMag ?? 0);
+  const [quakeArea, setQuakeArea] = useState<'near' | 'turkey'>(topic?.sources.quakeArea ?? 'near');
+  const [f1, setF1] = useState(topic?.sources.f1 ?? false);
   const [busy, setBusy] = useState(false);
   const ok = name.trim() && splitList(keywords).length > 0;
   const save = async () => {
@@ -269,6 +277,10 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
           arxiv,
           tmdbLists,
           tmdbPeople: splitList(tmdbPeople),
+          artists: splitList(artists),
+          quakeMinMag: quakeMin || null,
+          quakeArea,
+          f1,
           stockSymbol: topic?.sources.stockSymbol ?? null,
         },
       });
@@ -309,6 +321,23 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
         })}
       </View>
       <Field label="Directors & actors (their new films)" value={tmdbPeople} onChange={setTmdbPeople} placeholder="Christopher Nolan, Nuri Bilge Ceylan" />
+      <Field label="Artists (new albums, EPs and singles, from MusicBrainz)" value={artists} onChange={setArtists} placeholder="Pinhani, Duman, Radiohead" />
+      <Text style={styles.fieldLabel}>Earthquakes (AFAD) from magnitude</Text>
+      <View style={styles.chips}>
+        {QUAKE_MAGS.map((m) => (
+          <Pill key={m} label={m ? `${m}+` : 'Off'} variant={quakeMin === m ? 'on' : 'plain'} onPress={() => setQuakeMin(m)} />
+        ))}
+      </View>
+      {quakeMin > 0 && (
+        <View style={styles.chips}>
+          <Pill label="Near Istanbul (300 km)" variant={quakeArea === 'near' ? 'on' : 'plain'} onPress={() => setQuakeArea('near')} />
+          <Pill label="All of Turkey" variant={quakeArea === 'turkey' ? 'on' : 'plain'} onPress={() => setQuakeArea('turkey')} />
+        </View>
+      )}
+      <View style={styles.switchRow}>
+        <Text style={[ui.body, { flex: 1 }]}>Formula 1: the podium after each race, and the next race's start in Istanbul time</Text>
+        <Switch value={f1} onValueChange={setF1} trackColor={{ true: colors.up }} />
+      </View>
       <View style={styles.chips}>
         <Pill label={busy ? 'Saving…' : 'Save'} variant="solid" onPress={save} disabled={!ok || busy} />
         <Pill label="Cancel" onPress={onCancel} />

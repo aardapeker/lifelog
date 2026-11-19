@@ -29,6 +29,8 @@ const OPEN_LABEL: Partial<Record<FeedItem['type'], string>> = {
   POST: 'Open on Mastodon',
   PAPER: 'Open on arXiv',
   MOVIE: 'Open on TMDB',
+  MUSIC: 'Find on Spotify',
+  SPORT: 'Open on Wikipedia',
 };
 
 export default function ItemScreen() {
@@ -59,8 +61,15 @@ function Detail({ item, onChange }: { item: FeedItem; onChange: (i: FeedItem) =>
   const isVideo = item.type === 'VIDEO' || item.type === 'SHORT';
   // videos open in the YouTube app; pages in an in-app browser tab, inside Lifelog's own task
   // (createTask: false), or it stayed behind as a second "Lifelog" card in recent apps even after ✕
-  const open = (url = item.url) => (isVideo && url === item.url ? Linking.openURL(url) : WebBrowser.openBrowserAsync(url, { toolbarColor: colors.ink, createTask: false }));
-  const second = item.mediaUrl && item.type === 'DISCUSSION' ? { url: item.mediaUrl, label: 'Linked article' } : null;
+  // videos open in the YouTube app and music in Spotify (their links are app links); the rest in a browser tab
+  const inApp = isVideo || item.type === 'MUSIC';
+  const open = (url = item.url) => (inApp && url === item.url ? Linking.openURL(url) : WebBrowser.openBrowserAsync(url, { toolbarColor: colors.ink, createTask: false }));
+  const second =
+    item.mediaUrl && item.type === 'DISCUSSION'
+      ? { url: item.mediaUrl, label: 'Linked article' }
+      : item.mediaUrl && item.type === 'MUSIC'
+        ? { url: item.mediaUrl, label: 'MusicBrainz' }
+        : null;
   const save = () => {
     r.setSaved(item.id, !item.saved).catch(() => {});
     onChange({ ...item, saved: !item.saved });
@@ -87,6 +96,7 @@ function Detail({ item, onChange }: { item: FeedItem; onChange: (i: FeedItem) =>
           <Image source={{ uri: item.thumbnailUrl }} style={styles.hero} resizeMode="cover" />
         )}
         {item.type === 'MOVIE' && item.thumbnailUrl && <Image source={{ uri: item.thumbnailUrl }} style={styles.poster} resizeMode="cover" />}
+        {item.type === 'MUSIC' && item.thumbnailUrl && <Image source={{ uri: item.thumbnailUrl }} style={styles.cover} resizeMode="cover" />}
         {item.type === 'POST' ? (
           <PostBody item={item} large />
         ) : (
@@ -99,7 +109,7 @@ function Detail({ item, onChange }: { item: FeedItem; onChange: (i: FeedItem) =>
           </>
         )}
         <View style={styles.actions}>
-          <Pill label={OPEN_LABEL[item.type] ?? 'Open original'} icon="open-outline" variant="solid" onPress={() => open()} />
+          <Pill label={item.type === 'QUAKE' ? `Open on ${item.sourceName ?? 'AFAD'}` : (OPEN_LABEL[item.type] ?? 'Open original')} icon="open-outline" variant="solid" onPress={() => open()} />
           <Pill label={item.saved ? 'Saved' : 'Save'} icon={item.saved ? 'bookmark' : 'bookmark-outline'} variant={item.saved ? 'on' : 'plain'} onPress={save} />
           {second && <Pill label={second.label} icon="document-text-outline" onPress={() => open(second.url)} />}
         </View>
@@ -115,6 +125,7 @@ const styles = StyleSheet.create({
   media: { borderRadius: 16, overflow: 'hidden' },
   hero: { width: '100%', aspectRatio: 16 / 9, borderRadius: 16 },
   poster: { width: '55%', aspectRatio: 2 / 3, borderRadius: 14, alignSelf: 'center' },
+  cover: { width: '70%', aspectRatio: 1, borderRadius: 14, alignSelf: 'center' },
   title: { color: colors.paper, fontSize: 26, fontFamily: fonts.sansBold, lineHeight: 32 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
 });
