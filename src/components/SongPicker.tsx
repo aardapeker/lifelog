@@ -4,6 +4,7 @@ import { ActivityIndicator, FlatList, Image, Modal, Pressable, StyleSheet, Text,
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { searchTracks, spotifyLikedSongs, type Track } from '../lib/spotify';
 import { colors, fonts, frost, inputColors, radius } from '../lib/theme';
+import { useKeyboardHeight } from '../lib/useKeyboardVisible';
 import Ionicons from './Icon';
 import { haptic } from './motion';
 
@@ -17,6 +18,7 @@ type Tab = 'search' | 'liked';
 export function SongPicker({ visible, title, onPick, onClose }: { visible: boolean; title: string; onPick: (t: Track) => void; onClose: () => void }) {
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();
+  const keyboard = useKeyboardHeight(); // the sheet sits on top of the keyboard, not under it
   const [tab, setTab] = useState<Tab>('search');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Track[]>([]);
@@ -62,7 +64,7 @@ export function SongPicker({ visible, title, onPick, onClose }: { visible: boole
   return (
     <Modal visible={visible} transparent animationType="slide" statusBarTranslucent navigationBarTranslucent onRequestClose={close}>
       <Pressable style={styles.backdrop} onPress={close} accessibilityLabel="Close">
-        <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + 12 }]} onPress={() => {}}>
+        <Pressable style={[styles.sheet, keyboard ? { marginBottom: keyboard, paddingBottom: 12, maxHeight: '70%' } : { paddingBottom: insets.bottom + 12 }]} onPress={() => {}}>
           <View style={styles.handle} />
           <Text style={styles.title}>{title}</Text>
           <View style={styles.tabs}>
