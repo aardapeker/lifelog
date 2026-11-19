@@ -1,4 +1,4 @@
-import { MarkdownInput } from './MarkdownInput';
+import { MarkdownInput, MarkdownToolbar, useMarkdown } from './MarkdownInput';
 import Ionicons from './Icon';
 import { useAudioRecorder } from 'expo-audio';
 import { useFocusEffect } from 'expo-router';
@@ -139,12 +139,15 @@ export function NoteEditor({
   const clearDraft = () => db.runAsync('DELETE FROM kv WHERE key = ?', draftKey).catch(() => {});
 
   // a blank new entry: the keyboard comes up when you arrive on the tab (not when the tab resets in the background)
-  const input = useRef<{ focus: () => void }>(null);
+  const editor = useMarkdown(body, (t) => {
+    setBody(t);
+    setBeforeFix(null); // typing after a fix makes Undo meaningless
+  });
   useFocusEffect(
     useCallback(() => {
       if (noteId !== null || voice) return;
       const t = setTimeout(() => {
-        if (!latest.current.body.trim()) input.current?.focus();
+        if (!latest.current.body.trim()) editor.focus();
       }, 350);
       return () => clearTimeout(t);
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -386,18 +389,15 @@ export function NoteEditor({
         )}
 
         <MarkdownInput
+          editor={editor}
           style={styles.input}
-          ref={input}
-          placeholder="What happened today? Type / for headings, lists and to-dos. Or tap the mic and just talk."
-          value={body}
-          onChangeText={(t) => {
-            setBody(t);
-            setBeforeFix(null); // typing after a fix makes Undo meaningless
-          }}
+          placeholder="What happened today? Type / or use the bar above the keyboard for headings, lists and to-dos. Or tap the mic and just talk."
         />
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: keyboard ? 14 : insets.bottom + TAB_BAR_SPACE - 10 }]}>
+        {/* turn-into buttons and the "/" menu live here, right above the keyboard, so it can't cover them */}
+        <MarkdownToolbar editor={editor} />
         {mic === 'recording' ? (
           <Pressable style={styles.recording} onPress={stopRecording} accessibilityLabel="Stop recording">
             <Pulse style={styles.recDot} />

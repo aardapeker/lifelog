@@ -176,3 +176,51 @@ export function plainText(body: string): string {
     })
     .join('\n');
 }
+
+/** The line the cursor is on: where it starts and ends. */
+function lineAround(text: string, cursor: number): { start: number; end: number } {
+  const start = text.lastIndexOf('\n', cursor - 1) + 1;
+  const nl = text.indexOf('\n', cursor);
+  return { start, end: nl === -1 ? text.length : nl };
+}
+
+/** What kind of line the cursor is on (the toolbar lights that button up). */
+export function kindAt(text: string, cursor: number): LineKind {
+  const { start, end } = lineAround(text, cursor);
+  return parseLine(text.slice(start, end)).kind;
+}
+
+/**
+ * "Turn into", like Notion: the cursor's line becomes a heading, a to-do, a list item… keeping its
+ * text and indent. The same kind again turns it back into plain text.
+ */
+export function turnInto(text: string, cursor: number, marker: string): { text: string; cursor: number } {
+  const { start, end } = lineAround(text, cursor);
+  const line = text.slice(start, end);
+  const { kind, marker: old, rest } = parseLine(line);
+  const indent = old.match(/^\s*/)?.[0] ?? '';
+  const wanted = parseLine(marker + 'x').kind;
+  const same = wanted === kind || (wanted === 'todo' && kind === 'done');
+  const body = kind === 'divider' ? '' : rest;
+  const next = marker === '' || same ? (kind === 'text' ? line : body) : `${['bullet', 'number', 'todo', 'done', 'quote'].includes(wanted) ? indent : ''}${marker}${body}`;
+  const out = text.slice(0, start) + next + text.slice(end);
+  return { text: out, cursor: Math.max(start, Math.min(start + next.length, cursor + (next.length - line.length))) };
+}
+
+/** A divider under the cursor's line, with the cursor on a fresh line after it. */
+export function insertDivider(text: string, cursor: number): { text: string; cursor: number } {
+  const { end } = lineAround(text, cursor);
+  const add = '\n---\n';
+  return { text: text.slice(0, end) + add + text.slice(end), cursor: end + add.length };
+}
+
+/** Moves a list item in (+1) or out (-1) by two spaces. Other lines don't indent. */
+export function indent(text: string, cursor: number, dir: 1 | -1): { text: string; cursor: number } | null {
+  const { start, end } = lineAround(text, cursor);
+  const line = text.slice(start, end);
+  if (!['bullet', 'number', 'todo', 'done'].includes(parseLine(line).kind)) return null;
+  if (dir === 1) return { text: text.slice(0, start) + '  ' + text.slice(start), cursor: cursor + 2 };
+  const cut = line.match(/^ {1,2}/)?.[0].length ?? 0;
+  if (!cut) return null;
+  return { text: text.slice(0, start) + line.slice(cut) + text.slice(end), cursor: Math.max(start, cursor - cut) };
+}
