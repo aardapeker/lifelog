@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '../../components/Icon';
 import { router, Tabs, type Href } from 'expo-router';
 import { useEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react';
@@ -31,6 +32,11 @@ const GAP = 7; // icon ↔ name inside the pill
 const SIDE = 16; // space at the ends of the pill
 const MID = 100; // the pill's middle piece is drawn this wide and scaled (a scaled rectangle stays a rectangle)
 const SPRING = { useNativeDriver: true, speed: 16, bounciness: 8 } as const;
+// the open tab is a glass lens, a little taller and wider than the slot, with its icon magnified
+const LENS = ITEM + 12;
+const LENS_TOP = (ITEM + PAD * 2 - LENS) / 2;
+const LENS_GROW = 8; // wider than its slot by this much
+const MAGNIFY = 1.18;
 
 /** Where every slot sits when `active` is the open tab: the open one is a pill (icon + name), the rest share the rest. */
 function slotLayout(width: number, active: number, labelW: number[]) {
@@ -65,6 +71,17 @@ function BarGlass({ children }: { children: ReactNode }) {
       {children}
     </Glass>
   );
+}
+
+const LENS_FILL = 'rgba(255,255,255,0.16)';
+const LENS_RIM = 'rgba(255,255,255,0.55)';
+
+/** How wide the lens is around a slot of this width. */
+const lensW = (slot: number) => Math.max(LENS, slot + LENS_GROW);
+
+/** The light caught on the top of the glass: bright at the rim, gone by the middle. */
+function Sheen() {
+  return <LinearGradient colors={['rgba(255,255,255,0.32)', 'rgba(255,255,255,0)']} style={styles.sheen} pointerEvents="none" />;
 }
 
 /** Tabs built quietly in the background after the start, one by one, so the first tap on each is instant. */
@@ -114,10 +131,12 @@ function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
         i === active ? pill.center - contentW / 2 : layout[i].center - ICON / 2,
       ]),
       ...SLOTS.map((_, i): [Animated.Value, number] => [v.open[i], i === active ? 1 : 0]),
-      [v.left, pill.left],
-      [v.right, pill.left + pill.width - ITEM],
+      // the lens: a half-circle at each end and a scaled middle that meets them exactly (no overlap:
+      // the glass is see-through, so overlapping pieces would show darker seams)
+      [v.left, pill.center - lensW(pill.width) / 2],
+      [v.right, pill.center + lensW(pill.width) / 2 - LENS / 2],
       [v.midX, pill.center - MID / 2],
-      [v.midScale, Math.max(0.01, (pill.width - ITEM) / MID)],
+      [v.midScale, Math.max(0.01, (lensW(pill.width) - LENS) / MID)],
     ];
     if (!placed.current) {
       placed.current = true; // first layout: just put everything there
@@ -158,10 +177,20 @@ function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
 
           {layout && (
             <>
-              {/* the white pill: round left end, scaled middle, round right end */}
-              <Animated.View style={[styles.cap, { transform: [{ translateX: v.left }] }]} />
-              <Animated.View style={[styles.mid, { transform: [{ translateX: v.midX }, { scaleX: v.midScale }] }]} />
-              <Animated.View style={[styles.cap, { transform: [{ translateX: v.right }] }]} />
+              {/* the glass lens: left half-circle, scaled middle, right half-circle; a sheen across the top */}
+              <Animated.View style={[styles.capHalf, { transform: [{ translateX: v.left }] }]}>
+                <View style={styles.lensCircle}>
+                  <Sheen />
+                </View>
+              </Animated.View>
+              <Animated.View style={[styles.mid, { transform: [{ translateX: v.midX }, { scaleX: v.midScale }] }]}>
+                <Sheen />
+              </Animated.View>
+              <Animated.View style={[styles.capHalf, { transform: [{ translateX: v.right }] }]}>
+                <View style={[styles.lensCircle, { left: -LENS / 2 }]}>
+                  <Sheen />
+                </View>
+              </Animated.View>
 
               {SLOTS.map((s, i) => {
                 const route = state.routes.find((r) => r.name === s.route);
@@ -179,12 +208,19 @@ function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
                       </Animated.View>
                     )}
                     {/* the icon: a light copy and a dark copy cross-fade as the pill arrives */}
-                    <Animated.View style={[styles.icon, { transform: [{ translateX: v.x[i] }] }]} pointerEvents="none">
+                    <Animated.View
+                      style={[
+                        styles.icon,
+                        // under the lens the icon is magnified, like through real glass
+                        { transform: [{ translateX: v.x[i] }, { scale: v.open[i].interpolate({ inputRange: [0, 1], outputRange: [1, MAGNIFY] }) }] },
+                      ]}
+                      pointerEvents="none"
+                    >
                       <Animated.View style={[StyleSheet.absoluteFill, styles.center, { opacity: light }]}>
-                        <Ionicons name={s.icon} size={ICON} color={colors.text} />
+                        <Ionicons name={s.icon} size={ICON} color={colors.muted} />
                       </Animated.View>
                       <Animated.View style={[StyleSheet.absoluteFill, styles.center, { opacity: v.open[i] }]}>
-                        <Ionicons name={s.icon} size={ICON} color={colors.accentText} />
+                        <Ionicons name={s.icon} size={ICON} color={colors.text} />
                       </Animated.View>
                     </Animated.View>
                     {/* the name, riding next to the icon, fading in with the pill */}
@@ -248,12 +284,36 @@ const styles = StyleSheet.create({
   bar: { elevation: 10 },
   row: { height: ITEM + PAD * 2 },
   measure: { position: 'absolute', opacity: 0, flexDirection: 'row', top: -100 },
-  cap: { position: 'absolute', left: 0, top: PAD, width: ITEM, height: ITEM, borderRadius: ITEM / 2, backgroundColor: colors.accent },
-  mid: { position: 'absolute', left: 0, top: PAD, width: MID, height: ITEM, backgroundColor: colors.accent },
+  capHalf: { position: 'absolute', left: 0, top: LENS_TOP, width: LENS / 2, height: LENS, overflow: 'hidden' },
+  lensCircle: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: LENS,
+    height: LENS,
+    borderRadius: LENS / 2,
+    overflow: 'hidden',
+    backgroundColor: LENS_FILL,
+    borderWidth: 1,
+    borderColor: LENS_RIM,
+  },
+  mid: {
+    position: 'absolute',
+    left: 0,
+    top: LENS_TOP,
+    width: MID,
+    height: LENS,
+    overflow: 'hidden',
+    backgroundColor: LENS_FILL,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: LENS_RIM,
+  },
+  sheen: { position: 'absolute', left: 0, right: 0, top: 0, height: LENS * 0.55 },
   icon: { position: 'absolute', left: 0, top: PAD, width: ICON, height: ITEM },
   center: { alignItems: 'center', justifyContent: 'center' },
-  label: { fontFamily: fonts.sans, fontSize: 14 },
-  labelOn: { position: 'absolute', left: 0, top: PAD + (ITEM - 20) / 2, lineHeight: 20, color: colors.accentText },
+  label: { fontFamily: fonts.sansBold, fontSize: 14 }, // measured and shown bold (the lens's name)
+  labelOn: { position: 'absolute', left: 0, top: PAD + (ITEM - 20) / 2, lineHeight: 20, color: colors.text },
   touch: { position: 'absolute', top: 0, bottom: 0 },
   ring: {
     position: 'absolute',
