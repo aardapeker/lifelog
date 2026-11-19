@@ -8,7 +8,7 @@ import { SeekBar } from '../components/expressive';
 import { BlurSource, FrostedGlass, Glass, useBlurSource } from '../components/Glass';
 import Ionicons from '../components/Icon';
 import { FadeIn, PressScale, Pulse } from '../components/motion';
-import { Ban, ColourWash, GlowingCover, Heart, KeepAwake, showName, WASH_BASE, withAlpha } from '../components/radioParts';
+import { Ban, ColourWash, CoverCloud, GlowingCover, Heart, KeepAwake, showName, WASH_BASE, withAlpha } from '../components/radioParts';
 import { IconButton, PillButton, StatusLine } from '../components/ui';
 import { breadcrumb } from '../lib/crashLog';
 import { ActionSheet, type SheetAction } from '../components/ActionSheet';
@@ -55,6 +55,9 @@ export default function OnAirScreen() {
       <BlurSource target={blur}>
       {/* the same background as the playlist: the song's colour at the top, fading into black */}
       <ColourWash glow={phase === 'onair' || phase === 'done' ? (palette?.glow ?? null) : null} />
+      {/* on air: the cover as a slowly turning colour cloud; still while paused, during talks, and when the
+          top bar frosts over it (a moving picture under a live blur would make the blur redo every frame) */}
+      {phase === 'onair' && current?.track.image && <CoverCloud uri={current.track.image} moving={!paused && !speaking && !scrolled} />}
       {phase === 'onair' && <KeepAwake />}
       <ActionSheet visible={menu} title={show ? showName(show) : 'The show'} actions={actions} onClose={() => setMenu(false)} />
       <SongPicker

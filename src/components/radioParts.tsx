@@ -2,7 +2,7 @@ import Ionicons from './Icon';
 import { useKeepAwake } from 'expo-keep-awake';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Image, StyleSheet, View } from 'react-native';
+import { Animated, Dimensions, Easing, Image, StyleSheet, View } from 'react-native';
 import { FadeIn, PressScale } from './motion';
 import { useBackdrop } from '../lib/backdrop';
 import { useRadioDock } from '../lib/radioEngine';
@@ -138,3 +138,59 @@ export function ago(t: number): string {
   return days === 1 ? 'yesterday' : `${days} days ago`;
 }
 
+
+/**
+ * The player's moving light: the album cover shrunk to a small picture and stretched over the screen,
+ * which makes a soft cloud in the cover's real colours, slowly turning and zooming. The trick Apple
+ * Music and Spotify use: no blur is ever computed (a tiny picture stretched IS the blur), the GPU
+ * just draws one picture at an angle. `moving` false holds it still (paused, or when the top bar
+ * frosts over it). A new song's cloud fades in over the old one.
+ */
+export function CoverCloud({ uri, moving }: { uri: string; moving: boolean }) {
+  const spin = useRef(new Animated.Value(0)).current;
+  const zoom = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!moving) return;
+    const loops = [
+      Animated.loop(Animated.timing(spin, { toValue: 1, duration: 60_000, easing: Easing.linear, useNativeDriver: true })),
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(zoom, { toValue: 1, duration: 9000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(zoom, { toValue: 0, duration: 9000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        ]),
+      ),
+    ];
+    loops.forEach((l) => l.start());
+    return () => loops.forEach((l) => l.stop());
+  }, [moving, spin, zoom]);
+  const { width, height } = Dimensions.get('window');
+  const size = Math.hypot(width, height) * 1.25; // turns without its corners ever showing
+  return (
+    <View style={[StyleSheet.absoluteFill, cloud.wrap]} pointerEvents="none">
+      <FadeIn key={uri} from={0} style={[cloud.center, { width: size, height: size }]}>
+        <Animated.View
+          style={{
+            width: size,
+            height: size,
+            transform: [
+              { rotate: spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) },
+              { scale: zoom.interpolate({ inputRange: [0, 1], outputRange: [1, 1.3] }) },
+            ],
+          }}
+        >
+          {/* decoded small (resizeMethod) and blurred once while decoding, then stretched: a stretched
+              tiny picture is the soft cloud, so nothing is blurred again while it moves */}
+          <Image source={{ uri }} resizeMethod="resize" blurRadius={8} style={{ width: CLOUD_PX, height: CLOUD_PX, transform: [{ scale: size / CLOUD_PX }], left: size / 2 - CLOUD_PX / 2, top: size / 2 - CLOUD_PX / 2 }} />
+        </Animated.View>
+      </FadeIn>
+      {/* darker towards the bottom, so the player's text stays readable over any cover */}
+      <LinearGradient colors={['rgba(11,11,11,0.15)', 'rgba(11,11,11,0.55)', 'rgba(11,11,11,0.92)']} locations={[0, 0.45, 0.85]} style={StyleSheet.absoluteFill} />
+    </View>
+  );
+}
+const CLOUD_PX = 48; // small enough that the one-time blur costs nothing, big enough to stretch smoothly
+
+const cloud = StyleSheet.create({
+  wrap: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: WASH_BASE },
+  center: { position: 'absolute' },
+});
