@@ -9,11 +9,11 @@ import { parseDocument } from 'htmlparser2';
 
 export const UA = 'Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0';
 
-export async function get(url: string, timeoutMs = 15_000, accept = '*/*'): Promise<string> {
+export async function get(url: string, timeoutMs = 15_000, accept = '*/*', headers: Record<string, string> = {}): Promise<string> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch(url, { headers: { 'User-Agent': UA, Accept: accept }, signal: ctrl.signal });
+    const res = await fetch(url, { headers: { 'User-Agent': UA, Accept: accept, ...headers }, signal: ctrl.signal });
     if (!res.ok) throw new Error(`${res.status} from ${url.match(/^https?:\/\/([^/?#]+)/)?.[1] ?? url}`); // RN's URL has no .host
     return await res.text();
   } finally {

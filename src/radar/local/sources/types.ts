@@ -23,6 +23,7 @@ export type FetchContext = {
   settings: RadarSettings;
   throttle: Throttle; // at most once per interval per key, kept across runs
   cache: Record<string, string>; // small lookups kept across runs (YouTube handle → channel id)
+  tmdbKey: string | null; // read once per run from the keystore (sources stay free of native code)
 };
 
 /** One platform. Adding a platform = one more of these in sources/index.ts; ingest doesn't change. */

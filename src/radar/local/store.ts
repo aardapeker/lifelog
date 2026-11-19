@@ -17,7 +17,7 @@ const json = <T,>(s: string, fallback: T): T => {
     return fallback;
   }
 };
-const EMPTY_SOURCES: TopicSources = { githubRepos: [], mastodonTags: [], arxiv: false, stockSymbol: null, youtubeChannels: [], feeds: [], devtoTags: [] };
+const EMPTY_SOURCES: TopicSources = { githubRepos: [], mastodonTags: [], arxiv: false, stockSymbol: null, youtubeChannels: [], feeds: [], devtoTags: [], tmdbLists: [], tmdbPeople: [] };
 const toTopic = (r: TopicRow): Topic => ({
   id: r.id,
   slug: r.slug,

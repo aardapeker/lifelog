@@ -11,6 +11,8 @@ import { Page, usePageBottom } from '../../components/Page';
 import { useRadar } from '../../radar/useRadar';
 import { inputColors } from '../../lib/theme';
 import { showAlert } from '../../lib/dialog';
+import { getKey, maskKey, setKey } from '../../lib/keys';
+import { testTmdbKey, TMDB_LISTS } from '../../radar/local/sources/tmdb';
 
 /*
  * Radar's settings: your topics (keywords, words to skip, where else to look), the morning digest,
@@ -30,8 +32,12 @@ export default function RadarSettingsScreen() {
   const [s, setS] = useState<RadarSettings | null>(null);
   const [d, setD] = useState<DigestSettings | null>(null);
   const [hidden, setHidden] = useState<string[]>([]);
+  const [tmdbKey, setTmdbKey] = useState<string | null>(null);
+  const [keyDraft, setKeyDraft] = useState('');
+  const [keyMsg, setKeyMsg] = useState('');
 
   const load = useCallback(() => {
+    getKey('tmdb').then(setTmdbKey);
     r.topics().then(setTopics);
     r.settings().then(setS);
     r.digestSettings().then(setD);
@@ -94,6 +100,8 @@ export default function RadarSettingsScreen() {
                     t.sources.feeds?.length ? `${t.sources.feeds.length} RSS` : '',
                     ...(t.sources.devtoTags ?? []).map((x) => `dev.to/${x}`),
                     t.sources.arxiv ? 'arXiv' : '',
+                    ...TMDB_LISTS.filter((l) => t.sources.tmdbLists?.includes(l.id)).map((l) => l.label),
+                    ...(t.sources.tmdbPeople ?? []),
                   ]
                     .filter(Boolean)
                     .join(' · ')}
@@ -160,6 +168,52 @@ export default function RadarSettingsScreen() {
           </>
         )}
 
+        <Text style={[ui.label, styles.section]}>🎬 TMDB key (movies & series)</Text>
+        <Text style={ui.muted}>
+          Free at themoviedb.org: sign up, then Settings → API. Either the "API Key" or the "Read Access Token" works. Kept in the phone's keystore. This
+          product uses the TMDB API but is not endorsed or certified by TMDB.
+        </Text>
+        <Text style={ui.body}>{maskKey(tmdbKey)}</Text>
+        <TextInput
+          value={keyDraft}
+          onChangeText={(v) => {
+            setKeyDraft(v);
+            setKeyMsg('');
+          }}
+          placeholder="Paste the key"
+          placeholderTextColor={colors.muted}
+          autoCapitalize="none"
+          autoCorrect={false}
+          secureTextEntry
+          style={styles.input}
+          {...inputColors}
+        />
+        <View style={styles.chips}>
+          <Pill
+            label="Save key"
+            variant="solid"
+            disabled={!keyDraft.trim()}
+            onPress={async () => {
+              setKeyMsg('Checking…');
+              if (!(await testTmdbKey(keyDraft))) return setKeyMsg("TMDB didn't accept that key. Copied all of it?");
+              await setKey('tmdb', keyDraft);
+              setTmdbKey(keyDraft.trim());
+              setKeyDraft('');
+              setKeyMsg('Saved. Pick lists or people in a topic.');
+            }}
+          />
+          {tmdbKey && (
+            <Pill
+              label="Remove"
+              onPress={async () => {
+                await setKey('tmdb', '');
+                setTmdbKey(null);
+              }}
+            />
+          )}
+        </View>
+        {!!keyMsg && <Text style={ui.muted}>{keyMsg}</Text>}
+
         {hidden.length > 0 && (
           <>
             <Text style={[ui.label, styles.section]}>Hidden sites</Text>
@@ -193,6 +247,8 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
   const [feeds, setFeeds] = useState(topic?.sources.feeds?.join('\n') ?? '');
   const [devtoTags, setDevtoTags] = useState(topic?.sources.devtoTags?.join(', ') ?? '');
   const [arxiv, setArxiv] = useState(topic?.sources.arxiv ?? false);
+  const [tmdbLists, setTmdbLists] = useState<string[]>(topic?.sources.tmdbLists ?? []);
+  const [tmdbPeople, setTmdbPeople] = useState(topic?.sources.tmdbPeople?.join(', ') ?? '');
   const [busy, setBusy] = useState(false);
   const ok = name.trim() && splitList(keywords).length > 0;
   const save = async () => {
@@ -211,6 +267,8 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
           feeds: feeds.split(/[\s,]+/).map((f) => f.trim()).filter((f) => /^https?:\/\//i.test(f)),
           devtoTags: splitList(devtoTags).map((t) => t.replace(/^#/, '').toLowerCase()),
           arxiv,
+          tmdbLists,
+          tmdbPeople: splitList(tmdbPeople),
           stockSymbol: topic?.sources.stockSymbol ?? null,
         },
       });
@@ -243,6 +301,14 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
         <Text style={[ui.body, { flex: 1 }]}>arXiv papers (AI, languages, software, OS, security) that mention the keywords</Text>
         <Switch value={arxiv} onValueChange={setArxiv} trackColor={{ true: colors.up }} />
       </View>
+      <Text style={styles.fieldLabel}>Movies & series (TMDB, needs the key below)</Text>
+      <View style={styles.chips}>
+        {TMDB_LISTS.map((l) => {
+          const on = tmdbLists.includes(l.id);
+          return <Pill key={l.id} label={l.label} variant={on ? 'on' : 'plain'} onPress={() => setTmdbLists(on ? tmdbLists.filter((x) => x !== l.id) : [...tmdbLists, l.id])} />;
+        })}
+      </View>
+      <Field label="Directors & actors (their new films)" value={tmdbPeople} onChange={setTmdbPeople} placeholder="Christopher Nolan, Nuri Bilge Ceylan" />
       <View style={styles.chips}>
         <Pill label={busy ? 'Saving…' : 'Save'} variant="solid" onPress={save} disabled={!ok || busy} />
         <Pill label="Cancel" onPress={onCancel} />

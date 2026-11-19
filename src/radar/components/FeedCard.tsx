@@ -9,7 +9,7 @@ import { CardMeta } from './CardMeta'
 import { PostBody } from './PostBody'
 
 /** Types whose `author` line is worth showing (channel, paper authors, HN user...). */
-const SHOWS_AUTHOR = new Set(['VIDEO', 'SHORT', 'PAPER', 'PODCAST', 'DISCUSSION'])
+const SHOWS_AUTHOR = new Set(['VIDEO', 'SHORT', 'PAPER', 'PODCAST', 'DISCUSSION', 'MOVIE'])
 
 /** One card for every type; the type decides the media and the extras. Opened items are dimmed. */
 export function FeedCard({ item, onPress }: { item: FeedItem; onPress: () => void }) {
@@ -39,6 +39,7 @@ export function FeedCard({ item, onPress }: { item: FeedItem; onPress: () => voi
               <Extras item={item} />
             </View>
             {sideImage && <Image source={{ uri: item.thumbnailUrl ?? undefined }} style={styles.side} resizeMode="cover" />}
+            {item.type === 'MOVIE' && item.thumbnailUrl && <Image source={{ uri: item.thumbnailUrl }} style={styles.poster} resizeMode="cover" />}
           </View>
         </>
       )}
@@ -64,6 +65,7 @@ function Extras({ item }: { item: FeedItem }) {
   const parts: string[] = []
   if (SHOWS_AUTHOR.has(item.type) && item.author) parts.push(item.author)
   if (item.type === 'PODCAST' && item.durationSeconds) parts.push(`🎧 ${formatDuration(item.durationSeconds)}`)
+  if (item.type === 'MOVIE' && item.score != null) parts.push(`★ ${item.score}`)
   if (item.type === 'DISCUSSION' && item.score != null) parts.push(`▲ ${item.score} · ${item.commentCount ?? 0} comments`)
   if (parts.length === 0) return null
   return <Text style={styles.extras}>{parts.join(' · ')}</Text>
@@ -79,6 +81,7 @@ const styles = StyleSheet.create({
   snippet: { color: colors.soft, fontFamily: fonts.sansRegular, fontSize: 14, lineHeight: 20 },
   extras: { color: colors.muted, fontFamily: mono, fontSize: 12 },
   side: { width: 96, height: 72, borderRadius: 10 },
+  poster: { width: 80, height: 120, borderRadius: 8 }, // TMDB posters are 2:3
   video: { aspectRatio: 16 / 9, backgroundColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   play: {
     width: 56,

@@ -28,6 +28,7 @@ const OPEN_LABEL: Partial<Record<FeedItem['type'], string>> = {
   DISCUSSION: 'Open the discussion',
   POST: 'Open on Mastodon',
   PAPER: 'Open on arXiv',
+  MOVIE: 'Open on TMDB',
 };
 
 export default function ItemScreen() {
@@ -85,13 +86,14 @@ function Detail({ item, onChange }: { item: FeedItem; onChange: (i: FeedItem) =>
         {(item.type === 'ARTICLE' || item.type === 'DISCUSSION') && item.thumbnailUrl && (
           <Image source={{ uri: item.thumbnailUrl }} style={styles.hero} resizeMode="cover" />
         )}
+        {item.type === 'MOVIE' && item.thumbnailUrl && <Image source={{ uri: item.thumbnailUrl }} style={styles.poster} resizeMode="cover" />}
         {item.type === 'POST' ? (
           <PostBody item={item} large />
         ) : (
           <>
             <CardMeta item={item} showKind={false} />
             <Text style={styles.title}>{item.title}</Text>
-            {item.author && <Text style={ui.muted}>{item.author}</Text>}
+            {item.author && <Text style={ui.muted}>{item.author}{item.type === 'MOVIE' && item.score != null ? ` · ★ ${item.score}` : ''}</Text>}
             {isUsefulSnippet(item.snippet, item.title) && <Text style={ui.body}>{item.snippet}</Text>}
             <AiSummary item={item} />
           </>
@@ -112,6 +114,7 @@ const styles = StyleSheet.create({
   content: { padding: 20, gap: 16 },
   media: { borderRadius: 16, overflow: 'hidden' },
   hero: { width: '100%', aspectRatio: 16 / 9, borderRadius: 16 },
+  poster: { width: '55%', aspectRatio: 2 / 3, borderRadius: 14, alignSelf: 'center' },
   title: { color: colors.paper, fontSize: 26, fontFamily: fonts.sansBold, lineHeight: 32 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
 });

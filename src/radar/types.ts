@@ -4,7 +4,7 @@
  * the API client instead of the on-phone backend.
  */
 
-export type FeedItemType = 'VIDEO' | 'SHORT' | 'ARTICLE' | 'POST' | 'DISCUSSION' | 'RELEASE' | 'STOCK' | 'PAPER' | 'PODCAST';
+export type FeedItemType = 'VIDEO' | 'SHORT' | 'ARTICLE' | 'POST' | 'DISCUSSION' | 'RELEASE' | 'STOCK' | 'PAPER' | 'PODCAST' | 'MOVIE';
 
 export interface FeedItem {
   id: string;
@@ -85,6 +85,8 @@ export interface TopicSources {
   youtubeChannels?: string[]; // "@handle" or a channel id "UC…"
   feeds?: string[]; // RSS / Atom feed URLs: everything they post (minus the skip words)
   devtoTags?: string[]; // dev.to tags: typescript, react, java…
+  tmdbLists?: string[]; // TMDB lists to follow: ids from TMDB_LISTS (upcoming, now_playing…)
+  tmdbPeople?: string[]; // directors / actors: their new and upcoming films
 }
 
 export interface Topic {

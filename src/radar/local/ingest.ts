@@ -1,3 +1,4 @@
+import { getKey } from '../../lib/keys';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import type { IngestResult, Topic } from '../types';
 import { Throttle } from './feeds';
@@ -28,13 +29,14 @@ export function ingestAll(db: SQLiteDatabase): Promise<IngestResult> {
 }
 
 async function run(db: SQLiteDatabase): Promise<IngestResult> {
-  const [topics, settings, throttleState, cache] = await Promise.all([
+  const [topics, settings, throttleState, cache, tmdbKey] = await Promise.all([
     listTopics(db),
     getSettings(db),
     getJson<Record<string, number>>(db, 'radar.throttle', {}),
     getJson<Record<string, string>>(db, 'radar.cache', {}),
+    getKey('tmdb'),
   ]);
-  const ctx = { since: Date.now() - LOOKBACK, settings, throttle: new Throttle(throttleState), cache };
+  const ctx = { since: Date.now() - LOOKBACK, settings, throttle: new Throttle(throttleState), cache, tmdbKey };
   const latinOnly = settings.languages.every((l) => LATIN_LANGS.has(l));
   let fetched = 0;
   let saved = 0;
