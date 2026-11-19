@@ -1,7 +1,8 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Ionicons from '../../components/Icon';
 import { Header } from '../../radar/components/Header';
 import { Pill } from '../../radar/components/Pill';
 import { splitList } from '../../radar/format';
@@ -258,6 +259,43 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
   const [quakeArea, setQuakeArea] = useState<'near' | 'turkey'>(topic?.sources.quakeArea ?? 'near');
   const [f1, setF1] = useState(topic?.sources.f1 ?? false);
   const [busy, setBusy] = useState(false);
+
+  // the sources this topic uses: only those are open in the form, the rest wait as "＋" chips
+  const sources: { key: string; label: string; used: boolean; open: () => void; clear: () => void }[] = [
+    { key: 'youtube', label: 'YouTube', used: !!youtube.trim(), open: () => {}, clear: () => setYoutube('') },
+    { key: 'rss', label: 'RSS', used: !!feeds.trim(), open: () => {}, clear: () => setFeeds('') },
+    { key: 'music', label: 'Music', used: !!artists.trim(), open: () => {}, clear: () => setArtists('') },
+    { key: 'movies', label: 'Movies', used: tmdbLists.length > 0 || !!tmdbPeople.trim(), open: () => {}, clear: () => (setTmdbLists([]), setTmdbPeople('')) },
+    { key: 'quakes', label: 'Quakes', used: quakeMin > 0, open: () => setQuakeMin(4), clear: () => setQuakeMin(0) },
+    { key: 'f1', label: 'F1', used: f1, open: () => setF1(true), clear: () => setF1(false) },
+    { key: 'github', label: 'GitHub', used: !!repos.trim(), open: () => {}, clear: () => setRepos('') },
+    { key: 'mastodon', label: 'Mastodon', used: !!tags.trim(), open: () => {}, clear: () => setTags('') },
+    { key: 'devto', label: 'DEV', used: !!devtoTags.trim(), open: () => {}, clear: () => setDevtoTags('') },
+    { key: 'arxiv', label: 'arXiv', used: arxiv, open: () => setArxiv(true), clear: () => setArxiv(false) },
+  ];
+  const [open, setOpen] = useState(() => new Set(sources.filter((x) => x.used).map((x) => x.key)));
+  const [skipOpen, setSkipOpen] = useState(!!exclude.trim());
+  const add = (key: string) => {
+    sources.find((x) => x.key === key)?.open();
+    setOpen(new Set([...open, key]));
+  };
+  const remove = (key: string) => {
+    sources.find((x) => x.key === key)?.clear();
+    setOpen(new Set([...open].filter((k) => k !== key)));
+  };
+  /** One open source: its title, a ✕ that removes it (and what was in it), and its fields. */
+  const box = (key: string, title: string, children: ReactNode) =>
+    open.has(key) && (
+      <View style={styles.source}>
+        <View style={styles.sourceHead}>
+          <Text style={styles.sourceTitle}>{title}</Text>
+          <Pressable onPress={() => remove(key)} hitSlop={10} accessibilityLabel={`Remove ${title}`}>
+            <Ionicons name="close" size={20} color={colors.muted} />
+          </Pressable>
+        </View>
+        {children}
+      </View>
+    );
   // a name, plus something to follow: keywords, or any of the sources (a topic can be just quakes or artists)
   const follows =
     splitList(keywords).length > 0 ||
@@ -305,48 +343,71 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
           <Pressable key={c} onPress={() => setColor(c)} accessibilityLabel={`Colour ${c}`} style={[styles.swatch, { backgroundColor: c }, color === c && styles.swatchOn]} />
         ))}
       </View>
-      <Field label="Keywords for news (comma between them; optional if you pick sources below)" value={keywords} onChange={setKeywords} placeholder="Linux, Linux kernel" />
-      <Field label="Skip headlines with" value={exclude} onChange={setExclude} placeholder="fedora hat" />
-      <Field label="YouTube channels" value={youtube} onChange={setYoutube} placeholder="@TheLinuxEXP, @DistroTube" />
-      <Field label="GitHub repos (new releases)" value={repos} onChange={setRepos} placeholder="torvalds/linux" />
-      <Field label="Mastodon hashtags" value={tags} onChange={setTags} placeholder="linux, fedora" />
-      <Field
-        label="RSS feeds (one per line: everything they post comes in)"
-        value={feeds}
-        onChange={setFeeds}
-        placeholder={'https://www.phoronix.com/rss.php\nhttps://fedoramagazine.org/feed/'}
-        multiline
-      />
-      <Field label="DEV (dev.to) tags" value={devtoTags} onChange={setDevtoTags} placeholder="typescript, react, java" />
-      <View style={styles.switchRow}>
-        <Text style={[ui.body, { flex: 1 }]}>arXiv papers (AI, languages, software, OS, security) that mention the keywords</Text>
-        <Switch value={arxiv} onValueChange={setArxiv} trackColor={{ true: colors.up }} />
-      </View>
-      <Text style={styles.fieldLabel}>Movies & series (TMDB, needs the key below)</Text>
-      <View style={styles.chips}>
-        {TMDB_LISTS.map((l) => {
-          const on = tmdbLists.includes(l.id);
-          return <Pill key={l.id} label={l.label} variant={on ? 'on' : 'plain'} onPress={() => setTmdbLists(on ? tmdbLists.filter((x) => x !== l.id) : [...tmdbLists, l.id])} />;
-        })}
-      </View>
-      <Field label="Directors & actors (their new films)" value={tmdbPeople} onChange={setTmdbPeople} placeholder="Christopher Nolan, Nuri Bilge Ceylan" />
-      <Field label="Artists (new albums, EPs and singles, from MusicBrainz)" value={artists} onChange={setArtists} placeholder="Pinhani, Duman, Radiohead" />
-      <Text style={styles.fieldLabel}>Earthquakes (AFAD) from magnitude</Text>
-      <View style={styles.chips}>
-        {QUAKE_MAGS.map((m) => (
-          <Pill key={m} label={m ? `${m}+` : 'Off'} variant={quakeMin === m ? 'on' : 'plain'} onPress={() => setQuakeMin(m)} />
-        ))}
-      </View>
-      {quakeMin > 0 && (
+      <Field label="Keywords for news (optional)" value={keywords} onChange={setKeywords} placeholder="Linux, Linux kernel" />
+      {skipOpen ? (
+        <Field label="Skip headlines with" value={exclude} onChange={setExclude} placeholder="fedora hat" />
+      ) : (
+        <Pressable onPress={() => setSkipOpen(true)} hitSlop={6}>
+          <Text style={styles.link}>＋ Skip words</Text>
+        </Pressable>
+      )}
+
+      {box('youtube', 'YouTube', <Field label="Channels" value={youtube} onChange={setYoutube} placeholder="@TheLinuxEXP, @DistroTube" />)}
+      {box(
+        'rss',
+        'RSS',
+        <Field
+          label="Feeds, one per line (everything they post comes in)"
+          value={feeds}
+          onChange={setFeeds}
+          placeholder={'https://www.phoronix.com/rss.php\nhttps://fedoramagazine.org/feed/'}
+          multiline
+        />,
+      )}
+      {box('music', 'Music', <Field label="Artists (new albums, EPs and singles)" value={artists} onChange={setArtists} placeholder="Pinhani, Duman, Radiohead" />)}
+      {box(
+        'movies',
+        'Movies & series',
+        <>
+          <View style={styles.chips}>
+            {TMDB_LISTS.map((l) => {
+              const on = tmdbLists.includes(l.id);
+              return <Pill key={l.id} label={l.label} variant={on ? 'on' : 'plain'} onPress={() => setTmdbLists(on ? tmdbLists.filter((x) => x !== l.id) : [...tmdbLists, l.id])} />;
+            })}
+          </View>
+          <Field label="Directors & actors (their new films)" value={tmdbPeople} onChange={setTmdbPeople} placeholder="Christopher Nolan, Nuri Bilge Ceylan" />
+        </>,
+      )}
+      {box(
+        'quakes',
+        'Earthquakes',
+        <>
+          <View style={styles.chips}>
+            {QUAKE_MAGS.filter(Boolean).map((m) => (
+              <Pill key={m} label={`${m}+`} variant={quakeMin === m ? 'on' : 'plain'} onPress={() => setQuakeMin(m)} />
+            ))}
+          </View>
+          <View style={styles.chips}>
+            <Pill label="Near Istanbul (300 km)" variant={quakeArea === 'near' ? 'on' : 'plain'} onPress={() => setQuakeArea('near')} />
+            <Pill label="All of Turkey" variant={quakeArea === 'turkey' ? 'on' : 'plain'} onPress={() => setQuakeArea('turkey')} />
+          </View>
+        </>,
+      )}
+      {box('f1', 'Formula 1', <Text style={ui.muted}>The podium after each race, and the next race's start in Istanbul time.</Text>)}
+      {box('github', 'GitHub', <Field label="Repos (new releases)" value={repos} onChange={setRepos} placeholder="torvalds/linux" />)}
+      {box('mastodon', 'Mastodon', <Field label="Hashtags" value={tags} onChange={setTags} placeholder="linux, fedora" />)}
+      {box('devto', 'DEV', <Field label="dev.to tags" value={devtoTags} onChange={setDevtoTags} placeholder="typescript, react, java" />)}
+      {box('arxiv', 'arXiv', <Text style={ui.muted}>Papers (AI, languages, software, OS, security) that mention the keywords.</Text>)}
+
+      {sources.some((x) => !open.has(x.key)) && (
         <View style={styles.chips}>
-          <Pill label="Near Istanbul (300 km)" variant={quakeArea === 'near' ? 'on' : 'plain'} onPress={() => setQuakeArea('near')} />
-          <Pill label="All of Turkey" variant={quakeArea === 'turkey' ? 'on' : 'plain'} onPress={() => setQuakeArea('turkey')} />
+          {sources
+            .filter((x) => !open.has(x.key))
+            .map((x) => (
+              <Pill key={x.key} label={x.label} icon="add" onPress={() => add(x.key)} />
+            ))}
         </View>
       )}
-      <View style={styles.switchRow}>
-        <Text style={[ui.body, { flex: 1 }]}>Formula 1: the podium after each race, and the next race's start in Istanbul time</Text>
-        <Switch value={f1} onValueChange={setF1} trackColor={{ true: colors.up }} />
-      </View>
       {!ok && <Text style={ui.muted}>{name.trim() ? 'Add keywords or pick something to follow, then Save works.' : 'Give the topic a name, then Save works.'}</Text>}
       <View style={styles.chips}>
         <Pill label={busy ? 'Saving…' : 'Save'} variant="solid" onPress={save} disabled={!ok || busy} />
@@ -389,4 +450,8 @@ const styles = StyleSheet.create({
   swatchOn: { borderWidth: 3, borderColor: colors.paper },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  link: { color: colors.muted, fontFamily: fonts.sansRegular, fontSize: 14 },
+  source: { gap: 10, padding: 12, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.05)' },
+  sourceHead: { flexDirection: 'row', alignItems: 'center' },
+  sourceTitle: { flex: 1, color: colors.paper, fontFamily: fonts.sansBold, fontSize: 15 },
 });
