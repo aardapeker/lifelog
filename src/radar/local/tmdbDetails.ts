@@ -26,7 +26,7 @@ export type MovieDetails = {
   overview: string | null;
   poster: string | null;
   backdrop: string | null;
-  makers: { label: string; names: string[] }; // "Director" / "Created by"
+  makers: { label: string; people: { id: number; name: string }[] }; // "Director" / "Created by"
   cast: Person[];
   trailer: string | null; // a YouTube video id
   watch: { stream: Provider[]; rent: Provider[]; link: string | null };
@@ -87,8 +87,8 @@ export function toDetails(raw: Raw, kind: Kind): MovieDetails {
     poster: img(raw.poster_path, 'w342'),
     backdrop: img(raw.backdrop_path, 'w780'),
     makers: tv
-      ? { label: 'Created by', names: (raw.created_by ?? []).map((p: Raw) => p.name) }
-      : { label: 'Director', names: crew.filter((c) => c.job === 'Director').map((c) => c.name) },
+      ? { label: 'Created by', people: (raw.created_by ?? []).map((p: Raw) => ({ id: p.id, name: p.name })) }
+      : { label: 'Director', people: crew.filter((c) => c.job === 'Director').map((c) => ({ id: c.id, name: c.name })) },
     cast: (raw.credits?.cast ?? []).slice(0, 15).map((c: Raw) => ({ id: c.id, name: c.name, role: c.character ?? '', photo: img(c.profile_path, 'w185') })),
     trailer: trailer(raw),
     watch: { stream: providers(tr?.flatrate), rent: providers([...(tr?.rent ?? []), ...(tr?.buy ?? [])].filter((p, i, a) => a.findIndex((x) => x.provider_id === p.provider_id) === i)), link: tr?.link ?? null },
@@ -120,4 +120,84 @@ export async function movieDetails(kind: Kind, id: number, key: string): Promise
   cache.set(k, details);
   if (cache.size > 30) cache.delete(cache.keys().next().value!);
   return details;
+}
+
+export type PersonDetails = {
+  id: number;
+  name: string;
+  photo: string | null;
+  known: string | null; // "Acting", "Directing"
+  born: string | null; // "1995-12-27"
+  died: string | null;
+  place: string | null;
+  bio: string | null;
+  knownFor: (Title & { role: string })[]; // their best-known titles
+  credits: (Title & { role: string })[]; // everything, newest (and upcoming) first
+  url: string;
+};
+
+/** A person's page: photo, bio, best-known titles and the full list, from one call. */
+export function toPerson(raw: Raw): PersonDetails {
+  const all: Raw[] = [...(raw.combined_credits?.cast ?? []), ...(raw.combined_credits?.crew ?? [])].filter((c) => c.media_type === 'movie' || c.media_type === 'tv');
+  // one row per title: an actor-director's film shows once, with both roles
+  const byTitle = new Map<string, Raw & { roles: string[] }>();
+  for (const c of all) {
+    const k = `${c.media_type}:${c.id}`;
+    const role = c.character || c.job || '';
+    const seen = byTitle.get(k);
+    if (seen) {
+      if (role && !seen.roles.includes(role)) seen.roles.push(role);
+    } else byTitle.set(k, { ...c, roles: role ? [role] : [] });
+  }
+  const titles = [...byTitle.values()];
+  const date = (c: Raw) => (c.media_type === 'tv' ? c.first_air_date : c.release_date) || '';
+  const toTitle = (c: Raw & { roles: string[] }) => ({
+    id: c.id,
+    kind: c.media_type as Kind,
+    title: (c.media_type === 'tv' ? c.name : c.title) ?? '',
+    poster: img(c.poster_path, 'w185'),
+    year: date(c).slice(0, 4) || null,
+    role: c.roles.join(', '),
+  });
+  // talk shows and award nights pile up voters but aren't what anyone is known for
+  const notShows = (c: Raw) => !(c.genre_ids ?? []).some((g: number) => g === 10767 || g === 10763);
+  return {
+    id: raw.id,
+    name: raw.name ?? '',
+    photo: img(raw.profile_path, 'h632'),
+    known: raw.known_for_department ?? null,
+    born: raw.birthday ?? null,
+    died: raw.deathday ?? null,
+    place: raw.place_of_birth ?? null,
+    bio: raw.biography?.trim() || null,
+    knownFor: titles
+      .filter((c) => c.poster_path && notShows(c))
+      .sort((a, b) => (b.vote_count ?? 0) - (a.vote_count ?? 0))
+      .slice(0, 10)
+      .map(toTitle),
+    credits: titles.sort((a, b) => (date(b) || '9999').localeCompare(date(a) || '9999')).map(toTitle),
+    url: `https://www.themoviedb.org/person/${raw.id}`,
+  };
+}
+
+const people = new Map<number, PersonDetails>();
+
+export async function personDetails(id: number, key: string): Promise<PersonDetails> {
+  const hit = people.get(id);
+  if (hit) return hit;
+  const person = toPerson(await tmdbCall<Raw>(`/person/${id}?append_to_response=combined_credits`, key));
+  people.set(id, person);
+  if (people.size > 30) people.delete(people.keys().next().value!);
+  return person;
+}
+
+/** "27 Dec 1995 (30)" — the age now, or at death. */
+export function ageLine(born: string | null, died: string | null, now = Date.now()): string | null {
+  if (!born) return null;
+  const b = new Date(born);
+  const end = died ? new Date(died) : new Date(now);
+  let age = end.getUTCFullYear() - b.getUTCFullYear();
+  if (end.getUTCMonth() < b.getUTCMonth() || (end.getUTCMonth() === b.getUTCMonth() && end.getUTCDate() < b.getUTCDate())) age--;
+  const fmt = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  return died ? `${fmt(b)} – ${fmt(end)} (${age})` : `${fmt(b)} (${age})`;
 }

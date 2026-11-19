@@ -19,6 +19,7 @@ import {
   movieDetails,
   type Kind,
   type MovieDetails,
+  type Title,
   type Person,
   type Provider,
 } from "../local/tmdbDetails";
@@ -32,6 +33,9 @@ import { VideoPlayer } from "./VideoPlayer";
  * trailer, plot, cast, where to watch in Turkey and similar titles. One TMDB call (tmdbDetails.ts).
  * Opened from a MOVIE card (with Save) or from "More like this" (route /radar/movie).
  */
+
+/** People open their own page in Radar, not TMDB's site. */
+export const openPerson = (id: number) => router.push({ pathname: "/radar/person", params: { id: String(id) } });
 
 const browse = (url: string) =>
   WebBrowser.openBrowserAsync(url, {
@@ -163,15 +167,22 @@ function Details({
 
       {(m.overview ||
         m.tagline ||
-        m.makers.names.length > 0 ||
+        m.makers.people.length > 0 ||
         m.series?.next) && (
         <Section title="Story">
           {m.tagline && <Text style={styles.tagline}>“{m.tagline}”</Text>}
           {m.overview && <Text style={ui.body}>{m.overview}</Text>}
-          {m.makers.names.length > 0 && (
+          {m.makers.people.length > 0 && (
             <Text style={styles.line}>
               <Text style={styles.lineLabel}>{m.makers.label} </Text>
-              {m.makers.names.join(", ")}
+              {m.makers.people.map((p, i) => (
+                <Text key={p.id}>
+                  {i > 0 ? ", " : ""}
+                  <Text style={styles.link} onPress={() => openPerson(p.id)}>
+                    {p.name}
+                  </Text>
+                </Text>
+              ))}
             </Text>
           )}
           {m.series?.next && (
@@ -219,26 +230,7 @@ function Details({
       {m.similar.length > 0 && (
         <Row title="More like this">
           {m.similar.map((s) => (
-            <Pressable
-              key={`${s.kind}${s.id}`}
-              style={styles.similar}
-              onPress={() =>
-                router.push({
-                  pathname: "/radar/movie",
-                  params: { kind: s.kind, id: String(s.id) },
-                })
-              }
-            >
-              <Image
-                source={{ uri: s.poster ?? undefined }}
-                style={styles.similarPoster}
-                resizeMode="cover"
-              />
-              <Text style={styles.similarTitle} numberOfLines={2}>
-                {s.title}
-              </Text>
-              {s.year && <Text style={styles.small}>{s.year}</Text>}
-            </Pressable>
+            <PosterTile key={`${s.kind}${s.id}`} t={s} />
           ))}
         </Row>
       )}
@@ -261,7 +253,24 @@ const trailerItem = (m: MovieDetails): FeedItem =>
     durationSeconds: null,
   }) as FeedItem;
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+/** A title's poster that opens its own page (similar titles, a person's films). */
+export function PosterTile({ t, below }: { t: Title; below?: string }) {
+  return (
+    <Pressable style={styles.similar} onPress={() => router.push({ pathname: "/radar/movie", params: { kind: t.kind, id: String(t.id) } })}>
+      <Image source={{ uri: t.poster ?? undefined }} style={styles.similarPoster} resizeMode="cover" />
+      <Text style={styles.similarTitle} numberOfLines={2}>
+        {t.title}
+      </Text>
+      {(below ?? t.year) && (
+        <Text style={styles.small} numberOfLines={1}>
+          {below ?? t.year}
+        </Text>
+      )}
+    </Pressable>
+  );
+}
+
+export function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <Glass radius={radius.lg} style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -271,7 +280,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 /** A titled row that scrolls sideways (cast, similar titles). */
-function Row({ title, children }: { title: string; children: ReactNode }) {
+export function Row({ title, children }: { title: string; children: ReactNode }) {
   return (
     <View style={{ gap: 10 }}>
       <Text style={[styles.sectionTitle, { paddingHorizontal: 4 }]}>
@@ -292,7 +301,7 @@ function CastMember({ p }: { p: Person }) {
   return (
     <Pressable
       style={styles.person}
-      onPress={() => browse(`https://www.themoviedb.org/person/${p.id}`)}
+      onPress={() => openPerson(p.id)}
     >
       {p.photo ? (
         <Image
@@ -390,6 +399,7 @@ const styles = StyleSheet.create({
   },
   tagline: { color: colors.soft, fontFamily: fonts.serifItalic, fontSize: 15 },
   line: { color: colors.soft, fontFamily: fonts.sansRegular, fontSize: 14 },
+  link: { color: colors.paper, textDecorationLine: "underline" },
   lineLabel: {
     color: colors.muted,
     fontFamily: fonts.sansRegular,
