@@ -2,7 +2,7 @@ import Ionicons from './Icon';
 import { useKeepAwake } from 'expo-keep-awake';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, Easing, Image, StyleSheet, View } from 'react-native';
+import { Animated, Easing, Image, StyleSheet, View } from 'react-native';
 import { FadeIn, PressScale } from './motion';
 import { useBackdrop } from '../lib/backdrop';
 import { useRadioDock } from '../lib/radioEngine';
@@ -112,15 +112,9 @@ export const WASH_BASE = '#0B0B0B';
  * the colour picked in Settings (or the plain background). Reads only the dock state, so it doesn't redraw every second.
  */
 export function ShowWash() {
-  const { phase, glow, deep, music } = useRadioDock();
+  const { phase, glow } = useRadioDock();
   const chosen = useBackdrop(); // Settings → Me → Background, for when nothing plays
-  if (phase === 'onair')
-    return (
-      <>
-        <ColourWash glow={glow} />
-        <StageLights on={music} glow={glow} deep={deep} />
-      </>
-    );
+  if (phase === 'onair') return <ColourWash glow={glow} />;
   if (chosen) return <ColourWash glow={chosen} />;
   return <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }]} pointerEvents="none" />;
 }
@@ -144,68 +138,3 @@ export function ago(t: number): string {
   return days === 1 ? 'yesterday' : `${days} days ago`;
 }
 
-/**
- * Stage lights while a song plays: three soft lights in the cover's colours drifting slowly across
- * the background, each on its own loop (7, 11 and 13 s) so they never move in step, breathing a
- * little. They fade in when the music starts and out for talks or pause. All native-driven.
- */
-function StageLights({ on, glow, deep }: { on: boolean; glow: string | null; deep: string | null }) {
-  const fade = useRef(new Animated.Value(0)).current;
-  const loops = useRef([0, 1, 2].map(() => new Animated.Value(0))).current;
-  useEffect(() => {
-    Animated.timing(fade, { toValue: on ? 1 : 0, duration: on ? 1400 : 700, useNativeDriver: true }).start();
-  }, [on, fade]);
-  useEffect(() => {
-    if (!on) return;
-    const runs = loops.map((v, i) =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(v, { toValue: 1, duration: [7000, 11000, 13000][i], easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-          Animated.timing(v, { toValue: 0, duration: [7000, 11000, 13000][i], easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        ]),
-      ),
-    );
-    runs.forEach((r) => r.start());
-    return () => runs.forEach((r) => r.stop());
-  }, [on, loops]);
-
-  const a = glow ?? 'rgb(150, 90, 190)';
-  const b = deep ?? a;
-  const { width, height } = Dimensions.get('window');
-  // where each light swings between (fractions of the screen), its colour and how big its glow is
-  const lights = [
-    { color: a, from: [0.1, 0.12], to: [0.85, 0.3], spread: 160, alpha: 0.7 },
-    { color: b, from: [0.9, 0.55], to: [0.15, 0.4], spread: 200, alpha: 0.6 },
-    { color: 'rgb(255, 255, 255)', from: [0.3, 0.05], to: [0.65, 0.2], spread: 100, alpha: 0.16 }, // a white spotlight sweeping the top
-  ];
-  return (
-    <Animated.View style={[StyleSheet.absoluteFill, { opacity: fade }]} pointerEvents="none">
-      {lights.map((l, i) => {
-        const t = loops[i];
-        return (
-          <Animated.View
-            key={i}
-            style={[
-              stage.light,
-              {
-                backgroundColor: withAlpha(l.color, l.alpha),
-                boxShadow: `0 0 ${l.spread}px ${l.spread * 0.8}px ${withAlpha(l.color, l.alpha)}`,
-                opacity: t.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.65, 1, 0.65] }),
-                transform: [
-                  { translateX: t.interpolate({ inputRange: [0, 1], outputRange: [l.from[0] * width, l.to[0] * width] }) },
-                  { translateY: t.interpolate({ inputRange: [0, 1], outputRange: [l.from[1] * height, l.to[1] * height] }) },
-                  { scale: t.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.9, 1.25, 0.9] }) },
-                ],
-              },
-            ]}
-          />
-        );
-      })}
-    </Animated.View>
-  );
-}
-
-const stage = StyleSheet.create({
-  // a tiny dot: all you see is its glow (a bigger one showed as a disc in the middle of the light)
-  light: { position: 'absolute', left: -1, top: -1, width: 2, height: 2, borderRadius: 1 },
-});
