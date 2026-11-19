@@ -56,6 +56,7 @@ export function toItems(entries: Entry[], since: number): FetchedItem[] {
 export const bingNews: ContentSource = {
   id: 'bing-news',
   async fetch(topic, ctx) {
+    if (!topic.keywords.length) return []; // a topic of only quakes or artists searches no news
     const merged = new Map<string, FetchedItem>();
     for (const lang of ctx.settings.languages) {
       const url = `https://www.bing.com/news/search?q=${encodeURIComponent(orQuery(topic))}&format=rss&mkt=${market(lang)}`;

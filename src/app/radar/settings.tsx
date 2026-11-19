@@ -258,7 +258,16 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
   const [quakeArea, setQuakeArea] = useState<'near' | 'turkey'>(topic?.sources.quakeArea ?? 'near');
   const [f1, setF1] = useState(topic?.sources.f1 ?? false);
   const [busy, setBusy] = useState(false);
-  const ok = name.trim() && splitList(keywords).length > 0;
+  // a name, plus something to follow: keywords, or any of the sources (a topic can be just quakes or artists)
+  const follows =
+    splitList(keywords).length > 0 ||
+    [youtube, repos, tags, devtoTags, tmdbPeople, artists].some((v) => splitList(v).length > 0) ||
+    /https?:\/\//i.test(feeds) ||
+    arxiv ||
+    tmdbLists.length > 0 ||
+    quakeMin > 0 ||
+    f1;
+  const ok = !!name.trim() && follows;
   const save = async () => {
     if (!ok) return;
     setBusy(true);
@@ -296,7 +305,7 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
           <Pressable key={c} onPress={() => setColor(c)} accessibilityLabel={`Colour ${c}`} style={[styles.swatch, { backgroundColor: c }, color === c && styles.swatchOn]} />
         ))}
       </View>
-      <Field label="Keywords (comma between them)" value={keywords} onChange={setKeywords} placeholder="Linux, Linux kernel" />
+      <Field label="Keywords for news (comma between them; optional if you pick sources below)" value={keywords} onChange={setKeywords} placeholder="Linux, Linux kernel" />
       <Field label="Skip headlines with" value={exclude} onChange={setExclude} placeholder="fedora hat" />
       <Field label="YouTube channels" value={youtube} onChange={setYoutube} placeholder="@TheLinuxEXP, @DistroTube" />
       <Field label="GitHub repos (new releases)" value={repos} onChange={setRepos} placeholder="torvalds/linux" />
@@ -338,6 +347,7 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
         <Text style={[ui.body, { flex: 1 }]}>Formula 1: the podium after each race, and the next race's start in Istanbul time</Text>
         <Switch value={f1} onValueChange={setF1} trackColor={{ true: colors.up }} />
       </View>
+      {!ok && <Text style={ui.muted}>{name.trim() ? 'Add keywords or pick something to follow, then Save works.' : 'Give the topic a name, then Save works.'}</Text>}
       <View style={styles.chips}>
         <Pill label={busy ? 'Saving…' : 'Save'} variant="solid" onPress={save} disabled={!ok || busy} />
         <Pill label="Cancel" onPress={onCancel} />
