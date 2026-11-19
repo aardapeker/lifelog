@@ -12,6 +12,7 @@ import { Ban, ColourWash, GlowingCover, Heart, KeepAwake, showName, WASH_BASE, w
 import { IconButton, PillButton, StatusLine } from '../components/ui';
 import { breadcrumb } from '../lib/crashLog';
 import { ActionSheet, type SheetAction } from '../components/ActionSheet';
+import { SongAbout } from '../components/SongAbout';
 import { SongPicker } from '../components/SongPicker';
 import { useRadio } from '../lib/radioEngine';
 import { colors, fonts, radius } from '../lib/theme';
@@ -211,6 +212,9 @@ export default function OnAirScreen() {
                 ))}
               </Glass>
             )}
+
+            {/* credits and the artist's card, folded until opened */}
+            <SongAbout track={current.track} />
 
             {phase === 'done' && (
               <PillButton
