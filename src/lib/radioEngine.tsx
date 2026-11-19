@@ -166,6 +166,11 @@ function useRadioEngine() {
       keepDays.current = (await getRadioPrefs(db)).keepDays;
       const all = JSON.parse(await getSetting(db, HISTORY_KEY, '[]')) as PastShow[];
       if (liveId.current && historyRef.current.length) return; // a show is on air: the list in memory is newer
+      // saved shows keep a copy of their station: give them its current name (Gebze Rock lost its "104")
+      for (const h of all) {
+        const now = stationByKey(h.show.station.key);
+        if (now.key === h.show.station.key) h.show.station = { ...h.show.station, name: now.name };
+      }
       const { list } = trimHistory(all, keepDays.current);
       historyRef.current = list;
       setHistory(list);

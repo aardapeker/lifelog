@@ -30,7 +30,6 @@ const PAD = 8;
 const ICON = 21;
 const GAP = 7; // icon ↔ name inside the pill
 const SIDE = 16; // space at the ends of the pill
-const MID = 100; // the pill's middle piece is drawn this wide and scaled (a scaled rectangle stays a rectangle)
 const SPRING = { useNativeDriver: true, speed: 16, bounciness: 8 } as const;
 // the open tab is a glass lens, a little taller and wider than the slot, with its icon magnified
 const LENS = ITEM + 12;
@@ -55,8 +54,9 @@ function slotLayout(width: number, active: number, labelW: number[]) {
 /**
  * A glass bar from side to side. The open tab is a white pill with its name; tapping another one
  * shrinks the old pill back to an icon while the new one stretches open and the others slide aside.
- * Every move is native (positions, a scale, fades): the pill is built from two round ends and a
- * scaled middle, because widths can't animate natively and would stutter when the app is busy.
+ * The open tab is a see-through glass lens that magnifies its icon. Its moves are native (positions,
+ * scales, fades); only its width springs on the JS side, since one piece of see-through glass can't
+ * be stitched from parts without the joins showing.
  * Drawn by hand: the library's bar ignored left/width on Android.
  */
 /** The tab bar's glass: real frosted blur of the open tab when it has a BlurSource, else tinted glass. */
@@ -114,9 +114,7 @@ function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
     x: SLOTS.map(() => new Animated.Value(0)),
     open: SLOTS.map((_, i) => new Animated.Value(i === active ? 1 : 0)),
     left: new Animated.Value(0),
-    right: new Animated.Value(0),
-    midX: new Animated.Value(0),
-    midScale: new Animated.Value(1),
+    width: new Animated.Value(LENS), // the lens's width: animated on the JS side (widths can't go native)
   }).current;
 
   const placed = useRef(false);
@@ -131,19 +129,21 @@ function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
         i === active ? pill.center - contentW / 2 : layout[i].center - ICON / 2,
       ]),
       ...SLOTS.map((_, i): [Animated.Value, number] => [v.open[i], i === active ? 1 : 0]),
-      // the lens: a half-circle at each end and a scaled middle that meets them exactly (no overlap:
-      // the glass is see-through, so overlapping pieces would show darker seams)
       [v.left, pill.center - lensW(pill.width) / 2],
-      [v.right, pill.center + lensW(pill.width) / 2 - LENS / 2],
-      [v.midX, pill.center - MID / 2],
-      [v.midScale, Math.max(0.01, (lensW(pill.width) - LENS) / MID)],
     ];
+    const width = lensW(pill.width);
     if (!placed.current) {
       placed.current = true; // first layout: just put everything there
       targets.forEach(([val, to]) => val.setValue(to));
+      v.width.setValue(width);
       return;
     }
-    Animated.parallel(targets.map(([val, to]) => Animated.spring(val, { toValue: to, ...SPRING }))).start();
+    Animated.parallel([
+      ...targets.map(([val, to]) => Animated.spring(val, { toValue: to, ...SPRING })),
+      // the lens is ONE see-through piece now: built from three, the joins showed as lines and a
+      // rectangle in the glass. Its width springs on the JS side; the move itself stays native.
+      Animated.spring(v.width, { toValue: width, ...SPRING, useNativeDriver: false }),
+    ]).start();
   }, [layout, active, labelW, v]);
 
   // the bar would float over the keyboard and the message box while typing
@@ -177,19 +177,11 @@ function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
 
           {layout && (
             <>
-              {/* the glass lens: left half-circle, scaled middle, right half-circle; a sheen across the top */}
-              <Animated.View style={[styles.capHalf, { transform: [{ translateX: v.left }] }]}>
-                <View style={styles.lensCircle}>
+              {/* the glass lens, with a sheen across its top */}
+              <Animated.View style={[styles.lensSpot, { transform: [{ translateX: v.left }] }]}>
+                <Animated.View style={[styles.lens, { width: v.width }]}>
                   <Sheen />
-                </View>
-              </Animated.View>
-              <Animated.View style={[styles.mid, { transform: [{ translateX: v.midX }, { scaleX: v.midScale }] }]}>
-                <Sheen />
-              </Animated.View>
-              <Animated.View style={[styles.capHalf, { transform: [{ translateX: v.right }] }]}>
-                <View style={[styles.lensCircle, { left: -LENS / 2 }]}>
-                  <Sheen />
-                </View>
+                </Animated.View>
               </Animated.View>
 
               {SLOTS.map((s, i) => {
@@ -217,7 +209,7 @@ function FloatingTabBar({ state, navigateToTab }: TabBarProps) {
                       pointerEvents="none"
                     >
                       <Animated.View style={[StyleSheet.absoluteFill, styles.center, { opacity: light }]}>
-                        <Ionicons name={s.icon} size={ICON} color={colors.muted} />
+                        <Ionicons name={s.icon} size={ICON} color={colors.text} />
                       </Animated.View>
                       <Animated.View style={[StyleSheet.absoluteFill, styles.center, { opacity: v.open[i] }]}>
                         <Ionicons name={s.icon} size={ICON} color={colors.text} />
@@ -284,29 +276,13 @@ const styles = StyleSheet.create({
   bar: { elevation: 10 },
   row: { height: ITEM + PAD * 2 },
   measure: { position: 'absolute', opacity: 0, flexDirection: 'row', top: -100 },
-  capHalf: { position: 'absolute', left: 0, top: LENS_TOP, width: LENS / 2, height: LENS, overflow: 'hidden' },
-  lensCircle: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    width: LENS,
+  lensSpot: { position: 'absolute', left: 0, top: LENS_TOP, height: LENS },
+  lens: {
     height: LENS,
     borderRadius: LENS / 2,
     overflow: 'hidden',
     backgroundColor: LENS_FILL,
     borderWidth: 1,
-    borderColor: LENS_RIM,
-  },
-  mid: {
-    position: 'absolute',
-    left: 0,
-    top: LENS_TOP,
-    width: MID,
-    height: LENS,
-    overflow: 'hidden',
-    backgroundColor: LENS_FILL,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
     borderColor: LENS_RIM,
   },
   sheen: { position: 'absolute', left: 0, right: 0, top: 0, height: LENS * 0.55 },

@@ -176,7 +176,7 @@ export const STATIONS: Station[] = [
   {
     key: 'rock',
     wishes: ['Warehouse rage', 'Headbang mode', '90s grunge', 'Guitar solos', 'Make me laugh'],
-    name: 'Gebze Rock 104',
+    name: 'Gebze Rock',
     freq: '104.0',
     tagline: 'Loud guitars for loud boxes.',
     emoji: '🎸',
