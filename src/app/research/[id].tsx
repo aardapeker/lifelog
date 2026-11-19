@@ -3,7 +3,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { articleStyles as styles, paragraphs, SearchedFor, SourceList } from '../../components/Article';
+import { articleStyles as styles, inline, paragraphs, SearchedFor, SourceList } from '../../components/Article';
 import { FadeIn } from '../../components/motion';
 import { IconButton, InfoTile, PillButton } from '../../components/ui';
 import { deleteResearch, getResearch, researchSources, type Research } from '../../lib/autonomy';
@@ -55,7 +55,7 @@ export default function ResearchScreen() {
         {r && (
           <FadeIn>
             <Text style={styles.title}>{r.topic}</Text>
-            {!!r.why && <Text style={styles.hook}>Because you wrote: “{r.why}”</Text>}
+            {!!r.why && <Text style={styles.hook}>{/^(the (writer|user)|they)\b/i.test(r.why) ? `Why: ${r.why}` : `Because you wrote: “${r.why}”`}</Text>}
 
             <View style={styles.tiles}>
               <InfoTile label="Reading" value={`${Math.max(1, Math.round(words / 200))} min`} />
@@ -69,7 +69,7 @@ export default function ResearchScreen() {
               <View style={styles.section}>
                 {body.map((p, i) => (
                   <Text key={i} style={styles.body} selectable>
-                    {p}
+                    {inline(p)}
                   </Text>
                 ))}
               </View>

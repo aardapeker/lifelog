@@ -1,4 +1,5 @@
 import Ionicons from './Icon';
+import type { ReactNode } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, fonts, radius, frost } from '../lib/theme';
 
@@ -16,6 +17,23 @@ export const paragraphs = (body: string) =>
     .filter(Boolean);
 
 /** Numbered sources, each opens in the browser. */
+/** **bold** and *italic* inside a paragraph. */
+export function inline(text: string): ReactNode[] {
+  return text.split(/(\*\*[^*]+\*\*|\*[^*\n]+\*)/g).map((part, i) =>
+    part.startsWith('**') && part.endsWith('**') && part.length > 4 ? (
+      <Text key={i} style={{ fontFamily: fonts.serifBold, color: colors.text }}>
+        {part.slice(2, -2)}
+      </Text>
+    ) : part.startsWith('*') && part.endsWith('*') && part.length > 2 ? (
+      <Text key={i} style={{ fontFamily: fonts.serifItalic }}>
+        {part.slice(1, -1)}
+      </Text>
+    ) : (
+      part
+    ),
+  );
+}
+
 export function SourceList({ sources }: { sources: { title: string; uri: string }[] }) {
   if (!sources.length) return null;
   return (

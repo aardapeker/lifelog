@@ -2,10 +2,10 @@ import Ionicons from '../../components/Icon';
 import { openWrite } from '../../lib/write';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { articleStyles } from '../../components/Article';
+import { articleStyles, inline } from '../../components/Article';
 import { blocksOf, toggleTodo, type Block } from '../../lib/markdown';
 import { FadeIn, PressScale } from '../../components/motion';
 import { PhotoViewer } from '../../components/PhotoViewer';
@@ -15,23 +15,6 @@ import { listPhotos, photoUri, type Photo } from '../../lib/photos';
 import { colors, fonts, radius } from '../../lib/theme';
 import { useFirstFrame } from '../../lib/perf';
 import { ShowWash } from '../../components/radioParts';
-
-/** **bold** and *italic* inside a paragraph. */
-function inline(text: string): ReactNode[] {
-  return text.split(/(\*\*[^*]+\*\*|\*[^*\n]+\*)/g).map((part, i) =>
-    part.startsWith('**') && part.endsWith('**') && part.length > 4 ? (
-      <Text key={i} style={{ fontFamily: fonts.serifBold, color: colors.text }}>
-        {part.slice(2, -2)}
-      </Text>
-    ) : part.startsWith('*') && part.endsWith('*') && part.length > 2 ? (
-      <Text key={i} style={{ fontFamily: fonts.serifItalic }}>
-        {part.slice(1, -1)}
-      </Text>
-    ) : (
-      part
-    ),
-  );
-}
 
 /** One block of the entry: a heading, a list (to-dos tick with a tap), a quote, a divider, or a paragraph. */
 function BlockView({ block, onTick }: { block: Block; onTick: (line: number) => void }) {

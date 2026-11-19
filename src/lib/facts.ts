@@ -115,7 +115,7 @@ const SYSTEM = (goals: string, never: string, known: string) =>
 4. "ideas": ideas for videos, tutorials or other content the writer mentions wanting to make, each a short phrase, or [].
 5. "research": things a good friend would quietly look up for them on the web, at most 2: something they want to buy,
    a plan or trip, a question they wondered about, a problem they're stuck on, an event or place they mentioned.
-   Each: {"topic": "short title", "query": "a web search query", "why": "what they wrote that made it worth it"}.
+   Each: {"topic": "short title", "query": "a web search query", "why": "their own words from the entry that made it worth it, quoted exactly (a few words, not a summary)"}.
    Only when the web would really help; usually []. Never research private details about other people.
    Never research these topics: ${never || '(nothing excluded)'}.
 6. ${MILESTONE_RULE}

@@ -3,7 +3,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { articleStyles, paragraphs, SearchedFor, SourceList } from '../../components/Article';
+import { articleStyles, inline, paragraphs, SearchedFor, SourceList } from '../../components/Article';
 import { IconButton, InfoTile, PillButton } from '../../components/ui';
 import { formatDate } from '../../lib/notes';
 import { articleOf, deleteRead, getRead, markOpened, type Article, type Read } from '../../lib/reads';
@@ -79,7 +79,7 @@ export default function ReadScreen() {
                 <Text style={styles.heading}>{s.heading}</Text>
                 {paragraphs(s.body).map((p, j) => (
                   <Text key={j} style={styles.body} selectable>
-                    {p}
+                    {inline(p)}
                   </Text>
                 ))}
               </View>
