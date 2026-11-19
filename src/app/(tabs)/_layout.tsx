@@ -52,8 +52,8 @@ function slotLayout(width: number, active: number, labelW: number[]) {
 }
 
 /**
- * A glass bar from side to side. The open tab is a white pill with its name; tapping another one
- * shrinks the old pill back to an icon while the new one stretches open and the others slide aside.
+ * A glass bar from side to side. The open tab is a lens with its name; tapping another one
+ * shrinks the old lens back to an icon while the new one stretches open and the others slide aside.
  * The open tab is a see-through glass lens that magnifies its icon. Its moves are native (positions,
  * scales, fades); only its width springs on the JS side, since one piece of see-through glass can't
  * be stitched from parts without the joins showing.
