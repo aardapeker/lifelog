@@ -57,7 +57,7 @@ export function toItem(t: Title, tv: boolean): FetchedItem | null {
 }
 
 /** A v4 "read access token" (a long JWT) goes in a header, a v3 "API key" in the query: both work. */
-async function call<T>(path: string, key: string): Promise<T> {
+export async function tmdbCall<T>(path: string, key: string): Promise<T> {
   const bearer = key.startsWith('eyJ');
   const url = `${API}${path}${path.includes('?') ? '&' : '?'}language=en-US${bearer ? '' : `&api_key=${encodeURIComponent(key)}`}`;
   return JSON.parse(await get(url, 15_000, 'application/json', bearer ? { Authorization: `Bearer ${key}` } : {})) as T;
@@ -67,7 +67,7 @@ async function call<T>(path: string, key: string): Promise<T> {
 async function personId(name: string, key: string, cache: Record<string, string>): Promise<string | null> {
   const k = `tmdb:person:${name.toLowerCase()}`;
   if (cache[k]) return cache[k];
-  const { results } = await call<{ results?: { id: number }[] }>(`/search/person?query=${encodeURIComponent(name)}`, key);
+  const { results } = await tmdbCall<{ results?: { id: number }[] }>(`/search/person?query=${encodeURIComponent(name)}`, key);
   const id = results?.[0]?.id;
   if (id) cache[k] = String(id);
   return id ? String(id) : null;
@@ -91,7 +91,7 @@ export const tmdb: ContentSource = {
     for (const l of lists) {
       if (!ctx.throttle.tryAcquire(`tmdb:${topic.id}:${l.id}`, EVERY)) continue;
       try {
-        add((await call<{ results?: Title[] }>(l.path, key)).results, !!l.tv);
+        add((await tmdbCall<{ results?: Title[] }>(l.path, key)).results, !!l.tv);
       } catch (e) {
         console.warn(`Radar: TMDB ${l.id} failed`, e);
       }
@@ -104,7 +104,7 @@ export const tmdb: ContentSource = {
         const id = await personId(name, key, ctx.cache);
         if (!id) continue;
         const path = `/discover/movie?with_people=${id}&sort_by=primary_release_date.desc&primary_release_date.gte=${from}`;
-        add((await call<{ results?: Title[] }>(path, key)).results, false);
+        add((await tmdbCall<{ results?: Title[] }>(path, key)).results, false);
       } catch (e) {
         console.warn(`Radar: TMDB ${name} failed`, e);
       }
@@ -116,7 +116,7 @@ export const tmdb: ContentSource = {
 /** Checks a key before it's saved: one tiny call. */
 export async function testTmdbKey(key: string): Promise<boolean> {
   try {
-    await call('/configuration', key.trim());
+    await tmdbCall('/configuration', key.trim());
     return true;
   } catch {
     return false;

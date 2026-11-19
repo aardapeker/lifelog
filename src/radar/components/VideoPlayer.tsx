@@ -24,8 +24,9 @@ const page = (id: string) => `<!doctype html><html><head><meta name="viewport" c
 <body><iframe src="https://www.youtube-nocookie.com/embed/${id}?autoplay=1&playsinline=1&rel=0&modestbranding=1&origin=${encodeURIComponent(ORIGIN)}"
 allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></body></html>`;
 
-export function VideoPlayer({ item }: { item: FeedItem }) {
-  const [playing, setPlaying] = useState(false);
+/** `autoPlay`: start the player right away (the movie page's Trailer button was the tap already). */
+export function VideoPlayer({ item, autoPlay = false }: { item: FeedItem; autoPlay?: boolean }) {
+  const [playing, setPlaying] = useState(autoPlay);
   const id = videoId(item.url);
   const short = item.type === 'SHORT';
   if (!id) return null;

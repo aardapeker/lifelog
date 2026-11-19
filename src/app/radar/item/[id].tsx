@@ -11,6 +11,8 @@ import { Pill } from '../../../radar/components/Pill';
 import { PostBody } from '../../../radar/components/PostBody';
 import { ReaderView } from '../../../radar/components/ReaderView';
 import { StoryCoverage } from '../../../radar/components/StoryCoverage';
+import { MoviePage } from '../../../radar/components/MoviePage';
+import { parseTmdbUrl } from '../../../radar/local/tmdbDetails';
 import { isUsefulSnippet } from '../../../radar/format';
 import { useLoad } from '../../../radar/hooks';
 import { colors, ui, fonts } from '../../../radar/theme';
@@ -59,6 +61,8 @@ function Detail({ item, onChange }: { item: FeedItem; onChange: (i: FeedItem) =>
   const insets = useSafeAreaInsets();
   const pageBottom = usePageBottom(); // room for the docked mini player
   const isVideo = item.type === 'VIDEO' || item.type === 'SHORT';
+  // films and series get their own page (TMDB details), the rest the news layout
+  const movie = item.type === 'MOVIE' ? parseTmdbUrl(item.url) : null;
   // videos open in the YouTube app; pages in an in-app browser tab, inside Lifelog's own task
   // (createTask: false), or it stayed behind as a second "Lifelog" card in recent apps even after ✕
   // videos open in the YouTube app and music in Spotify (their links are app links); the rest in a browser tab
@@ -90,31 +94,37 @@ function Detail({ item, onChange }: { item: FeedItem; onChange: (i: FeedItem) =>
         }
       />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 48 + pageBottom }]}>
-        {/* plays right here; "Open on YouTube" below still goes to the app */}
-        {isVideo && <VideoPlayer item={item} />}
-        {(item.type === 'ARTICLE' || item.type === 'DISCUSSION') && item.thumbnailUrl && (
-          <Image source={{ uri: item.thumbnailUrl }} style={styles.hero} resizeMode="cover" />
-        )}
-        {item.type === 'MOVIE' && item.thumbnailUrl && <Image source={{ uri: item.thumbnailUrl }} style={styles.poster} resizeMode="cover" />}
-        {item.type === 'MUSIC' && item.thumbnailUrl && <Image source={{ uri: item.thumbnailUrl }} style={styles.cover} resizeMode="cover" />}
-        {item.type === 'POST' ? (
-          <PostBody item={item} large />
+        {movie ? (
+          <MoviePage kind={movie.kind} id={movie.id} save={{ saved: item.saved, toggle: save }} />
         ) : (
           <>
-            <CardMeta item={item} showKind={false} />
-            <Text style={styles.title}>{item.title}</Text>
-            {item.author && <Text style={ui.muted}>{item.author}{item.type === 'MOVIE' && item.score != null ? ` · ★ ${item.score}` : ''}</Text>}
-            {isUsefulSnippet(item.snippet, item.title) && <Text style={ui.body}>{item.snippet}</Text>}
-            <AiSummary item={item} />
+            {/* plays right here; "Open on YouTube" below still goes to the app */}
+            {isVideo && <VideoPlayer item={item} />}
+            {(item.type === 'ARTICLE' || item.type === 'DISCUSSION') && item.thumbnailUrl && (
+              <Image source={{ uri: item.thumbnailUrl }} style={styles.hero} resizeMode="cover" />
+            )}
+            {item.type === 'MOVIE' && item.thumbnailUrl && <Image source={{ uri: item.thumbnailUrl }} style={styles.poster} resizeMode="cover" />}
+            {item.type === 'MUSIC' && item.thumbnailUrl && <Image source={{ uri: item.thumbnailUrl }} style={styles.cover} resizeMode="cover" />}
+            {item.type === 'POST' ? (
+              <PostBody item={item} large />
+            ) : (
+              <>
+                <CardMeta item={item} showKind={false} />
+                <Text style={styles.title}>{item.title}</Text>
+                {item.author && <Text style={ui.muted}>{item.author}{item.type === 'MOVIE' && item.score != null ? ` · ★ ${item.score}` : ''}</Text>}
+                {isUsefulSnippet(item.snippet, item.title) && <Text style={ui.body}>{item.snippet}</Text>}
+                <AiSummary item={item} />
+              </>
+            )}
+            <View style={styles.actions}>
+              <Pill label={item.type === 'QUAKE' ? `Open on ${item.sourceName ?? 'AFAD'}` : (OPEN_LABEL[item.type] ?? 'Open original')} icon="open-outline" variant="solid" onPress={() => open()} />
+              <Pill label={item.saved ? 'Saved' : 'Save'} icon={item.saved ? 'bookmark' : 'bookmark-outline'} variant={item.saved ? 'on' : 'plain'} onPress={save} />
+              {second && <Pill label={second.label} icon="document-text-outline" onPress={() => open(second.url)} />}
+            </View>
+            <ReaderView item={item} />
+            <StoryCoverage item={item} />
           </>
         )}
-        <View style={styles.actions}>
-          <Pill label={item.type === 'QUAKE' ? `Open on ${item.sourceName ?? 'AFAD'}` : (OPEN_LABEL[item.type] ?? 'Open original')} icon="open-outline" variant="solid" onPress={() => open()} />
-          <Pill label={item.saved ? 'Saved' : 'Save'} icon={item.saved ? 'bookmark' : 'bookmark-outline'} variant={item.saved ? 'on' : 'plain'} onPress={save} />
-          {second && <Pill label={second.label} icon="document-text-outline" onPress={() => open(second.url)} />}
-        </View>
-        <ReaderView item={item} />
-        <StoryCoverage item={item} />
       </ScrollView>
     </Page>
   );
