@@ -9,7 +9,15 @@ import { item, type ContentSource, type FetchedItem } from './types';
 const EVERY = 6 * 3600_000;
 const API = 'https://api.jolpi.ca/ergast/f1';
 
-type Result = { position?: string; Driver?: { givenName?: string; familyName?: string }; Constructor?: { name?: string } };
+export type Result = {
+  position?: string;
+  points?: string;
+  status?: string;
+  Time?: { time?: string };
+  FastestLap?: { rank?: string };
+  Driver?: { givenName?: string; familyName?: string; code?: string };
+  Constructor?: { name?: string };
+};
 export type Race = {
   season?: string;
   round?: string;
@@ -21,17 +29,17 @@ export type Race = {
   Results?: Result[];
 };
 
-const races = async (path: string) =>
+export const races = async (path: string) =>
   ((JSON.parse(await get(`${API}${path}`, 15_000, 'application/json')) as { MRData?: { RaceTable?: { Races?: Race[] } } }).MRData?.RaceTable?.Races ?? []);
 
 /** The race's start in ms (midday UTC when the time isn't known yet). */
 export const startOf = (r: Race) => Date.parse(`${r.date}T${r.time ?? '12:00:00Z'}`);
 
 /** "Sat 22 Nov, 07:00" in Istanbul time */
-const istanbul = (t: number) =>
+export const istanbul = (t: number) =>
   new Date(t + 3 * 3600_000).toLocaleString('en-GB', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
-const where = (r: Race) => [r.Circuit?.circuitName, r.Circuit?.Location?.country].filter(Boolean).join(', ');
+export const where = (r: Race) => [r.Circuit?.circuitName, r.Circuit?.Location?.country].filter(Boolean).join(', ');
 const pageOf = (r: Race) => r.url ?? `https://en.wikipedia.org/wiki/${r.season}_Formula_One_World_Championship`;
 
 export function resultItem(r: Race): FetchedItem | null {
@@ -43,7 +51,7 @@ export function resultItem(r: Race): FetchedItem | null {
     sourceName: 'F1',
     title: `🏁 ${r.raceName}: ${podium[0].Driver?.givenName ?? ''} ${name(podium[0])} wins`.replace(/\s+/g, ' '),
     snippet: podium.map((x, i) => `${i + 1}. ${name(x)} (${x.Constructor?.name ?? '?'})`).join(' · ') + (where(r) ? ` — ${where(r)}` : ''),
-    url: `${pageOf(r)}#results`, // one card for the result…
+    url: `${pageOf(r)}#results-${r.season}-${r.round}`, // one card for the result… (season and round for the F1 page)
     publishedAt: Date.now(),
   });
 }
@@ -56,7 +64,7 @@ export function nextItem(r: Race): FetchedItem | null {
     sourceName: 'F1',
     title: `Next: ${r.raceName}`,
     snippet: `${istanbul(start)} (Istanbul time)${r.time ? '' : ', time not set yet'}${where(r) ? ` · ${where(r)}` : ''}`,
-    url: `${pageOf(r)}#next`, // …and one for the countdown, so both show up once
+    url: `${pageOf(r)}#next-${r.season}-${r.round}`, // …and one for the countdown, so both show up once
     publishedAt: Date.now(),
   });
 }

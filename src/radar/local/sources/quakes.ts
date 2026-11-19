@@ -8,7 +8,7 @@ import { item, type ContentSource, type FetchedItem } from './types';
  */
 
 const EVERY = 10 * 60_000;
-const ISTANBUL = { lat: 41.01, lon: 28.98 };
+export const ISTANBUL = { lat: 41.01, lon: 28.98 };
 const NEAR_KM = 300;
 const TURKEY = { minLat: 35.5, maxLat: 42.5, minLon: 25.5, maxLon: 45 }; // and its seas
 
@@ -74,13 +74,15 @@ export function toItem(q: Quake): FetchedItem {
     title: `M ${one(q.mag)} earthquake · ${q.place}`,
     snippet: [q.depth != null ? `${Math.round(q.depth)} km deep` : null, `${km} km from Istanbul`].filter(Boolean).join(' · '),
     url: q.url,
+    // where it was, as a standard geo link (the quake page's map reads it; a maps app could open it)
+    mediaUrl: `geo:${q.lat},${q.lon}${q.depth != null ? `?depth=${q.depth}` : ''}`,
     score: Math.round(q.mag * 10) / 10,
     publishedAt: q.time,
   });
 }
 
 /** The last day's quakes of magnitude `min` or more in and around Turkey: AFAD first, USGS if that fails. */
-async function recent(min: number, since: number): Promise<Quake[]> {
+export async function recentQuakes(min: number, since: number): Promise<Quake[]> {
   const fmt = (t: number) => new Date(t + 3 * 3600_000).toISOString().slice(0, 19); // AFAD wants Turkish time
   try {
     const url = `https://deprem.afad.gov.tr/apiv2/event/filter?start=${fmt(since)}&end=${fmt(Date.now())}&minmag=${min}&format=json`;
@@ -103,7 +105,7 @@ export const quakes: ContentSource = {
     const min = topic.sources.quakeMinMag;
     if (!min || !ctx.throttle.tryAcquire(`quakes:${topic.id}`, EVERY)) return [];
     const near = topic.sources.quakeArea !== 'turkey';
-    return (await recent(min, ctx.since))
+    return (await recentQuakes(min, ctx.since))
       .filter((q) => q.mag >= min && (!near || kmBetween(q, ISTANBUL) <= NEAR_KM))
       .map(toItem);
   },

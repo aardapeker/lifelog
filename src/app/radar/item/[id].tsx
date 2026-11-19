@@ -11,7 +11,11 @@ import { Pill } from '../../../radar/components/Pill';
 import { PostBody } from '../../../radar/components/PostBody';
 import { ReaderView } from '../../../radar/components/ReaderView';
 import { StoryCoverage } from '../../../radar/components/StoryCoverage';
+import { AlbumPage } from '../../../radar/components/AlbumPage';
+import { F1Page } from '../../../radar/components/F1Page';
 import { MoviePage } from '../../../radar/components/MoviePage';
+import { QuakePage } from '../../../radar/components/QuakePage';
+import { parseGeo } from '../../../radar/local/quakeInfo';
 import { parseTmdbUrl } from '../../../radar/local/tmdbDetails';
 import { isUsefulSnippet } from '../../../radar/format';
 import { useLoad } from '../../../radar/hooks';
@@ -61,11 +65,10 @@ function Detail({ item, onChange }: { item: FeedItem; onChange: (i: FeedItem) =>
   const insets = useSafeAreaInsets();
   const pageBottom = usePageBottom(); // room for the docked mini player
   const isVideo = item.type === 'VIDEO' || item.type === 'SHORT';
-  // films and series get their own page (TMDB details), the rest the news layout
   const movie = item.type === 'MOVIE' ? parseTmdbUrl(item.url) : null;
-  // videos open in the YouTube app; pages in an in-app browser tab, inside Lifelog's own task
-  // (createTask: false), or it stayed behind as a second "Lifelog" card in recent apps even after ✕
-  // videos open in the YouTube app and music in Spotify (their links are app links); the rest in a browser tab
+  // videos open in the YouTube app and music in Spotify (their links are app links); the rest in an in-app
+  // browser tab inside Lifelog's own task (createTask: false), or it stayed behind as a second "Lifelog" card
+  // in recent apps even after ✕
   const inApp = isVideo || item.type === 'MUSIC';
   const open = (url = item.url) => (inApp && url === item.url ? Linking.openURL(url) : WebBrowser.openBrowserAsync(url, { toolbarColor: colors.ink, createTask: false }));
   const second =
@@ -78,6 +81,17 @@ function Detail({ item, onChange }: { item: FeedItem; onChange: (i: FeedItem) =>
     r.setSaved(item.id, !item.saved).catch(() => {});
     onChange({ ...item, saved: !item.saved });
   };
+  // films, quakes, releases and races get their own page; everything else the news layout below
+  const saving = { saved: item.saved, toggle: save };
+  const special = movie ? (
+    <MoviePage kind={movie.kind} id={movie.id} save={saving} />
+  ) : item.type === 'QUAKE' && parseGeo(item.mediaUrl) ? ( // older quake cards have no location: news layout
+    <QuakePage item={item} save={saving} />
+  ) : item.type === 'MUSIC' && item.mediaUrl ? (
+    <AlbumPage item={item} save={saving} />
+  ) : item.type === 'SPORT' ? (
+    <F1Page item={item} save={saving} />
+  ) : null;
   const hide = () =>
     item.domain &&
     showAlert(`Never show ${item.domain}?`, 'Its articles leave your feed and the morning digest. Undo it in Radar settings.', [
@@ -94,9 +108,7 @@ function Detail({ item, onChange }: { item: FeedItem; onChange: (i: FeedItem) =>
         }
       />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 48 + pageBottom }]}>
-        {movie ? (
-          <MoviePage kind={movie.kind} id={movie.id} save={{ saved: item.saved, toggle: save }} />
-        ) : (
+        {special ?? (
           <>
             {/* plays right here; "Open on YouTube" below still goes to the app */}
             {isVideo && <VideoPlayer item={item} />}

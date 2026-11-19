@@ -16,7 +16,7 @@ const AGENT = { 'User-Agent': 'LifelogRadar/1.0 ( https://github.com/aardapeker/
 
 let queue: Promise<unknown> = Promise.resolve();
 /** One MusicBrainz request at a time, 1.1 s apart, whichever topic asks. */
-function mb<T>(path: string): Promise<T> {
+export function mb<T>(path: string): Promise<T> {
   const run = queue.then(async () => {
     await new Promise((r) => setTimeout(r, 1100));
     return JSON.parse(await get(`${API}${path}${path.includes('?') ? '&' : '?'}fmt=json`, 15_000, 'application/json', AGENT)) as T;
