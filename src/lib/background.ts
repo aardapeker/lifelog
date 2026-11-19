@@ -4,7 +4,7 @@ import { maybeSendDigest, runResearch } from './autonomy';
 import { deliverDue, planCheckins } from './checkins';
 import { indexPending } from './embeddings';
 import { learnFromChats } from './chatMemory';
-import { learnFacts } from './facts';
+import { learnFacts, tidyFacts } from './facts';
 import { captionPending } from './photos';
 import { writePendingReads } from './reads';
 import { scheduleDayOffReminders } from './planner';
@@ -59,6 +59,7 @@ async function runAll(db: SQLiteDatabase): Promise<void> {
   await safe(indexPending(db));
   await safe(learnFacts(db));
   await safe(learnFromChats(db)); // chats that went quiet become memory (and maybe a Read)
+  await safe(tidyFacts(db)); // weekly: duplicate facts become one, all in English
   await safe(ensureRecap(db));
   await safe(ensureWrapped(db)); // last month's Wrapped, on the 1st
   await safe(planAhead(db)); // a message for each of the next 7 days, in case Android keeps us asleep

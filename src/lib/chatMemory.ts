@@ -3,8 +3,7 @@ import { tooManyTries } from './db';
 import { getAutonomySettings, isNeverResearch } from './autonomySettings';
 import { getBackgroundConfig, parseJsonReply } from './chat';
 import { chatMessages, getChat, quietChatsToLearn, renameChat } from './chats';
-
-const KINDS = ['person', 'pet', 'place', 'goal', 'plan', 'habit', 'preference', 'event', 'feeling'];
+import { KINDS, KNOWN_RULE, knownFacts } from './facts';
 
 /** A short title right after the first answer, so History isn't a list of "New chat". */
 export async function titleChat(db: SQLiteDatabase, chatId: number): Promise<void> {
@@ -65,12 +64,16 @@ export async function learnFromChats(db: SQLiteDatabase): Promise<number> {
 1. "title": a 2 to 5 word title for the chat, same language as the chat.
 2. "facts": durable facts about the USER worth remembering in a month, only from what the USER said
    (never from the friend's guesses). Each {"kind", "subject", "text"}; kind is one of ${KINDS.join(', ')};
-   subject is the person, pet or place it's about, or null; text is one short third-person sentence. Usually 0 to 4.
+   subject is the person, pet or place it's about, or null; text is one short sentence. Usually 0 to 4.
+   ${KNOWN_RULE}
 3. "read": if the user showed real curiosity about a topic the web could teach them more about
    (a technology, a product, a place, a skill, a news subject), propose ONE short article for them:
    {"topic": "short title", "angles": ["3 web searches: the basics", "what's new lately", "practical tips or options"],
    "why": "what they asked or said"}. Otherwise null. Small talk and feelings are not research topics.
-   Never propose a read about these: ${settings.never.join(', ') || '(nothing excluded)'}.`,
+   Never propose a read about these: ${settings.never.join(', ') || '(nothing excluded)'}.
+
+Facts already known:
+${(await knownFacts(db, { chatId: chat.id })) || '(nothing yet)'}`,
           prompt: transcript,
         });
         const a = parseJsonReply<ChatAnalysis>(reply);

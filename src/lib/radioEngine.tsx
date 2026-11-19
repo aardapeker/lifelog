@@ -310,6 +310,30 @@ function useRadioEngine() {
     };
     const talk = s.slots[i].talk;
     if (!live.current.voice || !talk.length || live.current.talked === i) return start();
+    if (s.slots[i].intro) {
+      // a DJ moment at the START: the song begins right away and the hosts talk over its intro, Spotify ducked
+      prepare(i);
+      (async () => {
+        const uri = await withTimeout(clips.current.get(i) ?? Promise.resolve(null), 300);
+        start();
+        if (!uri) return; // not voiced in time: the song just plays, nobody waits at the start of a song
+        // the voice waits until Spotify really plays: if it went first, Spotify starting would take the
+        // audio back and the music wouldn't be turned down under the voice
+        for (let k = 0; ; k++) {
+          await waitMs(500);
+          if (live.current.index !== i || live.current.paused || k >= 12) return;
+          const p = await playbackState().catch(() => null);
+          if (p?.isPlaying && sameTrack(p.track, s.slots[i].track)) break;
+        }
+        setSpeaking(true);
+        const t = playClip(uri, true);
+        talking.current = t;
+        await t.done;
+        if (talking.current === t) talking.current = null;
+        setSpeaking(false);
+      })();
+      return;
+    }
     live.current.speaking = true;
     live.current.overlapping = overlap;
     setSpeaking(true);
@@ -544,7 +568,11 @@ function useRadioEngine() {
         l.overlapping = false;
         l.speaking = false;
         setSpeaking(false);
-      } else await pausePlayback().catch(fail);
+      } else {
+        shush(); // an intro talk may be playing over the song
+        setSpeaking(false);
+        await pausePlayback().catch(fail);
+      }
       return;
     }
     l.paused = false;

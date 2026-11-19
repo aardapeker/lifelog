@@ -1,5 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { tooManyTries } from './db';
+import { getSetting, setSetting, tooManyTries } from './db';
 import { getBackgroundConfig, parseJsonReply } from './chat';
 import { getAutonomySettings, isNeverResearch } from './autonomySettings';
 import { formatDate } from './notes';
@@ -14,7 +14,7 @@ export type Fact = {
   created_at: number;
 };
 
-const KINDS = ['person', 'pet', 'place', 'goal', 'plan', 'habit', 'preference', 'event', 'feeling'];
+export const KINDS = ['person', 'pet', 'place', 'goal', 'plan', 'habit', 'preference', 'event', 'feeling'];
 
 export function listFacts(db: SQLiteDatabase, limit = 200): Promise<Fact[]> {
   return db.getAllAsync<Fact>('SELECT * FROM facts ORDER BY created_at DESC LIMIT ?', limit);
@@ -22,6 +22,76 @@ export function listFacts(db: SQLiteDatabase, limit = 200): Promise<Fact[]> {
 
 export async function deleteFact(db: SQLiteDatabase, id: number): Promise<void> {
   await db.runAsync('DELETE FROM facts WHERE id = ?', id);
+}
+
+/**
+ * What's already known, for the AI that reads a new entry or chat: without it, every entry that
+ * mentions Küçükyalı added "Lives in Küçükyalı" again (one place had five copies). The entry or
+ * chat being read is left out, since its own facts get replaced anyway.
+ */
+export async function knownFacts(db: SQLiteDatabase, from: { noteId?: number; chatId?: number }): Promise<string> {
+  const rows = await db.getAllAsync<{ text: string }>(
+    'SELECT text FROM facts WHERE IFNULL(note_id, 0) != ? AND IFNULL(chat_id, 0) != ? ORDER BY created_at DESC LIMIT 150',
+    from.noteId ?? -1,
+    from.chatId ?? -1,
+  );
+  return rows.map((r) => `- ${r.text}`).join('\n');
+}
+
+/** The rule that goes with `knownFacts`, shared by the journal and the chat readers. */
+export const KNOWN_RULE =
+  'Facts already known are listed below. Never repeat one of them, even reworded. Return a fact only when it is ' +
+  'NEW, or when it CHANGES a known one (then write the updated fact). Write facts in English, keeping names as written ' +
+  '("Lives in Küçükyalı"), and refer to the writer without a name or "the user" ("Works at Arvato").';
+
+const TIDY_EVERY = 7 * 86_400_000;
+
+/**
+ * Cleans up memory: duplicates become one line, facts in other languages become English, and when two
+ * facts disagree the newer one wins. One AI call over everything, weekly in the background
+ * (and from "Tidy up" on the Me page). The kept line stays tied to its entry or chat.
+ */
+export async function tidyFacts(db: SQLiteDatabase, force = false): Promise<number> {
+  if (!force && Date.now() - Number(await getSetting(db, 'facts.tidiedAt', '0')) < TIDY_EVERY) return 0;
+  const ai = await getBackgroundConfig(db);
+  if (!ai) return 0;
+  const facts = await db.getAllAsync<{ id: number; text: string; created_at: number }>(
+    'SELECT id, text, created_at FROM facts ORDER BY created_at DESC LIMIT 400',
+  );
+  if (facts.length < 2) return 0;
+  const reply = await ai.adapter.complete({
+    apiKey: ai.apiKey,
+    model: ai.model,
+    json: true,
+    maxTokens: 6000,
+    system:
+      "You tidy up the facts an AI friend remembers about one person. Find facts that say the same thing (even " +
+      'worded differently, or in Turkish and English) and facts that contradict each other (the newer one wins; ' +
+      'dates are given). Also find every fact not written in English. Return {"groups":[{"keep":id,"drop":[ids],' +
+      '"text":"the one clean fact"}]}: "keep" is the newest fact of the group, "drop" the rest, "text" one short ' +
+      'English sentence without a name or "the user" ("Has a cat named Şemistan"), names kept as written. A fact that ' +
+      'is only in another language is a group of its own with "drop":[]. Facts that are fine as they are do not appear. ' +
+      'Never merge facts that are only similar ("Works at Arvato" and "Works night shifts" are two facts).',
+    prompt: facts.map((f) => `${f.id} (${formatDate(f.created_at)}): ${f.text}`).join('\n'),
+  });
+  const ids = new Set(facts.map((f) => f.id));
+  const { groups } = parseJsonReply<{ groups?: { keep?: number; drop?: number[]; text?: string }[] }>(reply);
+  let changed = 0;
+  await db.withTransactionAsync(async () => {
+    for (const g of groups ?? []) {
+      const keep = Number(g.keep);
+      if (!ids.has(keep)) continue;
+      if (g.text?.trim()) await db.runAsync('UPDATE facts SET text = ? WHERE id = ?', g.text.trim(), keep);
+      for (const d of g.drop ?? []) {
+        if (Number(d) === keep || !ids.has(Number(d))) continue;
+        await db.runAsync('DELETE FROM facts WHERE id = ?', Number(d));
+        ids.delete(Number(d)); // a fact listed in two groups goes only once
+        changed++;
+      }
+    }
+  });
+  await setSetting(db, 'facts.tidiedAt', String(Date.now()));
+  return changed;
 }
 
 type Analysis = {
@@ -33,14 +103,14 @@ type Analysis = {
   milestone?: FoundMilestone | null;
 };
 
-const SYSTEM = (goals: string, never: string) =>
+const SYSTEM = (goals: string, never: string, known: string) =>
   `You read one entry from someone's personal journal and return JSON with six things:
 1. "mood": {"score": 1-5, "label": one lowercase word}. 1 = awful, 3 = neutral, 5 = great.
 2. "facts": durable facts about the writer worth remembering in a month: people in their life, pets, places,
    goals, plans, habits, preferences, notable events, recurring feelings. Each: {"kind", "subject", "text"}.
    kind is one of ${KINDS.join(', ')}. subject is the name of the person, pet or place the fact is about
    (exactly as the writer names them, e.g. "Şemistan", "Mustafa", "Gebze"), or null.
-   text is one short third-person sentence ("Has a cat called Şemistan"). Skip trivia.
+   text is one short sentence ("Has a cat called Şemistan"). Skip trivia. ${KNOWN_RULE}
 3. "goals": ids of the writer's goals this entry is clearly about (from the list below), or [].
 4. "ideas": ideas for videos, tutorials or other content the writer mentions wanting to make, each a short phrase, or [].
 5. "research": things a good friend would quietly look up for them on the web, at most 2: something they want to buy,
@@ -49,8 +119,10 @@ const SYSTEM = (goals: string, never: string) =>
    Only when the web would really help; usually []. Never research private details about other people.
    Never research these topics: ${never || '(nothing excluded)'}.
 6. ${MILESTONE_RULE}
-Write facts and ideas in the language of the entry.
-The writer's goals: ${goals || '(none yet)'}`;
+Write ideas in the language of the entry (facts are always English).
+The writer's goals: ${goals || '(none yet)'}
+Facts already known:
+${known || '(nothing yet)'}`;
 
 let running = false;
 
@@ -77,7 +149,7 @@ export async function learnFacts(db: SQLiteDatabase): Promise<number> {
           apiKey: ai.apiKey,
           model: ai.model,
           json: true,
-          system: SYSTEM(goalList, never.join(', ')),
+          system: SYSTEM(goalList, never.join(', '), await knownFacts(db, { noteId: note.id })),
           prompt: `Entry written ${formatDate(note.created_at)}:\n\n${note.body || '(only photos)'}`,
         });
         const analysis = parseJsonReply<Analysis>(reply);

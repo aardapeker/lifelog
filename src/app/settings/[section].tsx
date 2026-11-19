@@ -42,7 +42,7 @@ import {
   type CheckinSettings,
   type Shift,
 } from '../../lib/checkins';
-import { deleteFact, listFacts, type Fact } from '../../lib/facts';
+import { deleteFact, listFacts, tidyFacts, type Fact } from '../../lib/facts';
 import {
   backgroundAvailable,
   lastBackgroundRun,
@@ -620,12 +620,25 @@ function LearnedSection() {
   const db = useSQLiteContext();
   const [facts, setFacts] = useState<Fact[]>([]);
   const [all, setAll] = useState(false);
+  const [status, setStatus] = useState<Status>({ kind: 'idle' });
 
   useFocusEffect(
     useCallback(() => {
       listFacts(db).then(setFacts);
     }, [db]),
   );
+
+  // merges repeats ("Lives in Küçükyalı" ×5) and puts everything in English; also runs weekly on its own
+  const tidy = async () => {
+    setStatus({ kind: 'busy' });
+    try {
+      const merged = await tidyFacts(db, true);
+      setFacts(await listFacts(db));
+      setStatus({ kind: 'ok', msg: merged ? `Merged ${merged} repeat${merged > 1 ? 's' : ''}.` : 'Already tidy.' });
+    } catch (e) {
+      setStatus({ kind: 'err', msg: e instanceof Error ? e.message : String(e) });
+    }
+  };
 
   const remove = async (id: number) => {
     await deleteFact(db, id);
@@ -652,6 +665,12 @@ function LearnedSection() {
           <Text style={styles.more}>{all ? 'Show less' : `Show all ${facts.length}`}</Text>
         </Pressable>
       )}
+      {facts.length > 1 && (
+        <View style={styles.row}>
+          <PillButton label="Tidy up" onPress={tidy} ghost />
+        </View>
+      )}
+      <StatusLine status={status} />
     </Section>
   );
 }

@@ -16,7 +16,8 @@ import type { SpokenLine } from './tts';
  */
 
 /** overlap: seconds the talk before this song may run over the END of the previous one (0 = wait for it). */
-export type Slot = { track: Track; talk: SpokenLine[]; label: string | null; overlap: number };
+/** intro: the talk plays over the START of this song instead (music turned down), a DJ hyping it in. */
+export type Slot = { track: Track; talk: SpokenLine[]; label: string | null; overlap: number; intro?: boolean };
 /** outro: the goodbye after the last song. */
 /** `guest`: a host from another station who wandered into this show (a crossover), with their voice. */
 /** `regular`: one of the station's own sketch characters (a caller, a live report, a studio visitor). */
@@ -245,18 +246,20 @@ export async function buildShow(
 
   // ── 1. the playlist: the AI picks the songs (and spares), nothing else ──
   onStep('picking');
-  const pickReply = await writer.adapter.complete({
+  // a second round can ask for more: `extra` says what didn't work the first time
+  const apiKey = writer.apiKey; // checked above (a closure loses that narrowing)
+  const askSongs = (count: number, spareCount: number, extra = '') => writer.adapter.complete({
     feature: 'radio',
-    apiKey: writer.apiKey,
+    apiKey,
     model: writer.model,
     json: true,
-    maxTokens: 1500 + (SHOW_LENGTH + SPARES) * 60,
+    maxTokens: 1500 + (count + spareCount) * 60,
     temperature: 1.1, // song picking wants surprise
     lightThinking: true,
     system:
       `You are the music director of "${station.name} ${station.freq}" (${station.tagline}), picking the playlist ` +
       `for a private show for ONE listener.\n\n` +
-      `Music: ${station.music}. Pick ${SHOW_LENGTH} REAL songs that exist on Spotify (exact title and main artist ` +
+      `Music: ${station.music}. Pick ${count} REAL songs that exist on Spotify (exact title and main artist ` +
       `as Spotify lists them), in an order that flows. ` +
       (station.key === 'friend' ? 'Use their taste and their day. ' : "Stay true to the station's style. ") +
       (prefs.hits ? `DEEP CUTS: at most ${prefs.hits} song${prefs.hits > 1 ? 's' : ''} per show may be big, obvious hits` : 'DEEP CUTS: no big, obvious hits at all') +
@@ -270,8 +273,8 @@ export async function buildShow(
       'Never repeat a song from the "already played" list. Surprise them. ' +
       songLang +
       `\n\nReturn {"title":"a fun show name","lang":"tr or en (the language the hosts will speak)",` +
-      `"songs":[{"title":"…","artist":"…"}],"spares":[{"title":"…","artist":"…"}]} with exactly ${SHOW_LENGTH} songs ` +
-      `and ${SPARES} spares (more songs that fit, used if one can't be found on Spotify).\n\n` +
+      `"songs":[{"title":"…","artist":"…"}],"spares":[{"title":"…","artist":"…"}]} with exactly ${count} songs ` +
+      `and ${spareCount} spares (more songs that fit, used if one can't be found on Spotify).\n\n` +
       about,
     prompt:
       `Now: ${formatDate(Date.now())}, ${shiftFor(shifts, Date.now())} shift week${city ? `, in ${city}` : ''}.\n` +
@@ -291,14 +294,23 @@ export async function buildShow(
       (banned.length ? `NEVER play these, the listener banned them: ${banned.slice(0, 60).map(songLine).join('; ')}\n` : '') +
       (wish.trim() ? `The listener asked for: ${wish.trim()}\n` : '') +
       (taste.length ? `Their top artists lately: ${taste.join(', ')}\n` : '') +
-      `\n${notesText}`,
+      `\n${notesText}` +
+      extra,
   });
+  const pickReply = await askSongs(SHOW_LENGTH, SPARES);
   const pick = parseJsonReply<{ title?: string; lang?: string; songs?: { title: string; artist: string }[]; spares?: { title: string; artist: string }[] }>(pickReply);
 
   // ── 2. check them on Spotify: a song that can't be used is replaced by the next spare ──
   /** The song on Spotify, or null when it can't be used (not found, another artist, banned, a repeat). */
   let tracks: Track[] = [];
+  const rejected: { title: string; artist: string }[] = []; // told to the AI if a second round is needed
   const usable = async (x: { title: string; artist: string }) => {
+    const track = await check(x);
+    if (!track) rejected.push(x);
+    return track;
+  };
+  const check = async (x: { title: string; artist: string }) => {
+    if (!x?.title || !x.artist) return null;
     const track = await findTrack(x.title, x.artist).catch(() => null);
     if (!track || !ok(track) || tracks.some((t) => t.id === track.id)) return null;
     // Spotify found a different artist's song with that title: the talk would name the wrong singer
@@ -324,6 +336,31 @@ export async function buildShow(
     if (track) tracks.push(track);
   }
   onStep('songs', found());
+  // still short (an arabesk show ran out: most picks were repeats): one more round, telling the AI what didn't work
+  const missing = SHOW_LENGTH - tracks.length;
+  if (missing > 0) {
+    onStep('songs', `${found()} · asking for ${missing} more`);
+    const said = (x: { title: string; artist: string }) => `"${x.title}" by ${x.artist}`;
+    try {
+      const more = parseJsonReply<{ songs?: { title: string; artist: string }[]; spares?: { title: string; artist: string }[] }>(
+        await askSongs(
+          missing,
+          Math.max(3, missing),
+          `\nSECOND ROUND: these picks could NOT be used (not on Spotify, already played, or another artist's song), ` +
+            `so choose different ones: ${rejected.map(said).join('; ')}\n` +
+            `Already in tonight's show (don't pick again): ${tracks.map((t) => said({ title: t.name, artist: t.artist })).join('; ')}\n`,
+        ),
+      );
+      for (const x of [...(more.songs ?? []), ...(more.spares ?? [])]) {
+        if (tracks.length >= SHOW_LENGTH) break;
+        const track = await usable(x);
+        if (track) tracks.push(track);
+        onStep('songs', found());
+      }
+    } catch (e) {
+      console.warn('second song round failed', e); // the show goes on with what it has
+    }
+  }
   if (!tracks.length) throw new Error("Couldn't find those songs on Spotify. Try again?");
   // your turn: the talks are written for the order you leave it in
   if (review) tracks = (await review(tracks)).filter(Boolean);
@@ -379,12 +416,17 @@ export async function buildShow(
       'seconds (4 to 12) the talk may run over the outro of the PREVIOUS song, but only when that previous ' +
       'song fades out or ends on a long instrumental tail; use 0 when it ends abruptly, on a big final line or a ' +
       'final chord that deserves silence. About a third of transitions at most. Overlapping talks must be short ' +
-      '(one or two quick lines) and may react to the song that is fading out. Never sing or quote lyrics. ' +
+      '(one or two quick lines) and may react to the song that is fading out. ' +
+      'INTRO TALK: at most ONE talk in the whole show may play over the START of its song, with the music turned down, ' +
+      'like a DJ hyping a song in: set "intro":true only for a song you are SURE opens with a long instrumental intro ' +
+      '(10 seconds or more before the singing starts). That talk must be very short (one or two quick lines, under ' +
+      '8 seconds spoken), hype the song that is starting, and have "overlap":0. Never the first talk, a commercial or the ' +
+      'news. When unsure about a song\'s intro, don\'t. Never sing or quote lyrics. ' +
       'Lines are SPOKEN aloud by a voice engine: no emojis, no markdown, no stage directions in brackets, natural speech, ' +
       'short sentences. You may put <laugh> or <short pause> inside a line. ' +
       LANGUAGE[station.lang] +
       '\n\n' +
-      `Return {"title":"show name","talks":[{"song":1,"label":null or "Commercial" or "News","overlap":0,` +
+      `Return {"title":"show name","talks":[{"song":1,"label":null or "Commercial" or "News","overlap":0,"intro":false,` +
       `"talk":[{"who":${names},"text":"…"}]}],"outro":[{"who":${names},"text":"…"}]} with exactly ${tracks.length} talks, ` +
       'one per song, in playlist order ("song" is its number). ' +
       '"outro" is said after the last song: wrap up the show, a callback or two, a warm goodbye (2 to 4 lines).\n\n' +
@@ -405,18 +447,22 @@ export async function buildShow(
   });
   const plan = parseJsonReply<{
     title?: string;
-    talks?: { song?: number; label?: string | null; overlap?: number; talk?: { who?: string; text?: string }[] }[];
+    talks?: { song?: number; label?: string | null; overlap?: number; intro?: boolean; talk?: { who?: string; text?: string }[] }[];
     outro?: { who?: string; text?: string }[];
   }>(reply);
 
   const lines = (raw?: RawLine[]) => spoken(station, [guest, regular], raw);
   // each talk goes with its song: by the number it gives, else by position
   const talks = plan.talks ?? [];
+  let introUsed = false; // one intro talk per show, whatever the writer says
   const slots: Slot[] = tracks.map((track, k) => {
     const t = talks.find((x) => Number(x.song) === k + 1) ?? talks[k] ?? {};
     const label = t.label === 'Commercial' || t.label === 'News' ? t.label : null;
-    const overlap = k && !label ? Math.max(0, Math.min(12, Math.round(Number(t.overlap) || 0))) : 0;
-    return { track, talk: lines(t.talk), label, overlap };
+    const talk = lines(t.talk);
+    const intro = !introUsed && k > 0 && !label && t.intro === true && talk.length > 0 && talk.length <= 3;
+    if (intro) introUsed = true;
+    const overlap = k && !label && !intro ? Math.max(0, Math.min(12, Math.round(Number(t.overlap) || 0))) : 0;
+    return { track, talk, label, overlap, intro };
   });
   return {
     title: plan.title?.trim() || pick.title?.trim() || station.name,
