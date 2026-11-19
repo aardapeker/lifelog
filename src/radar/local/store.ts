@@ -114,7 +114,7 @@ const STARTERS_2: TopicInput[] = [
     color: '#7FE0D0',
     keywords: ['deprem', 'AFAD'],
     excludeWords: [],
-    sources: { ...EMPTY_SOURCES, quakeMinMag: 4, quakeArea: 'near' },
+    sources: { ...EMPTY_SOURCES, quakeMinMag: 3, quakeArea: 'near' }, // 4+ near Istanbul can mean days without a card
   },
   {
     name: 'Formula 1',

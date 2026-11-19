@@ -51,3 +51,10 @@ export function shortDate(when: string | number | null | undefined): string | nu
   const t = typeof when === 'number' ? when : when ? Date.parse(when) : NaN;
   return Number.isNaN(t) ? null : new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
+
+/** True when every word of `keyword` is in `text` as a whole word ("AFAD" isn't in "Meta's plan"). */
+export function hasWords(text: string, keyword: string): boolean {
+  const words = new Set(text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean));
+  const want = keyword.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  return want.length > 0 && want.every((w) => words.has(w));
+}

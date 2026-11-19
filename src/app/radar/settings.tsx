@@ -266,7 +266,7 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
     { key: 'rss', label: 'RSS', used: !!feeds.trim(), open: () => {}, clear: () => setFeeds('') },
     { key: 'music', label: 'Music', used: !!artists.trim(), open: () => {}, clear: () => setArtists('') },
     { key: 'movies', label: 'Movies', used: tmdbLists.length > 0 || !!tmdbPeople.trim(), open: () => {}, clear: () => (setTmdbLists([]), setTmdbPeople('')) },
-    { key: 'quakes', label: 'Quakes', used: quakeMin > 0, open: () => setQuakeMin(4), clear: () => setQuakeMin(0) },
+    { key: 'quakes', label: 'Quakes', used: quakeMin > 0, open: () => setQuakeMin(3), clear: () => setQuakeMin(0) },
     { key: 'f1', label: 'F1', used: f1, open: () => setF1(true), clear: () => setF1(false) },
     { key: 'github', label: 'GitHub', used: !!repos.trim(), open: () => {}, clear: () => setRepos('') },
     { key: 'mastodon', label: 'Mastodon', used: !!tags.trim(), open: () => {}, clear: () => setTags('') },

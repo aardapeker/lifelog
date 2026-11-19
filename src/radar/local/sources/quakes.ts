@@ -10,6 +10,7 @@ import { item, type ContentSource, type FetchedItem } from './types';
 const EVERY = 10 * 60_000;
 export const ISTANBUL = { lat: 41.01, lon: 28.98 };
 const NEAR_KM = 300;
+const LOOKBACK = 3 * 86_400_000;
 const TURKEY = { minLat: 35.5, maxLat: 42.5, minLon: 25.5, maxLon: 45 }; // and its seas
 
 export type Quake = { id: string; mag: number; place: string; depth: number | null; lat: number; lon: number; time: number; url: string };
@@ -105,7 +106,9 @@ export const quakes: ContentSource = {
     const min = topic.sources.quakeMinMag;
     if (!min || !ctx.throttle.tryAcquire(`quakes:${topic.id}`, EVERY)) return [];
     const near = topic.sources.quakeArea !== 'turkey';
-    return (await recentQuakes(min, ctx.since))
+    // three days back, not just since the last run: quakes near Istanbul are rare, and a fresh topic
+    // should show the latest ones (the same quake never comes twice, its link is its id)
+    return (await recentQuakes(min, Math.min(ctx.since, Date.now() - LOOKBACK)))
       .filter((q) => q.mag >= min && (!near || kmBetween(q, ISTANBUL) <= NEAR_KM))
       .map(toItem);
   },

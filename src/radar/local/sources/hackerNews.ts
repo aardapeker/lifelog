@@ -1,5 +1,5 @@
 import { get } from '../feeds';
-import { toPlainText, truncate } from '../text';
+import { hasWords, toPlainText, truncate } from '../text';
 import { item, type ContentSource, type FetchedItem } from './types';
 
 /* Hacker News via the free Algolia search API. Produces DISCUSSION cards. */
@@ -27,13 +27,15 @@ export const hackerNews: ContentSource = {
     const merged = new Map<string, FetchedItem>();
     for (const k of topic.keywords) {
       const url =
-        'https://hn.algolia.com/api/v1/search_by_date?tags=story&hitsPerPage=20' +
+        // no typo tolerance: "deprem" and "AFAD" fuzzy-matched unrelated stories
+        'https://hn.algolia.com/api/v1/search_by_date?tags=story&hitsPerPage=20&typoTolerance=false' +
         `&query=${encodeURIComponent(k)}&numericFilters=${encodeURIComponent(`created_at_i>${Math.floor(ctx.since / 1000)}`)}`;
       try {
         const res = JSON.parse(await get(url, 15_000, 'application/json')) as { hits?: Hit[] };
         for (const h of res.hits ?? []) {
           // each run re-checks the last day, so a story is picked up once it reaches the minimum
           if ((h.points ?? 0) < ctx.settings.hackerNewsMinPoints || !h.title) continue;
+          if (!hasWords(`${h.title} ${h.url ?? ''} ${h.story_text ?? ''}`, k)) continue; // the keyword itself, as words
           if (!merged.has(h.objectID)) merged.set(h.objectID, toItem(h));
         }
       } catch (e) {
