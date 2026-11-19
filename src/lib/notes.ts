@@ -103,6 +103,11 @@ export function recentNotes(db: SQLiteDatabase, days: number, limit = 30): Promi
   );
 }
 
+/** Changes the text quietly (a ticked to-do): no new "edited" time, and the AI doesn't read it again. */
+export async function setNoteBody(db: SQLiteDatabase, id: number, body: string): Promise<void> {
+  await db.runAsync('UPDATE notes SET body = ? WHERE id = ?', body, id);
+}
+
 export async function saveNote(db: SQLiteDatabase, id: number | null, body: string): Promise<number> {
   const now = Date.now();
   let noteId = id;

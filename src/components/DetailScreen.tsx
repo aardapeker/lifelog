@@ -1,3 +1,4 @@
+import { plainText } from '../lib/markdown';
 import { router } from 'expo-router';
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -34,7 +35,7 @@ export function DetailScreen(props: {
           <Pressable key={n.id} style={styles.card} onPress={() => router.push(`/entry/${n.id}`)}>
             <Text style={styles.cardDate}>{formatDate(n.created_at)}</Text>
             <Text style={styles.cardBody} numberOfLines={4}>
-              {n.body}
+              {plainText(n.body)}
             </Text>
           </Pressable>
         ))}

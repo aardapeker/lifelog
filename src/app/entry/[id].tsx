@@ -5,11 +5,12 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState, type ReactNode } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { articleStyles, paragraphs } from '../../components/Article';
+import { articleStyles } from '../../components/Article';
+import { blocksOf, toggleTodo, type Block } from '../../lib/markdown';
 import { FadeIn, PressScale } from '../../components/motion';
 import { PhotoViewer } from '../../components/PhotoViewer';
 import { IconButton, InfoTile } from '../../components/ui';
-import { entryTitle, formatDate, formatTime, getNote, type Note } from '../../lib/notes';
+import { entryTitle, formatDate, formatTime, getNote, setNoteBody, type Note } from '../../lib/notes';
 import { listPhotos, photoUri, type Photo } from '../../lib/photos';
 import { colors, fonts, radius } from '../../lib/theme';
 import { useFirstFrame } from '../../lib/perf';
@@ -32,35 +33,46 @@ function inline(text: string): ReactNode[] {
   );
 }
 
-/** One block of the entry: a heading, a list, a quote, or a plain paragraph. */
-function Block({ text }: { text: string }) {
-  const heading = text.match(/^#{1,3}\s+(.*)$/s);
-  if (heading) return <Text style={articleStyles.heading}>{inline(heading[1])}</Text>;
-  const lines = text.split('\n');
-  if (lines.every((l) => /^\s*([-*•]|\d+[.)])\s+/.test(l))) {
-    return (
-      <View style={styles.list}>
-        {lines.map((l, i) => (
-          <View key={i} style={styles.item}>
-            <Text style={styles.bullet}>{/^\s*\d/.test(l) ? `${i + 1}.` : '•'}</Text>
-            <Text style={[articleStyles.body, { flex: 1, marginBottom: 4 }]} selectable>
-              {inline(l.replace(/^\s*([-*•]|\d+[.)])\s+/, ''))}
-            </Text>
-          </View>
-        ))}
-      </View>
-    );
-  }
-  if (lines.every((l) => l.startsWith('>'))) {
+/** One block of the entry: a heading, a list (to-dos tick with a tap), a quote, a divider, or a paragraph. */
+function BlockView({ block, onTick }: { block: Block; onTick: (line: number) => void }) {
+  if (block.type === 'heading')
+    return <Text style={[articleStyles.heading, block.level > 1 && { fontSize: block.level === 2 ? 20 : 18, lineHeight: 27 }]}>{inline(block.text)}</Text>;
+  if (block.type === 'divider') return <View style={styles.divider} />;
+  if (block.type === 'quote')
     return (
       <View style={styles.quote}>
-        <Text style={[articleStyles.body, { fontFamily: fonts.serifItalic }]}>{inline(lines.map((l) => l.replace(/^>\s?/, '')).join('\n'))}</Text>
+        <Text style={[articleStyles.body, { fontFamily: fonts.serifItalic }]}>{inline(block.text)}</Text>
+      </View>
+    );
+  if (block.type === 'list') {
+    let n = 0;
+    return (
+      <View style={styles.list}>
+        {block.items.map((item) => {
+          const todo = item.kind === 'todo' || item.kind === 'done';
+          const done = item.kind === 'done';
+          n = item.kind === 'number' ? n + 1 : 0;
+          return (
+            <View key={item.line} style={styles.item}>
+              {todo ? (
+                <Pressable onPress={() => onTick(item.line)} hitSlop={8} accessibilityRole="checkbox" accessibilityState={{ checked: done }}>
+                  <Ionicons name={done ? 'checkbox' : 'square-outline'} size={21} color={done ? colors.muted : colors.text} style={styles.box} />
+                </Pressable>
+              ) : (
+                <Text style={styles.bullet}>{item.kind === 'number' ? `${n}.` : '•'}</Text>
+              )}
+              <Text style={[articleStyles.body, { flex: 1, marginBottom: 4 }, done && styles.done]} selectable>
+                {inline(item.text)}
+              </Text>
+            </View>
+          );
+        })}
       </View>
     );
   }
   return (
     <Text style={articleStyles.body} selectable>
-      {inline(text)}
+      {inline(block.text)}
     </Text>
   );
 }
@@ -84,7 +96,14 @@ export default function EntryScreen() {
   );
 
   const edit = () => openWrite({ id: Number(id) });
-  const blocks = note ? paragraphs(note.body) : [];
+  const blocks = note ? blocksOf(note.body) : [];
+  // ticking a to-do changes only that mark: no "edited" date, no re-reading by the AI
+  const tick = async (line: number) => {
+    if (!note) return;
+    const body = toggleTodo(note.body, line);
+    setNote({ ...note, body });
+    await setNoteBody(db, note.id, body);
+  };
   const words = note?.body.split(/\s+/).filter(Boolean).length ?? 0;
   const [first, ...rest] = photos;
 
@@ -115,7 +134,7 @@ export default function EntryScreen() {
             {first && <PhotoTile p={first} onPress={() => setViewing(0)} hero />}
 
             <View style={articleStyles.section}>
-              {blocks.length ? blocks.map((b, i) => <Block key={i} text={b} />) : <Text style={articleStyles.hook}>Just photos this time.</Text>}
+              {blocks.length ? blocks.map((b, i) => <BlockView key={i} block={b} onTick={tick} />) : <Text style={articleStyles.hook}>Just photos this time.</Text>}
             </View>
 
             {rest.map((p, i) => (
@@ -159,6 +178,9 @@ const styles = StyleSheet.create({
   item: { flexDirection: 'row', gap: 10 },
   bullet: { fontFamily: fonts.serif, fontSize: 17, lineHeight: 29, color: colors.muted, minWidth: 16 },
   quote: { borderLeftWidth: 3, borderLeftColor: colors.line, paddingLeft: 14, marginBottom: 14 },
+  box: { marginTop: 4 },
+  done: { color: colors.muted, textDecorationLine: 'line-through' },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.line, marginVertical: 18 },
   edited: { fontFamily: fonts.sansRegular, fontSize: 12, color: colors.muted, marginTop: 18 },
   fabRow: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
   fab: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 26, paddingVertical: 14, borderRadius: 999, backgroundColor: colors.accent },

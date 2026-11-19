@@ -18,7 +18,7 @@ export async function fixGrammar(db: SQLiteDatabase, text: string): Promise<stri
       'You are a proofreader for a personal journal. Fix grammar, spelling, punctuation and capitalization only. ' +
       'Keep the original words, meaning, tone, slang and language wherever they are already correct; ' +
       'do not rewrite, shorten, or make it more formal. Leave words in other languages (for example Turkish) as they are. ' +
-      'Keep the same paragraphs and line breaks. Reply with the corrected text only: no quotes, no comments, no explanations. ' +
+      'Keep the same paragraphs and line breaks, and keep Markdown marks exactly as they are (#, -, 1., [ ], [x], >, ---). Reply with the corrected text only: no quotes, no comments, no explanations. ' +
       'If nothing needs fixing, reply with the text unchanged.',
     prompt: text,
   });

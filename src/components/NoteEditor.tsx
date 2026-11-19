@@ -1,9 +1,10 @@
+import { MarkdownInput } from './MarkdownInput';
 import Ionicons from './Icon';
 import { useAudioRecorder } from 'expo-audio';
 import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useEffect, useRef, useState, type ComponentRef } from 'react';
-import { ActivityIndicator, BackHandler, Image, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, BackHandler, Image, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { haptic, Pulse } from './motion';
 import { PhotoViewer } from './PhotoViewer';
@@ -14,7 +15,7 @@ import { fixGrammar } from '../lib/grammar';
 import { deleteNote, entryTitle, formatTime, getNote, saveNote } from '../lib/notes';
 import { deleteNotePhotos, deletePhotoFile, importPhoto, listPhotos, photoUri, pickPhoto, syncPhotos } from '../lib/photos';
 import { takePendingShare } from '../lib/share';
-import { colors, inputColors, fonts, radius, TAB_BAR_SPACE, frost } from '../lib/theme';
+import { colors, fonts, radius, TAB_BAR_SPACE, frost } from '../lib/theme';
 import { useKeyboardVisible } from '../lib/useKeyboardVisible';
 import { prepareMicrophone, transcribe, VOICE_RECORDING } from '../lib/voice';
 import { showAlert } from '../lib/dialog';
@@ -138,7 +139,7 @@ export function NoteEditor({
   const clearDraft = () => db.runAsync('DELETE FROM kv WHERE key = ?', draftKey).catch(() => {});
 
   // a blank new entry: the keyboard comes up when you arrive on the tab (not when the tab resets in the background)
-  const input = useRef<ComponentRef<typeof TextInput>>(null);
+  const input = useRef<{ focus: () => void }>(null);
   useFocusEffect(
     useCallback(() => {
       if (noteId !== null || voice) return;
@@ -384,20 +385,15 @@ export function NoteEditor({
           </ScrollView>
         )}
 
-        <TextInput
+        <MarkdownInput
           style={styles.input}
-          multiline
-          scrollEnabled={false}
           ref={input}
-          placeholder="What happened today? Or tap the mic and just talk."
-          placeholderTextColor={colors.muted}
+          placeholder="What happened today? Type / for headings, lists and to-dos. Or tap the mic and just talk."
           value={body}
           onChangeText={(t) => {
             setBody(t);
             setBeforeFix(null); // typing after a fix makes Undo meaningless
           }}
-          textAlignVertical="top"
-          {...inputColors}
         />
       </ScrollView>
 

@@ -1,3 +1,4 @@
+import { plainText } from '../../lib/markdown';
 import Ionicons from '../../components/Icon';
 import { openWrite } from '../../lib/write';
 import { router, useFocusEffect } from 'expo-router';
@@ -52,7 +53,7 @@ function EntryCard({ note, label, photos }: { note: Note; label: string; photos?
       </Text>
       {!!note.body && (
         <Text style={styles.cardBody} numberOfLines={5}>
-          {note.body}
+          {plainText(note.body)}
         </Text>
       )}
       {!!photos?.length && (
@@ -234,7 +235,7 @@ export default function JournalScreen() {
         <PressScale key={m.note.id} scaleTo={0.97} style={styles.memory} onPress={() => router.push(`/entry/${m.note.id}`)}>
           <Text style={styles.memoryLabel}>{m.label}</Text>
           <Text style={styles.memoryBody} numberOfLines={3}>
-            {m.note.body}
+            {plainText(m.note.body)}
           </Text>
         </PressScale>
       ))}
