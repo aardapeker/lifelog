@@ -38,6 +38,7 @@ import { Achievements } from '../../components/Achievements';
 import { WrappedCard } from '../../components/WrappedCard';
 import { ArenaCard } from '../../components/ArenaCard';
 import { RadarCard } from '../../components/RadarCard';
+import { StudioCard } from '../../components/StudioCard';
 import { GroceryCard } from '../../components/GroceryCard';
 import { TopBar } from '../../components/TopBar';
 import { colors, inputColors, fonts, radius, TAB_BAR_SPACE, frost } from '../../lib/theme';
@@ -246,6 +247,11 @@ export default function InsightsScreen() {
       {/* ── the news radar (a sub-app) ── */}
       <FadeIn style={styles.section} delay={stagger(0, 60)}>
         <RadarCard />
+      </FadeIn>
+
+      {/* ── documentaries for the channel ── */}
+      <FadeIn style={styles.section} delay={stagger(0, 60)}>
+        <StudioCard />
       </FadeIn>
 
       {/* ── the coding game ── */}

@@ -26,6 +26,7 @@ export type Feature =
   | 'index'
   | 'arena'
   | 'radar'
+  | 'studio'
   | 'other';
 
 export const FEATURES: Record<Feature, { label: string; icon: ComponentProps<typeof Ionicons>['name']; tint: string }> = {
@@ -42,6 +43,7 @@ export const FEATURES: Record<Feature, { label: string; icon: ComponentProps<typ
   index: { label: 'Search index', icon: 'compass-outline', tint: '#7FE0D0' },
   arena: { label: 'Bug Arena questions', icon: 'bug-outline', tint: '#B6F09C' },
   radar: { label: 'Radar summaries', icon: 'radio-button-on-outline', tint: '#8FD3FF' },
+  studio: { label: 'Studio (documentaries)', icon: 'film-outline', tint: '#FF7A9E' },
   other: { label: 'Other', icon: 'ellipsis-horizontal-circle-outline', tint: '#B0B0B0' },
 };
 

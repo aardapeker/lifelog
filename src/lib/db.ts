@@ -275,6 +275,29 @@ const MIGRATIONS: string[] = [
     hidden INTEGER NOT NULL DEFAULT 0  -- "Never show this site"
   );
   `,
+  // v12: Studio, documentaries for the YouTube channel (research → script → publish kit), and its idea list
+  `
+  CREATE TABLE studio_projects (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    topic      TEXT    NOT NULL,
+    angle      TEXT,              -- what to focus on
+    minutes    INTEGER NOT NULL DEFAULT 10,
+    status     TEXT    NOT NULL DEFAULT 'new', -- new | researching | researched | writing | ready | error
+    step       TEXT,              -- what it's doing right now
+    error      TEXT,
+    research   TEXT,              -- JSON Research (notes with sources)
+    script     TEXT,              -- Markdown scenes
+    kit        TEXT,              -- JSON Kit (titles, description, tags, thumbnail text, Shorts)
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE TABLE studio_ideas (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    title      TEXT    NOT NULL,
+    why        TEXT    NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL
+  );
+  `,
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<void> {
