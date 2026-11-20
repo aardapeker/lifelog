@@ -104,7 +104,9 @@ export default function RadarSettingsScreen() {
                     t.sources.arxiv ? 'arXiv' : '',
                     ...TMDB_LISTS.filter((l) => t.sources.tmdbLists?.includes(l.id)).map((l) => l.label),
                     ...(t.sources.tmdbPeople ?? []),
+                    t.sources.spotifyArtists ? '♪ my Spotify artists' : '',
                     ...(t.sources.artists ?? []).map((a) => `♪ ${a}`),
+                    t.sources.onThisDay ? 'On this day' : '',
                     t.sources.quakeMinMag ? `quakes M${t.sources.quakeMinMag}+` : '',
                     t.sources.f1 ? 'F1' : '',
                   ]
@@ -258,13 +260,21 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
   const [quakeMin, setQuakeMin] = useState(topic?.sources.quakeMinMag ?? 0);
   const [quakeArea, setQuakeArea] = useState<'near' | 'turkey'>(topic?.sources.quakeArea ?? 'near');
   const [f1, setF1] = useState(topic?.sources.f1 ?? false);
+  const [spotifyArtists, setSpotifyArtists] = useState(topic?.sources.spotifyArtists ?? false);
+  const [onThisDay, setOnThisDay] = useState(topic?.sources.onThisDay ?? false);
   const [busy, setBusy] = useState(false);
 
   // the sources this topic uses: only those are open in the form, the rest wait as "＋" chips
   const sources: { key: string; label: string; used: boolean; open: () => void; clear: () => void }[] = [
     { key: 'youtube', label: 'YouTube', used: !!youtube.trim(), open: () => {}, clear: () => setYoutube('') },
     { key: 'rss', label: 'RSS', used: !!feeds.trim(), open: () => {}, clear: () => setFeeds('') },
-    { key: 'music', label: 'Music', used: !!artists.trim(), open: () => {}, clear: () => setArtists('') },
+    {
+      key: 'music',
+      label: 'Music',
+      used: !!artists.trim() || spotifyArtists,
+      open: () => setSpotifyArtists(true), // your Spotify top artists: works with one tap
+      clear: () => (setArtists(''), setSpotifyArtists(false)),
+    },
     { key: 'movies', label: 'Movies', used: tmdbLists.length > 0 || !!tmdbPeople.trim(), open: () => {}, clear: () => (setTmdbLists([]), setTmdbPeople('')) },
     { key: 'quakes', label: 'Quakes', used: quakeMin > 0, open: () => setQuakeMin(3), clear: () => setQuakeMin(0) },
     { key: 'f1', label: 'F1', used: f1, open: () => setF1(true), clear: () => setF1(false) },
@@ -272,6 +282,7 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
     { key: 'mastodon', label: 'Mastodon', used: !!tags.trim(), open: () => {}, clear: () => setTags('') },
     { key: 'devto', label: 'DEV', used: !!devtoTags.trim(), open: () => {}, clear: () => setDevtoTags('') },
     { key: 'arxiv', label: 'arXiv', used: arxiv, open: () => setArxiv(true), clear: () => setArxiv(false) },
+    { key: 'history', label: 'On this day', used: onThisDay, open: () => setOnThisDay(true), clear: () => setOnThisDay(false) },
   ];
   const [open, setOpen] = useState(() => new Set(sources.filter((x) => x.used).map((x) => x.key)));
   const [skipOpen, setSkipOpen] = useState(!!exclude.trim());
@@ -302,6 +313,8 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
     [youtube, repos, tags, devtoTags, tmdbPeople, artists].some((v) => splitList(v).length > 0) ||
     /https?:\/\//i.test(feeds) ||
     arxiv ||
+    spotifyArtists ||
+    onThisDay ||
     tmdbLists.length > 0 ||
     quakeMin > 0 ||
     f1;
@@ -328,6 +341,8 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
           quakeMinMag: quakeMin || null,
           quakeArea,
           f1,
+          spotifyArtists,
+          onThisDay,
           stockSymbol: topic?.sources.stockSymbol ?? null,
         },
       });
@@ -364,7 +379,17 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
           multiline
         />,
       )}
-      {box('music', 'Music', <Field label="Artists (new albums, EPs and singles)" value={artists} onChange={setArtists} placeholder="Pinhani, Duman, Radiohead" />)}
+      {box(
+        'music',
+        'Music',
+        <>
+          <View style={styles.switchRow}>
+            <Text style={[ui.body, { flex: 1 }]}>My top Spotify artists (kept up to date)</Text>
+            <Switch value={spotifyArtists} onValueChange={setSpotifyArtists} trackColor={{ true: colors.up }} />
+          </View>
+          <Field label="More artists (new albums, EPs and singles)" value={artists} onChange={setArtists} placeholder="Pinhani, Duman, Radiohead" />
+        </>,
+      )}
       {box(
         'movies',
         'Movies & series',
@@ -397,6 +422,7 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
       {box('github', 'GitHub', <Field label="Repos (new releases)" value={repos} onChange={setRepos} placeholder="torvalds/linux" />)}
       {box('mastodon', 'Mastodon', <Field label="Hashtags" value={tags} onChange={setTags} placeholder="linux, fedora" />)}
       {box('devto', 'DEV', <Field label="dev.to tags" value={devtoTags} onChange={setDevtoTags} placeholder="typescript, react, java" />)}
+      {box('history', 'On this day', <Text style={ui.muted}>Three moments from history every morning, from Wikipedia.</Text>)}
       {box('arxiv', 'arXiv', <Text style={ui.muted}>Papers (AI, languages, software, OS, security) that mention the keywords.</Text>)}
 
       {sources.some((x) => !open.has(x.key)) && (

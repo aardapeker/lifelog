@@ -72,7 +72,7 @@ export const musicBrainz: ContentSource = {
   async fetch(topic, ctx) {
     const out: FetchedItem[] = [];
     const from = new Date(Date.now() - WINDOW).toISOString().slice(0, 10);
-    for (const name of (topic.sources.artists ?? []).map((a) => a.trim()).filter(Boolean)) {
+    for (const name of musicArtists(topic.sources, ctx.spotifyArtists)) {
       if (!ctx.throttle.tryAcquire(`mb:${topic.id}:${name.toLowerCase()}`, EVERY)) continue;
       try {
         const id = await artistId(name, ctx.cache);
@@ -93,3 +93,9 @@ export const musicBrainz: ContentSource = {
     return out;
   },
 };
+
+/** A topic's artists: the ones typed in, then your top Spotify artists if it follows them (no repeats). */
+export function musicArtists(sources: { artists?: string[]; spotifyArtists?: boolean }, spotify: string[]): string[] {
+  const all = [...(sources.artists ?? []), ...(sources.spotifyArtists ? spotify : [])].map((a) => a.trim()).filter(Boolean);
+  return all.filter((a, i) => all.findIndex((b) => b.toLowerCase() === a.toLowerCase()) === i);
+}

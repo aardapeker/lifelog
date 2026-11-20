@@ -13,6 +13,7 @@ import { ReaderView } from '../../../radar/components/ReaderView';
 import { StoryCoverage } from '../../../radar/components/StoryCoverage';
 import { AlbumPage } from '../../../radar/components/AlbumPage';
 import { F1Page } from '../../../radar/components/F1Page';
+import { HistoryPage } from '../../../radar/components/HistoryPage';
 import { MoviePage } from '../../../radar/components/MoviePage';
 import { QuakePage } from '../../../radar/components/QuakePage';
 import { parseGeo } from '../../../radar/local/quakeInfo';
@@ -91,6 +92,8 @@ function Detail({ item, onChange }: { item: FeedItem; onChange: (i: FeedItem) =>
     <AlbumPage item={item} save={saving} />
   ) : item.type === 'SPORT' ? (
     <F1Page item={item} save={saving} />
+  ) : item.type === 'HISTORY' ? (
+    <HistoryPage item={item} save={saving} />
   ) : null;
   const hide = () =>
     item.domain &&

@@ -9,12 +9,12 @@ import { CardMeta } from './CardMeta'
 import { PostBody } from './PostBody'
 
 /** Types whose `author` line is worth showing (channel, paper authors, HN user...). */
-const SHOWS_AUTHOR = new Set(['VIDEO', 'SHORT', 'PAPER', 'PODCAST', 'DISCUSSION', 'MOVIE', 'MUSIC'])
+const SHOWS_AUTHOR = new Set(['VIDEO', 'SHORT', 'PAPER', 'PODCAST', 'DISCUSSION', 'MOVIE', 'MUSIC', 'HISTORY'])
 
 /** One card for every type; the type decides the media and the extras. Opened items are dimmed. */
 export function FeedCard({ item, onPress }: { item: FeedItem; onPress: () => void }) {
   const isVideo = item.type === 'VIDEO' || item.type === 'SHORT'
-  const sideImage = (item.type === 'ARTICLE' || item.type === 'DISCUSSION') && item.thumbnailUrl
+  const sideImage = (item.type === 'ARTICLE' || item.type === 'DISCUSSION' || item.type === 'HISTORY') && item.thumbnailUrl
 
   return (
     <Pressable

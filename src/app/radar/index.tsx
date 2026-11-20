@@ -1,8 +1,9 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FeedCard } from '../../radar/components/FeedCard';
+import { MusicView } from '../../radar/components/MusicView';
 import { Header, HeaderIcon } from '../../radar/components/Header';
 import { TopicChips } from '../../radar/components/TopicChips';
 import { timeAgo } from '../../radar/format';
@@ -33,13 +34,18 @@ export default function RadarFeed() {
   const query = useRef({ topic, savedOnly });
   query.current = { topic, savedOnly };
 
+  // a music topic shows artist tabs and a cover grid instead of the list (and loads more at once,
+  // since the grid has no "load more" at the end)
+  const current = topics.find((t) => t.slug === topic);
+  const music = !savedOnly && !!current && (!!current.sources.spotifyArtists || !!current.sources.artists?.length);
+
   const load = useCallback(async () => {
-    const page = await r.feed({ topic: topic ?? undefined, saved: savedOnly, limit: PAGE });
+    const page = await r.feed({ topic: topic ?? undefined, saved: savedOnly, limit: music ? 120 : PAGE });
     if (query.current.topic !== topic || query.current.savedOnly !== savedOnly) return; // switched meanwhile
     setItems(page);
     setMore(page.length === PAGE);
     setLoaded(true);
-  }, [r, topic, savedOnly]);
+  }, [r, topic, savedOnly, music]);
 
   const refresh = useCallback(async () => {
     setFetching(true);
@@ -98,6 +104,14 @@ export default function RadarFeed() {
       <Text style={styles.status}>
         {fetching ? 'Checking the news sites…' : last ? `Updated ${timeAgo(new Date(last).toISOString())}${note ? ` · ${note}` : ''}` : note}
       </Text>
+      {music && current ? (
+        <ScrollView
+          refreshControl={<RefreshControl refreshing={fetching} onRefresh={refresh} colors={[colors.accent]} progressBackgroundColor={colors.panel} />}
+          contentContainerStyle={[styles.list, { paddingTop: 6, paddingBottom: insets.bottom + 32 + pageBottom }]}
+        >
+          <MusicView topic={current} items={items} onOpen={open} />
+        </ScrollView>
+      ) : (
       <FlatList
         data={items}
         keyExtractor={(i) => i.id}
@@ -120,6 +134,7 @@ export default function RadarFeed() {
         }
         contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 32 + pageBottom }]}
       />
+      )}
     </Page>
   );
 }

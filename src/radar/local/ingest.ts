@@ -1,4 +1,5 @@
 import { getKey } from '../../lib/keys';
+import { topArtists } from '../../lib/spotify';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import type { IngestResult, Topic } from '../types';
 import { Throttle } from './feeds';
@@ -36,7 +37,9 @@ async function run(db: SQLiteDatabase): Promise<IngestResult> {
     getJson<Record<string, string>>(db, 'radar.cache', {}),
     getKey('tmdb'),
   ]);
-  const ctx = { since: Date.now() - LOOKBACK, settings, throttle: new Throttle(throttleState), cache, tmdbKey };
+  // your top Spotify artists, only when a topic follows them (one cached call a day)
+  const spotifyArtists = topics.some((t) => t.sources.spotifyArtists) ? (await topArtists(db).catch(() => [])).map((a) => a.name) : [];
+  const ctx = { since: Date.now() - LOOKBACK, settings, throttle: new Throttle(throttleState), cache, tmdbKey, spotifyArtists };
   const latinOnly = settings.languages.every((l) => LATIN_LANGS.has(l));
   let fetched = 0;
   let saved = 0;

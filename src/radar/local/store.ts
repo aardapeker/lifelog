@@ -17,7 +17,7 @@ const json = <T,>(s: string, fallback: T): T => {
     return fallback;
   }
 };
-const EMPTY_SOURCES: TopicSources = { githubRepos: [], mastodonTags: [], arxiv: false, stockSymbol: null, youtubeChannels: [], feeds: [], devtoTags: [], tmdbLists: [], tmdbPeople: [], artists: [], quakeMinMag: null, quakeArea: 'near', f1: false };
+const EMPTY_SOURCES: TopicSources = { githubRepos: [], mastodonTags: [], arxiv: false, stockSymbol: null, youtubeChannels: [], feeds: [], devtoTags: [], tmdbLists: [], tmdbPeople: [], artists: [], spotifyArtists: false, onThisDay: false, quakeMinMag: null, quakeArea: 'near', f1: false };
 const toTopic = (r: TopicRow): Topic => ({
   id: r.id,
   slug: r.slug,
@@ -93,15 +93,26 @@ const STARTERS: TopicInput[] = [
   },
 ];
 
+/** Your top Spotify artists (and Radiohead), with artist tabs and a cover grid in the feed. */
+const MUSIC_STARTER: TopicInput = {
+  name: 'Music',
+  color: '#C79BFF',
+  keywords: [],
+  excludeWords: [],
+  sources: { ...EMPTY_SOURCES, artists: ['Radiohead'], spotifyArtists: true },
+};
+
+const HISTORY_STARTER: TopicInput = {
+  name: 'On this day',
+  color: '#E8C07A',
+  keywords: [],
+  excludeWords: [],
+  sources: { ...EMPTY_SOURCES, onThisDay: true },
+};
+
 /** One starter per newer source (Nov 2026), so each shows how it works; delete any you don't want. */
 const STARTERS_2: TopicInput[] = [
-  {
-    name: 'Radiohead',
-    color: '#C79BFF',
-    keywords: ['Radiohead', 'Thom Yorke'],
-    excludeWords: [],
-    sources: { ...EMPTY_SOURCES, artists: ['Radiohead'] },
-  },
+  MUSIC_STARTER,
   {
     name: 'Movies',
     color: '#FF6B8B',
@@ -127,11 +138,17 @@ const STARTERS_2: TopicInput[] = [
 
 export async function ensureStarterTopics(db: SQLiteDatabase): Promise<void> {
   const seeded = await getSetting(db, 'radar.seeded', '');
-  if (seeded === '2') return;
-  await setSetting(db, 'radar.seeded', '2');
+  if (seeded === '3') return;
+  await setSetting(db, 'radar.seeded', '3');
   const fresh = !(await db.getFirstAsync('SELECT 1 FROM radar_topics'));
+  // the "Radiohead" starter of v2, if it's still as it came, grows into "Music" (your Spotify artists too)
+  if (seeded === '2') {
+    const old = await db.getFirstAsync<{ id: number; sources: string }>("SELECT id, sources FROM radar_topics WHERE name = 'Radiohead'");
+    const artists = old ? (JSON.parse(old.sources || '{}') as { artists?: string[] }).artists : null;
+    if (old && artists?.length === 1 && artists[0] === 'Radiohead') await saveTopic(db, old.id, MUSIC_STARTER);
+  }
   // a new phone gets every starter; an older install only the new ones, and none it already has by name
-  const add = [...(fresh && seeded !== '1' ? STARTERS : []), ...STARTERS_2];
+  const add = [...(fresh && !seeded ? STARTERS : []), ...(seeded === '2' ? [] : STARTERS_2), HISTORY_STARTER];
   const names = new Set((await db.getAllAsync<{ name: string }>('SELECT name FROM radar_topics')).map((r) => r.name.toLowerCase()));
   for (const t of add) if (!names.has(t.name.toLowerCase())) await saveTopic(db, null, t);
 }

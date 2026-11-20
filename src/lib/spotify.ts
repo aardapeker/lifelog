@@ -401,20 +401,32 @@ export async function savePlaylist(name: string, description: string, uris: stri
   return pl.external_urls.spotify;
 }
 
-/** Your top artists (refreshed once a day), so the friend knows your taste. Empty if not connected. */
-export async function musicTaste(db: SQLiteDatabase): Promise<string[]> {
+export type TopArtist = { name: string; image: string | null };
+
+/**
+ * Your top Spotify artists with their photos (refreshed once a day): the friend's sense of your taste,
+ * and Radar's Music topic follows their new releases. Empty if Spotify isn't connected.
+ */
+export async function topArtists(db: SQLiteDatabase): Promise<TopArtist[]> {
   if (!(await spotifyConnected())) return [];
   const today = new Date().toDateString();
   try {
-    const cached = JSON.parse(await getSetting(db, 'spotify.taste', '{}')) as { day?: string; artists?: string[] };
+    const cached = JSON.parse(await getSetting(db, 'spotify.topArtists', '{}')) as { day?: string; artists?: TopArtist[] };
     if (cached.day === today && cached.artists) return cached.artists;
-    const res = await api<{ items: { name: string }[] }>('/me/top/artists?limit=15&time_range=medium_term');
-    const artists = res?.items.map((a) => a.name) ?? [];
-    await setSetting(db, 'spotify.taste', JSON.stringify({ day: today, artists }));
+    const res = await api<{ items: { name: string; images?: { url: string; width?: number }[] }[] }>('/me/top/artists?limit=20&time_range=medium_term');
+    // the smallest picture that's still sharp in a round 64 px avatar
+    const pic = (imgs?: { url: string; width?: number }[]) => [...(imgs ?? [])].sort((x, y) => (x.width ?? 0) - (y.width ?? 0)).find((i) => (i.width ?? 0) >= 160)?.url ?? imgs?.[0]?.url ?? null;
+    const artists = res?.items.map((a) => ({ name: a.name, image: pic(a.images) })) ?? [];
+    await setSetting(db, 'spotify.topArtists', JSON.stringify({ day: today, artists }));
     return artists;
   } catch {
     return [];
   }
+}
+
+/** Just the names (the friend's prompt): the 15 you listen to most. */
+export async function musicTaste(db: SQLiteDatabase): Promise<string[]> {
+  return (await topArtists(db)).slice(0, 15).map((a) => a.name);
 }
 
 /**

@@ -4,7 +4,7 @@
  * the API client instead of the on-phone backend.
  */
 
-export type FeedItemType = 'VIDEO' | 'SHORT' | 'ARTICLE' | 'POST' | 'DISCUSSION' | 'RELEASE' | 'STOCK' | 'PAPER' | 'PODCAST' | 'MOVIE' | 'MUSIC' | 'QUAKE' | 'SPORT';
+export type FeedItemType = 'VIDEO' | 'SHORT' | 'ARTICLE' | 'POST' | 'DISCUSSION' | 'RELEASE' | 'STOCK' | 'PAPER' | 'PODCAST' | 'MOVIE' | 'MUSIC' | 'QUAKE' | 'SPORT' | 'HISTORY';
 
 export interface FeedItem {
   id: string;
@@ -88,6 +88,8 @@ export interface TopicSources {
   tmdbLists?: string[]; // TMDB lists to follow: ids from TMDB_LISTS (upcoming, now_playing…)
   tmdbPeople?: string[]; // directors / actors: their new and upcoming films
   artists?: string[]; // MusicBrainz: their new albums, EPs and singles
+  spotifyArtists?: boolean; // …plus your top Spotify artists, kept up to date
+  onThisDay?: boolean; // Wikipedia's "On this day": a few moments from history every day
   quakeMinMag?: number | null; // earthquakes from this magnitude up (null/0 = off)
   quakeArea?: 'near' | 'turkey'; // near Istanbul (300 km) or all of Turkey
   f1?: boolean; // Formula 1: last race's podium + next race countdown
