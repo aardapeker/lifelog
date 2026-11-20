@@ -1,5 +1,6 @@
 // Ported from the radar repo (mobile/src/components): keep the two in step.
 import Ionicons from '../../components/Icon'
+import { CoverArt, withAgent } from './RemoteImage'
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import type { FeedItem } from '../types'
@@ -38,9 +39,9 @@ export function FeedCard({ item, onPress }: { item: FeedItem; onPress: () => voi
               )}
               <Extras item={item} />
             </View>
-            {sideImage && <Image source={{ uri: item.thumbnailUrl ?? undefined }} style={styles.side} resizeMode="cover" />}
+            {sideImage && <Image source={withAgent(item.thumbnailUrl)} style={styles.side} resizeMode="cover" />}
             {item.type === 'MOVIE' && item.thumbnailUrl && <Image source={{ uri: item.thumbnailUrl }} style={styles.poster} resizeMode="cover" />}
-            {item.type === 'MUSIC' && item.thumbnailUrl && <Image source={{ uri: item.thumbnailUrl }} style={styles.cover} resizeMode="cover" />}
+            {item.type === 'MUSIC' && <CoverArt uri={item.thumbnailUrl} name={item.title} style={styles.cover} />}
           </View>
         </>
       )}

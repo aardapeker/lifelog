@@ -1,4 +1,5 @@
 import { useSQLiteContext } from 'expo-sqlite';
+import { CoverArt } from './RemoteImage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
@@ -56,8 +57,7 @@ export function MusicView({ topic, items, onOpen }: { topic: Topic; items: FeedI
           {releases.map((r) => (
             <Pressable key={r.id} onPress={() => onOpen(r)} style={[styles.release, { width: tile }]}>
               <View style={[styles.coverBox, { width: tile, height: tile }]}>
-                {r.thumbnailUrl ? <Image source={{ uri: r.thumbnailUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
-                <Ionicons name="disc-outline" size={36} color="rgba(255,255,255,0.25)" style={styles.discBehind} />
+                <CoverArt uri={r.thumbnailUrl} name={r.title} style={StyleSheet.absoluteFill} />
                 <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.55)']} style={styles.coverFade} />
                 {!r.read && <View style={styles.newDot} />}
                 {r.author?.includes('out ') && <Text style={styles.soon}>SOON</Text>}
@@ -138,7 +138,6 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GAP },
   release: { gap: 6, marginBottom: 6 },
   coverBox: { borderRadius: 16, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.07)', alignItems: 'center', justifyContent: 'center' },
-  discBehind: { position: 'absolute' }, // shows only while (or if) there's no cover
   coverFade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '40%' },
   newDot: { position: 'absolute', top: 10, right: 10, width: 10, height: 10, borderRadius: 5, backgroundColor: '#5BE0A0' },
   soon: {

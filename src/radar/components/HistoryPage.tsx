@@ -1,5 +1,6 @@
 import * as WebBrowser from 'expo-web-browser';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { RemoteImage } from './RemoteImage';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Glass } from '../../components/Glass';
 import { radius } from '../../lib/theme';
 import { useLoad } from '../hooks';
@@ -26,7 +27,7 @@ export function HistoryPage({ item, save }: { item: FeedItem; save: { saved: boo
   const years = (y: number) => new Date().getFullYear() - y;
   return (
     <View style={styles.page}>
-      {item.thumbnailUrl && <Image source={{ uri: item.thumbnailUrl }} style={styles.hero} resizeMode="cover" />}
+      {item.thumbnailUrl && <RemoteImage uri={item.thumbnailUrl} style={styles.hero} resizeMode="cover" />}
       <Glass radius={radius.lg} style={styles.card}>
         <Text style={styles.kicker}>
           ON THIS DAY{md ? ` · ${dayName(md).toUpperCase()}` : ''}
@@ -58,7 +59,7 @@ export function HistoryPage({ item, save }: { item: FeedItem; save: { saved: boo
                 <Text style={[styles.rowYear, m.year === year && { color: colors.paper }]}>{m.year}</Text>
                 <Text style={styles.rowText}>{m.text}</Text>
               </View>
-              {m.image && <Image source={{ uri: m.image }} style={styles.thumb} />}
+              {m.image && <RemoteImage uri={m.image} style={styles.thumb} />}
             </Pressable>
           ))}
         </Glass>

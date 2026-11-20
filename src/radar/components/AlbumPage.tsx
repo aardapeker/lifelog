@@ -1,5 +1,6 @@
 import * as WebBrowser from 'expo-web-browser';
-import { Image, Linking, StyleSheet, Text, View } from 'react-native';
+import { CoverArt } from './RemoteImage';
+import { Linking, StyleSheet, Text, View } from 'react-native';
 import { Glass } from '../../components/Glass';
 import { radius } from '../../lib/theme';
 import { useLoad } from '../hooks';
@@ -22,7 +23,7 @@ export function AlbumPage({ item, save }: { item: FeedItem; save: { saved: boole
   const a = page.data;
   return (
     <View style={styles.page}>
-      {item.thumbnailUrl && <Image source={{ uri: a?.cover ?? item.thumbnailUrl }} style={styles.cover} resizeMode="cover" />}
+      <CoverArt uri={a?.cover ?? item.thumbnailUrl} name={item.title} style={styles.cover} />
       <Glass radius={radius.lg} style={styles.card}>
         <Text style={styles.title}>{a?.title ?? item.title}</Text>
         {a && <Text style={styles.artist}>{a.artist}</Text>}

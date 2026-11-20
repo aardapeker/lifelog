@@ -1,4 +1,5 @@
 import * as WebBrowser from 'expo-web-browser';
+import { withAgent } from '../radar/components/RemoteImage';
 import { useEffect, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { songInfo, type SongInfo } from '../lib/songInfo';
@@ -65,7 +66,7 @@ export function SongAbout({ track }: { track: Track }) {
             {a && (
               <View style={{ gap: 10 }}>
                 <View style={styles.artistRow}>
-                  {a.photo ? <Image source={{ uri: a.photo }} style={styles.photo} /> : null}
+                  {a.photo ? <Image source={withAgent(a.photo)} style={styles.photo} /> : null}
                   <View style={{ flex: 1, gap: 2 }}>
                     <Text style={styles.name}>{a.name}</Text>
                     <Text style={styles.muted}>
