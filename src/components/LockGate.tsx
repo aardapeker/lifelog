@@ -52,14 +52,26 @@ export function LockGate({ children }: { children: ReactNode }) {
 
   const opened = useRef(false); // unlocked at least once this run: from then on the app stays mounted
   const [problem, setProblem] = useState('');
-  const unlock = useCallback(async () => {
+  // the fingerprint dialog itself pauses the app on some phones (Xiaomi): those trips to "background"
+  // and back are the dialog's, not the user's, so they must never re-lock and re-ask. Without this the
+  // dialog could keep popping up and down (each answer looked like a return after a while away).
+  const prompting = useRef(false);
+  const unlock = useCallback(async (auto = false) => {
+    if (prompting.current) return; // one dialog at a time
+    if (auto && AppState.currentState !== 'active') return; // started in the background: ask when it's opened
+    prompting.current = true;
     setProblem('');
-    const res = await authenticate();
-    if (res.ok) {
-      opened.current = true;
-      setLocked(false);
-    } else {
-      setProblem(why(res.error));
+    try {
+      const res = await authenticate();
+      if (res.ok) {
+        opened.current = true;
+        setLocked(false);
+      } else {
+        setProblem(why(res.error));
+      }
+    } finally {
+      leftAt.current = null; // whatever the dialog did to the app's state doesn't count as being away
+      setTimeout(() => (prompting.current = false), 800); // its last "active" arrives a moment later
     }
   }, []);
 
@@ -67,7 +79,9 @@ export function LockGate({ children }: { children: ReactNode }) {
     getSetting(db, 'lockEnabled').then((v) => {
       const on = v === '1';
       setLocked(on);
-      if (on) unlock();
+      // started in the background (a check-in, the radio's sync): ask when the app is actually opened
+      if (on && AppState.currentState !== 'active') leftAt.current = 0;
+      if (on) unlock(true);
     });
   }, [db, unlock]);
 
@@ -75,13 +89,14 @@ export function LockGate({ children }: { children: ReactNode }) {
     const sub = AppState.addEventListener('change', async (state) => {
       // (no cancelling here: on some phones the fingerprint dialog itself pauses the app;
       // a stuck prompt is cleared by the next attempt instead, see authenticate)
+      if (prompting.current) return; // the dialog's own trips (see unlock)
       if (state === 'background') leftAt.current = Date.now();
       if (state === 'active' && leftAt.current) {
         const away = Date.now() - leftAt.current;
         leftAt.current = null;
         if (away > RELOCK_AFTER_MS && (await getSetting(db, 'lockEnabled')) === '1') {
           setLocked(true);
-          setTimeout(unlock, 400); // Android only shows the prompt once the app is fully back on screen
+          setTimeout(() => unlock(true), 400); // Android only shows the prompt once the app is fully back on screen
         }
       }
     });
@@ -95,7 +110,7 @@ export function LockGate({ children }: { children: ReactNode }) {
       <Image source={require('../../assets/splash-icon.png')} style={styles.logo} />
       <Text style={styles.title}>Locked</Text>
       <Text style={styles.text}>Your journal is private.</Text>
-      <PillButton label="Unlock" onPress={unlock} style={{ marginTop: 28, minWidth: 180 }} />
+      <PillButton label="Unlock" onPress={() => unlock()} style={{ marginTop: 28, minWidth: 180 }} />
       {!!problem && <Text style={[styles.text, { marginTop: 16, textAlign: 'center' }]}>{problem}</Text>}
     </View>
   );

@@ -79,6 +79,10 @@ export default function ChatScreen() {
   const [hasKey, setHasKey] = useState(true);
   const [label, setLabel] = useState('');
   const scrollRef = useRef<ScrollViewInstance>(null);
+  const threadHeight = useRef(0); // the thread's last height, to tell a new message from a whole chat
+  useEffect(() => {
+    threadHeight.current = 0; // another chat: its first layout jumps to the end too
+  }, [chatId]);
   const keyboardOpen = useKeyboardVisible();
   const [composerH, setComposerH] = useState(52);
   const dockGap = keyboardOpen ? 8 : TAB_BAR_SPACE - 30 + insets.bottom; // room under the message box (the tab bar sits there)
@@ -264,7 +268,13 @@ export default function ChatScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={[styles.thread, { paddingBottom: under + 16 }]}
         keyboardShouldPersistTaps="handled"
-        onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
+        onContentSizeChange={(_, h) => {
+          // a new message glides into view; opening a chat (a whole thread at once) jumps straight to
+          // the end, since a long animated scroll got cut short by the next layout and stopped mid-chat
+          const jump = h - threadHeight.current > 600;
+          threadHeight.current = h;
+          scrollRef.current?.scrollToEnd({ animated: !jump });
+        }}
       >
         {messages.length === 0 && (
           <View style={styles.intro}>
