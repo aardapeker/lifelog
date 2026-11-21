@@ -22,7 +22,11 @@ const set = (s: State) => {
   listeners.forEach((l) => l());
 };
 
-export function stopPreview(): void {
+let tap = 0; // bumped by every play and stop: a slower, older request must not play after a newer tap
+let wanted: string | null = null; // the song the last tap asked for (its link may still be loading)
+
+/** Let go of the player (the audio focus goes back to the radio's mixing). */
+function release(): void {
   const p = player;
   player = null;
   if (p) {
@@ -32,12 +36,21 @@ export function stopPreview(): void {
     } catch {}
     radioAudioMode(); // back to mixing with Spotify, for the radio's voices
   }
+}
+
+export function stopPreview(): void {
+  tap++;
+  wanted = null;
+  release();
   if (state.key) set({ key: null, progress: 0 });
 }
 
 export async function playPreview(key: string, url: string): Promise<void> {
-  stopPreview();
+  const mine = ++tap;
+  wanted = key;
+  release();
   await setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false, interruptionMode: 'doNotMix' }).catch(() => {});
+  if (mine !== tap) return; // another song was tapped (or stop) meanwhile
   const p = createAudioPlayer(url);
   player = p;
   set({ key, progress: 0 });
@@ -72,16 +85,21 @@ export function usePreview(owner: string) {
     progress: s.progress,
     toggle: (key: string, url: string | null) => {
       const k = `${owner}:${key}`;
-      if (state.key === k) stopPreview();
+      if (state.key === k || wanted === k) stopPreview();
       else if (url) playPreview(k, url);
     },
     /** For lists without preview links yet (the radio's playlist): look it up on the first tap. */
     toggleFind: async (key: string, find: () => Promise<string | null>) => {
       const k = `${owner}:${key}`;
-      if (state.key === k) return stopPreview();
+      if (state.key === k || wanted === k) return stopPreview();
+      tap++; // a song that's still starting up won't start now
+      wanted = k;
+      release(); // the old song stops right away, not when this one has loaded
+      if (state.key) set({ key: null, progress: 0 });
       setFinding(key);
       try {
         const url = await find().catch(() => null);
+        if (wanted !== k) return; // you tapped something else while it was looking
         if (url) await playPreview(k, url);
         else setNone((n) => new Set(n).add(key));
       } finally {
