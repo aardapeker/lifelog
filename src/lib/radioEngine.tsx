@@ -61,7 +61,10 @@ async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | undefined>
   return Promise.race([p.catch(() => undefined), waitMs(ms).then(() => undefined)]);
 }
 
-const END_MARGIN_MS = 2500; // stop this close to the end, so Spotify doesn't drift into its own autoplay
+const END_MARGIN_MS = 2500; // the latest a talk-over may start, and the heartbeat's fallback stop
+// the song is stopped this close to its real end, on a timer (not the ~1 s heartbeat), so the last note
+// isn't cut but Spotify doesn't roll on into its own autoplay; covers Spotify's progress lag
+const STOP_BEFORE_END_MS = 700;
 
 type Phase = 'pick' | 'building' | 'review' | 'onair' | 'done';
 
@@ -370,9 +373,14 @@ function useRadioEngine() {
    * Starts slot i's song on Spotify and checks it really plays. Spotify on the phone sometimes
    * ignores the first command (asleep, or another device was active): one retry, then a clear message.
    */
+  const endTimer = useRef<{ at: number; timer: ReturnType<typeof setTimeout> } | null>(null); // the precise stop at a song's end
+  const ended = useRef(-1); // the last song whose end was handled
   const startSong = useCallback(async (i: number) => {
     const s = live.current.show;
     if (!s) return;
+    ended.current = -1; // this song (even replayed with ⏮) gets its own end
+    if (endTimer.current) clearTimeout(endTimer.current.timer);
+    endTimer.current = null;
     const uri = s.slots[i].track.uri;
     // the rest of the show goes to Spotify as one queue: if Lifelog is in the background and
     // can't step in between songs, Spotify still plays OUR next song, not the album or autoplay
@@ -419,6 +427,8 @@ function useRadioEngine() {
     const ms = Math.round(Math.max(0, Math.min(0.97, frac)) * dur); // not past the end: that's what ⏭ is for
     setProgress(ms / dur);
     timing.current = { checkedAt: Date.now(), endsAt: Date.now() + dur - ms }; // the next talk follows the new end
+    if (endTimer.current) clearTimeout(endTimer.current.timer);
+    endTimer.current = null;
     await seekTo(ms).catch((e) => setStatus({ kind: 'err', msg: e instanceof Error ? e.message : String(e) }));
   }, []);
   const tick = useCallback(async () => {
@@ -473,11 +483,37 @@ function useRadioEngine() {
       playSlot(l.index + 1, true); // a DJ moment: talk over the fading end, Spotify ducks under the voice
       return;
     }
-    if (remaining < END_MARGIN_MS) {
-      const next = l.index + 1;
-      await pausePlayback().catch(() => {}); // before the next talk, or the goodbye after the last song
-      playSlot(next);
+    // near the end: one timer stops the song just before its last moment (the heartbeat would be up to
+    // a second late, so it used to stop 2.5–3.5 s early and cut the final notes)
+    if (remaining < 6000 && remaining > STOP_BEFORE_END_MS && endTimer.current?.at !== l.index) {
+      const at = l.index;
+      if (endTimer.current) clearTimeout(endTimer.current.timer);
+      endTimer.current = {
+        at,
+        timer: setTimeout(() => {
+          const now = live.current;
+          if (endTimer.current?.at !== at) return;
+          endTimer.current = null; // paused or moved on meanwhile: the heartbeat sets a new one if needed
+          if (now.index !== at || now.paused || now.speaking) return;
+          endSong(at);
+        }, remaining - STOP_BEFORE_END_MS),
+      };
+      return;
     }
+    if (remaining <= STOP_BEFORE_END_MS) endSong(l.index); // the timer missed (app was asleep): stop now
+  };
+
+  /** A song is over: stop Spotify before it rolls on, then the next talk (or the goodbye). Once per song. */
+  const endSong = (at: number) => {
+    const l = live.current;
+    if (ended.current === at || l.index !== at) return;
+    ended.current = at;
+    if (endTimer.current?.at === at) endTimer.current = null;
+    pausePlayback()
+      .catch(() => {})
+      .finally(() => {
+        if (live.current.index === at && !live.current.paused) playSlot(at + 1);
+      });
   };
 
   // ── the playlist check between picking the songs and writing the talks ──
