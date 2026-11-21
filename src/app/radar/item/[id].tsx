@@ -76,7 +76,7 @@ function Detail({ item, onChange }: { item: FeedItem; onChange: (i: FeedItem) =>
     item.mediaUrl && item.type === 'DISCUSSION'
       ? { url: item.mediaUrl, label: 'Linked article' }
       : item.mediaUrl && item.type === 'MUSIC'
-        ? { url: item.mediaUrl, label: 'MusicBrainz' }
+        ? { url: item.mediaUrl, label: 'Deezer' }
         : null;
   const save = () => {
     r.setSaved(item.id, !item.saved).catch(() => {});

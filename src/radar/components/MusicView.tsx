@@ -2,18 +2,24 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { CoverArt } from './RemoteImage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Ionicons from '../../components/Icon';
+import { fansText, findArtist, norm, related, releases as artistReleases, suggest, topTracks, type DzArtist } from '../../lib/deezer';
 import { topArtists, type TopArtist } from '../../lib/spotify';
-import { musicArtists } from '../local/sources/musicbrainz';
-import { colors, fonts } from '../theme';
+import { useLoad } from '../hooks';
+import { musicArtists } from '../local/sources/deezer';
+import { colors, fonts, mono } from '../theme';
 import type { FeedItem, Topic } from '../types';
 import { FeedCard } from './FeedCard';
+import { ArtistRow, ReleaseRow, TrackList } from './Preview';
+import { RemoteImage } from './RemoteImage';
 
 /*
- * A music topic's feed, instead of the plain list: a row of artist tabs (round photos from Spotify,
- * "All" first), the new releases as a grid of big covers, and the topic's music news under them.
- * Tapping an artist shows only theirs. Releases open the album page.
+ * A music topic's feed, instead of the plain list, a bit like Spotify: a row of artist tabs (round
+ * photos from Spotify, else Deezer; "All" first), the new releases as a grid of big covers, "You might
+ * like" (artists your artists' fans like), and the topic's music news. Tapping an artist opens their
+ * page: popular songs with 30-second previews, discography, fans also like, then only their news.
+ * Releases open the album page.
  */
 
 const GAP = 12;
@@ -27,17 +33,32 @@ export function MusicView({ topic, items, onOpen }: { topic: Topic; items: FeedI
   const { width } = useWindowDimensions();
   const [spotify, setSpotify] = useState<TopArtist[]>([]);
   const [artist, setArtist] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<Record<string, string>>({}); // Deezer's, for artists Spotify gave none
   useEffect(() => {
     if (topic.sources.spotifyArtists) topArtists(db).then(setSpotify).catch(() => {});
   }, [db, topic.sources.spotifyArtists]);
 
   const artists = useMemo(() => {
     const names = musicArtists(topic.sources, spotify.map((a) => a.name));
-    const photo = new Map(spotify.map((a) => [a.name.toLowerCase(), a.image]));
+    const photo = new Map(spotify.map((a) => [norm(a.name), a.image]));
     // artists with something new first, so the tabs open on the interesting ones
     const has = (n: string) => items.some((i) => i.type === 'MUSIC' && byArtist(i, n));
-    return names.map((name) => ({ name, image: photo.get(name.toLowerCase()) ?? null })).sort((a, b) => Number(has(b.name)) - Number(has(a.name)));
-  }, [topic.sources, spotify, items]);
+    return names.map((name) => ({ name, image: photo.get(norm(name)) ?? photos[norm(name)] ?? null })).sort((a, b) => Number(has(b.name)) - Number(has(a.name)));
+  }, [topic.sources, spotify, items, photos]);
+
+  // photos for the ones typed in by hand (Radiohead was just an "R")
+  const missing = artists.filter((a) => !a.image && !(norm(a.name) in photos)).map((a) => a.name);
+  useEffect(() => {
+    let live = true;
+    for (const name of missing)
+      findArtist(name)
+        .then((a) => live && setPhotos((p) => ({ ...p, [norm(name)]: a?.picture ?? '' })))
+        .catch(() => {});
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [missing.join('|')]);
 
   const releases = items.filter((i) => i.type === 'MUSIC' && (!artist || byArtist(i, artist)));
   const news = items.filter((i) => i.type !== 'MUSIC' && (!artist || mentions(i, artist)));
@@ -51,6 +72,9 @@ export function MusicView({ topic, items, onOpen }: { topic: Topic; items: FeedI
           <Tab key={a.name} label={a.name} image={a.image} on={artist === a.name} onPress={() => setArtist(artist === a.name ? null : a.name)} />
         ))}
       </ScrollView>
+
+      {artist && <ArtistPanel name={artist} />}
+      {artist && releases.length > 0 && <Text style={styles.section}>New from {artist}</Text>}
 
       {releases.length > 0 ? (
         <View style={styles.grid}>
@@ -76,10 +100,12 @@ export function MusicView({ topic, items, onOpen }: { topic: Topic; items: FeedI
           {!artists.length
             ? 'No artists yet: turn on "My top Spotify artists" in this topic (⚙), or add some by name.'
             : artist
-              ? `Nothing new from ${artist} in the last six weeks. New releases land here as they come out.`
+              ? `Nothing new from ${artist} in the last six weeks. New releases land here.`
               : 'No new releases in the last six weeks yet. They land here as they come out.'}
         </Text>
       )}
+
+      {!artist && artists.length > 0 && <Discover following={artists.map((a) => a.name)} />}
 
       {news.length > 0 && (
         <View style={{ gap: 12 }}>
@@ -89,6 +115,68 @@ export function MusicView({ topic, items, onOpen }: { topic: Topic; items: FeedI
           ))}
         </View>
       )}
+    </View>
+  );
+}
+
+/** An artist's page under the tabs: photo and fans, popular songs (previews), discography, fans also like. */
+function ArtistPanel({ name }: { name: string }) {
+  const page = useLoad(async () => {
+    const a = await findArtist(name);
+    if (!a) return null;
+    const [top, discs, fans] = await Promise.all([
+      topTracks(a.id, 5).catch(() => []),
+      artistReleases(a.id, 30).catch(() => []),
+      related(a.id, 10).catch(() => []),
+    ]);
+    return { a, top, discs: discs.filter((r) => r.kind !== 'Compilation').slice(0, 12), fans };
+  }, [name]);
+  const p = page.data;
+  if (!p) return <Text style={styles.empty}>{page.isPending ? `Looking up ${name}…` : page.error ? `Couldn't load ${name}: ${page.error.message}` : `Deezer doesn't know ${name}.`}</Text>;
+  return (
+    <View style={{ gap: 18 }}>
+      <View style={styles.hero}>
+        {p.a.picture && <RemoteImage uri={p.a.picture} style={styles.heroPhoto} />}
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text style={styles.heroName}>{p.a.name}</Text>
+          <Text style={styles.heroMeta}>{[p.a.fans && `${fansText(p.a.fans)} fans`, p.a.albums && `${p.a.albums} releases`].filter(Boolean).join(' · ')}</Text>
+        </View>
+      </View>
+      {p.top.length > 0 && (
+        <View style={{ gap: 6 }}>
+          <Text style={styles.section}>Popular</Text>
+          <TrackList tracks={p.top} owner={`artist${p.a.id}`} covers artist={p.a.name} />
+        </View>
+      )}
+      {p.discs.length > 0 && (
+        <View style={{ gap: 10 }}>
+          <Text style={styles.section}>Discography</Text>
+          <ReleaseRow releases={p.discs} artist={p.a.name} />
+        </View>
+      )}
+      {p.fans.length > 0 && (
+        <View style={{ gap: 10 }}>
+          <Text style={styles.section}>Fans also like</Text>
+          <ArtistRow artists={p.fans} />
+        </View>
+      )}
+    </View>
+  );
+}
+
+/** "You might like": artists that several of your artists' fans like, minus the ones you follow. */
+function Discover({ following }: { following: string[] }) {
+  const seeds = following.slice(0, 5);
+  const page = useLoad(async () => {
+    const mine = new Set(following.map(norm));
+    const lists = await Promise.all(seeds.map((n) => findArtist(n).then((a) => (a ? related(a.id, 15) : [])).catch(() => [] as DzArtist[])));
+    return suggest(lists, mine);
+  }, [seeds.join('|')]);
+  if (!page.data?.length) return null;
+  return (
+    <View style={{ gap: 10 }}>
+      <Text style={styles.section}>You might like</Text>
+      <ArtistRow artists={page.data} />
     </View>
   );
 }
@@ -103,7 +191,7 @@ function Tab({ label, image, on, onPress }: { label: string; image?: string | nu
             <Ionicons name="musical-notes" size={24} color={colors.paper} />
           </View>
         ) : image ? (
-          <Image source={{ uri: image }} style={styles.avatar} />
+          <RemoteImage uri={image} style={styles.avatar} />
         ) : (
           <View style={[styles.avatar, styles.initials]}>
             <Text style={styles.initialsText}>
@@ -157,5 +245,9 @@ const styles = StyleSheet.create({
   title: { color: colors.paper, fontFamily: fonts.sansBold, fontSize: 15, lineHeight: 19 },
   meta: { color: colors.muted, fontFamily: fonts.sansRegular, fontSize: 12 },
   section: { color: colors.paper, fontFamily: fonts.sansBold, fontSize: 17 },
+  hero: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  heroPhoto: { width: 96, height: 96, borderRadius: 48 },
+  heroName: { color: colors.paper, fontFamily: fonts.sansBold, fontSize: 24 },
+  heroMeta: { color: colors.muted, fontFamily: mono, fontSize: 12 },
   empty: { color: colors.muted, fontFamily: fonts.sansRegular, fontSize: 14, lineHeight: 20, textAlign: 'center', paddingHorizontal: 12 },
 });

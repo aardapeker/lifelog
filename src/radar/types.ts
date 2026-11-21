@@ -87,7 +87,7 @@ export interface TopicSources {
   devtoTags?: string[]; // dev.to tags: typescript, react, java…
   tmdbLists?: string[]; // TMDB lists to follow: ids from TMDB_LISTS (upcoming, now_playing…)
   tmdbPeople?: string[]; // directors / actors: their new and upcoming films
-  artists?: string[]; // MusicBrainz: their new albums, EPs and singles
+  artists?: string[]; // Deezer: their new albums, EPs and singles
   spotifyArtists?: boolean; // …plus your top Spotify artists, kept up to date
   onThisDay?: boolean; // Wikipedia's "On this day": a few moments from history every day
   quakeMinMag?: number | null; // earthquakes from this magnitude up (null/0 = off)

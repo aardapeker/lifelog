@@ -24,8 +24,8 @@ Ports of the Java services:
   feeds, GitHub releases/tags Atom, Mastodon public tag timelines, any RSS/Atom feed you add, dev.to
   tags via its public API, arXiv category feeds for topics with arXiv on, TMDB lists and people for
   MOVIE cards with the free TMDB key from Radar settings, kept in the keystore and passed in as
-  `ctx.tmdbKey`; MusicBrainz new releases of the topic's artists (one request a second, named
-  User-Agent); AFAD earthquakes with USGS as the fallback; Jolpica F1 podium + next race). No accounts, ever (Bluesky banned
+  `ctx.tmdbKey`; Deezer new releases of the topic's artists (public API, no key; `lib/deezer.ts`
+  also feeds the album and artist pages with 30-second previews and "fans also like"); AFAD earthquakes with USGS as the fallback; Jolpica F1 podium + next race). No accounts, ever (Bluesky banned
   Radar for logging in as Arda; see the radar repo's CLAUDE.md). YouTube has no API key here, so
   topics list channels (`@handle` or `UC…` id) instead of keyword search.
 - `ingest.ts`: IngestionService (exclude words, dedupe by topic+url, Latin-script filter, story

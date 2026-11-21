@@ -24,7 +24,7 @@ import {
   writeScript,
   type Project,
 } from '../../lib/studio';
-import { colors, fonts, inputColors, radius } from '../../lib/theme';
+import { colors, fonts, frost, inputColors, radius } from '../../lib/theme';
 import { useKeyboardHeight } from '../../lib/useKeyboardVisible';
 
 type Tab = 'script' | 'research' | 'kit';
@@ -135,13 +135,13 @@ export default function StudioProjectScreen() {
 
           {/* what it's doing, or why it stopped */}
           {busy && (
-            <Glass radius={radius.md} style={styles.working}>
+            <Glass radius={radius.md} style={styles.working} fill={frost.backgroundColor}>
               <ActivityIndicator color={colors.text} />
               <Text style={styles.workingText}>{p.step ?? 'Working…'}</Text>
             </Glass>
           )}
           {p.status === 'error' && !busy && (
-            <Glass radius={radius.md} style={styles.problem}>
+            <Glass radius={radius.md} style={styles.problem} fill={frost.backgroundColor}>
               <Text style={styles.err}>{p.error ?? 'Something went wrong.'}</Text>
               <PillButton label="Try again" onPress={() => run(p.research ? writeScript(db, pid) : research(db, pid))} />
             </Glass>
@@ -160,7 +160,7 @@ export default function StudioProjectScreen() {
             <View style={{ gap: 12 }}>
               {!script ? (
                 !busy && (
-                  <Glass radius={radius.lg} style={styles.card}>
+                  <Glass radius={radius.lg} style={styles.card} fill={frost.backgroundColor}>
                     <Text style={styles.cardText}>
                       Research is done: {p.research.notes.length} angles, {p.research.sources.length} sources. Next, the script in scenes and the publish kit.
                     </Text>
@@ -175,7 +175,7 @@ export default function StudioProjectScreen() {
                     </Text>
                   )}
                   {/* tell the AI what to change */}
-                  <Glass radius={radius.lg} style={styles.card}>
+                  <Glass radius={radius.lg} style={styles.card} fill={frost.backgroundColor}>
                     <TextInput
                       value={note}
                       onChangeText={setNote}
@@ -198,7 +198,7 @@ export default function StudioProjectScreen() {
                       <PillButton label="New script" ghost disabled={busy} onPress={rewriteAll} />
                     </View>
                   </Glass>
-                  <Glass radius={radius.lg} style={styles.editorCard}>
+                  <Glass radius={radius.lg} style={styles.editorCard} fill={frost.backgroundColor}>
                     <MarkdownInput editor={editor} style={[styles.editor, busy && { opacity: 0.5 }]} placeholder="The script…" />
                   </Glass>
                   <Text style={styles.hint}>Each scene: "## N. Name", then "&gt; Visual: what to show", then the narration. Saved as you type.</Text>
@@ -211,7 +211,7 @@ export default function StudioProjectScreen() {
           {tab === 'research' && p.research && (
             <View style={{ gap: 14 }}>
               {p.research.notes.map((n) => (
-                <Glass key={n.heading} radius={radius.lg} style={styles.card}>
+                <Glass key={n.heading} radius={radius.lg} style={styles.card} fill={frost.backgroundColor}>
                   <Text style={styles.noteHead}>{n.heading}</Text>
                   <Text style={styles.noteText} selectable>
                     {inline(n.text)}
@@ -253,7 +253,7 @@ function KitCard({ title, items }: { title: string; items: string[] }) {
   const [copied, setCopied] = useState(-1);
   if (!items.filter(Boolean).length) return null;
   return (
-    <Glass radius={radius.lg} style={styles.card}>
+    <Glass radius={radius.lg} style={styles.card} fill={frost.backgroundColor}>
       <Text style={styles.noteHead}>{title}</Text>
       {items.map((t, i) => (
         <Pressable
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
   card: { padding: 16, gap: 10 },
   cardText: { fontFamily: fonts.sansRegular, fontSize: 15, lineHeight: 22, color: colors.text },
   stats: { fontFamily: fonts.mono, fontSize: 12, color: colors.muted },
-  input: { backgroundColor: colors.raised, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 10, color: colors.text, fontFamily: fonts.sansRegular, fontSize: 15, maxHeight: 120 },
+  input: { backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', textAlignVertical: 'top', borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 10, color: colors.text, fontFamily: fonts.sansRegular, fontSize: 15, maxHeight: 120 },
   row: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   editorCard: { padding: 16 },
   editor: { fontFamily: fonts.serif, fontSize: 17, lineHeight: 27, color: colors.text, minHeight: 300 },

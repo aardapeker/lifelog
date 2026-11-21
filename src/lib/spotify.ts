@@ -107,15 +107,22 @@ export async function connectSpotify(): Promise<boolean> {
   return true;
 }
 
+let refreshing: Promise<string> | null = null;
+
 async function accessToken(force = false): Promise<string> {
   const t = await loadTokens();
   if (!t) throw new SpotifyError(401, 'Spotify is not connected. Settings → Spotify.');
   if (!force && t.expiresAt - 60_000 > Date.now()) return t.access;
-  const clientId = await getSpotifyClientId();
-  if (!clientId || !t.refresh) throw new SpotifyError(401, 'Spotify login expired. Connect again in Settings.');
-  const fresh = await AuthSession.refreshAsync({ clientId, refreshToken: t.refresh }, discovery);
-  await saveTokens(fresh, t.refresh);
-  return fresh.accessToken;
+  // One refresh at a time: Radar, the radio and the friend often ask together, and Spotify may
+  // rotate the refresh token, so a second refresh with the old one failed ("artists didn't load").
+  refreshing ??= (async () => {
+    const clientId = await getSpotifyClientId();
+    if (!clientId || !t.refresh) throw new SpotifyError(401, 'Spotify login expired. Connect again in Settings.');
+    const fresh = await AuthSession.refreshAsync({ clientId, refreshToken: t.refresh }, discovery);
+    await saveTokens(fresh, t.refresh);
+    return fresh.accessToken;
+  })().finally(() => (refreshing = null));
+  return refreshing;
 }
 
 /** One Web API call. Refreshes the login once on 401. Returns null for "204 No Content". */
@@ -403,6 +410,8 @@ export async function savePlaylist(name: string, description: string, uris: stri
 
 export type TopArtist = { name: string; image: string | null };
 
+let asking: Promise<TopArtist[]> | null = null;
+
 /**
  * Your top Spotify artists with their photos (refreshed once a day): the friend's sense of your taste,
  * and Radar's Music topic follows their new releases. Empty if Spotify isn't connected.
@@ -410,18 +419,26 @@ export type TopArtist = { name: string; image: string | null };
 export async function topArtists(db: SQLiteDatabase): Promise<TopArtist[]> {
   if (!(await spotifyConnected())) return [];
   const today = new Date().toDateString();
+  let cached: { day?: string; artists?: TopArtist[] } = {};
   try {
-    const cached = JSON.parse(await getSetting(db, 'spotify.topArtists', '{}')) as { day?: string; artists?: TopArtist[] };
-    if (cached.day === today && cached.artists) return cached.artists;
+    cached = JSON.parse(await getSetting(db, 'spotify.topArtists', '{}'));
+  } catch {}
+  if (cached.day === today && cached.artists?.length) return cached.artists;
+  // one request for everyone who asks at the same moment (Radar's tabs and its refresh do)
+  asking ??= (async () => {
     const res = await api<{ items: { name: string; images?: { url: string; width?: number }[] }[] }>('/me/top/artists?limit=20&time_range=medium_term');
     // the smallest picture that's still sharp in a round 64 px avatar
     const pic = (imgs?: { url: string; width?: number }[]) => [...(imgs ?? [])].sort((x, y) => (x.width ?? 0) - (y.width ?? 0)).find((i) => (i.width ?? 0) >= 160)?.url ?? imgs?.[0]?.url ?? null;
     const artists = res?.items.map((a) => ({ name: a.name, image: pic(a.images) })) ?? [];
-    await setSetting(db, 'spotify.topArtists', JSON.stringify({ day: today, artists }));
+    if (artists.length) await setSetting(db, 'spotify.topArtists', JSON.stringify({ day: today, artists }));
     return artists;
-  } catch {
-    return [];
-  }
+  })().finally(() => (asking = null));
+  try {
+    const fresh = await asking;
+    if (fresh.length) return fresh;
+  } catch {}
+  // Spotify didn't answer (or answered empty): yesterday's list beats no artists at all
+  return cached.artists ?? [];
 }
 
 /** Just the names (the friend's prompt): the 15 you listen to most. */

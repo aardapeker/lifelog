@@ -46,7 +46,7 @@ export function domainOf(url: string | null | undefined): string | null {
   return m ? m[1].toLowerCase().replace(/^www\./, '') : null;
 }
 
-/** "4 Dec 2026" from an ISO date or ms, null for a missing or odd one (cards of TMDB, MusicBrainz, F1). */
+/** "4 Dec 2026" from an ISO date or ms, null for a missing or odd one (cards of TMDB, Deezer, F1). */
 export function shortDate(when: string | number | null | undefined): string | null {
   const t = typeof when === 'number' ? when : when ? Date.parse(when) : NaN;
   return Number.isNaN(t) ? null : new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });

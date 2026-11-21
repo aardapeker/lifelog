@@ -2,15 +2,18 @@ import * as WebBrowser from 'expo-web-browser';
 import { withAgent } from '../radar/components/RemoteImage';
 import { useEffect, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { fansText } from '../lib/deezer';
 import { songInfo, type SongInfo } from '../lib/songInfo';
+import { ArtistRow } from '../radar/components/Preview';
 import { colors, fonts } from '../lib/theme';
 import { Glass } from './Glass';
 import Ionicons from './Icon';
 
 /*
- * Under the player, like Spotify's "About the artist" and "Credits": folded to one line until you
- * open it (so MusicBrainz is only asked when you want to know), then the song's credits and the
- * artist's card with photo and bio. Follows the song: the next one opens folded again.
+ * Under the player, like Spotify's "About the artist": folded to one line until you open it (so
+ * Deezer and Wikipedia are only asked when you want to know), then the song's album, year, tempo and
+ * genres, the artist's card with photo, fans and bio, and who their fans also like.
+ * Follows the song: the next one opens folded again.
  */
 
 type Track = { id: string; name: string; artist: string };
@@ -51,16 +54,15 @@ export function SongAbout({ track }: { track: Track }) {
         ) : !info ? (
           <Text style={styles.muted}>Looking it up…</Text>
         ) : !a && !info.album ? (
-          <Text style={styles.muted}>MusicBrainz doesn't know this one.</Text>
+          <Text style={styles.muted}>Deezer doesn't know this one.</Text>
         ) : (
           <View style={{ gap: 14 }}>
             {/* the song */}
             <View style={{ gap: 4 }}>
-              {(info.album || info.firstReleased) && (
-                <Fact label="First released" value={[info.album, year(info.firstReleased)].filter(Boolean).join(' · ')} />
-              )}
-              {info.writers.length > 0 && <Fact label="Written by" value={info.writers.join(', ')} />}
-              {info.producers.length > 0 && <Fact label="Produced by" value={info.producers.join(', ')} />}
+              {(info.album || info.released) && <Fact label="From" value={[info.album, year(info.released)].filter(Boolean).join(' · ')} />}
+              {info.genres.length > 0 && <Fact label="Genre" value={info.genres.join(', ')} />}
+              {!!info.bpm && <Fact label="Tempo" value={`${info.bpm} BPM`} />}
+              {info.label && <Fact label="Label" value={info.label} />}
             </View>
             {/* the artist */}
             {a && (
@@ -69,10 +71,12 @@ export function SongAbout({ track }: { track: Track }) {
                   {a.photo ? <Image source={withAgent(a.photo)} style={styles.photo} /> : null}
                   <View style={{ flex: 1, gap: 2 }}>
                     <Text style={styles.name}>{a.name}</Text>
-                    <Text style={styles.muted}>
-                      {[a.kind === 'Group' ? 'Band' : a.kind, a.from, a.started && (a.ended ? `${a.started}–${a.ended}` : `since ${a.started}`)].filter(Boolean).join(' · ')}
-                    </Text>
-                    {a.genres.length > 0 && <Text style={styles.genres}>{a.genres.join(' · ')}</Text>}
+                    {a.about && <Text style={styles.genres}>{a.about[0].toUpperCase() + a.about.slice(1)}</Text>}
+                    {a.fans > 0 && (
+                      <Text style={styles.muted}>
+                        {fansText(a.fans)} fans on Deezer{a.releases ? ` · ${a.releases} releases` : ''}
+                      </Text>
+                    )}
                   </View>
                 </View>
                 {a.bio && (
@@ -89,7 +93,13 @@ export function SongAbout({ track }: { track: Track }) {
                 )}
               </View>
             )}
-            <Text style={styles.credit}>MusicBrainz · Wikipedia</Text>
+            {info.alsoLike.length > 0 && (
+              <View style={{ gap: 10 }}>
+                <Text style={styles.label}>FANS ALSO LIKE</Text>
+                <ArtistRow artists={info.alsoLike} />
+              </View>
+            )}
+            <Text style={styles.credit}>Deezer · Wikipedia</Text>
           </View>
         ))}
     </Glass>
