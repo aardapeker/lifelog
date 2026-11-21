@@ -1,5 +1,5 @@
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Ionicons from '../../components/Icon';
 import { fansText, trackTime, type DzArtist, type DzRelease, type DzTrack } from '../../lib/deezer';
@@ -59,6 +59,8 @@ export function usePreview(owner: string) {
   const s = useSyncExternalStore(subscribe, () => state);
   const mine = useRef(owner);
   mine.current = owner;
+  const [finding, setFinding] = useState<string | null>(null);
+  const [none, setNone] = useState<ReadonlySet<string>>(new Set());
   useEffect(
     () => () => {
       if (state.key?.startsWith(`${mine.current}:`)) stopPreview();
@@ -73,7 +75,22 @@ export function usePreview(owner: string) {
       if (state.key === k) stopPreview();
       else if (url) playPreview(k, url);
     },
+    /** For lists without preview links yet (the radio's playlist): look it up on the first tap. */
+    toggleFind: async (key: string, find: () => Promise<string | null>) => {
+      const k = `${owner}:${key}`;
+      if (state.key === k) return stopPreview();
+      setFinding(key);
+      try {
+        const url = await find().catch(() => null);
+        if (url) await playPreview(k, url);
+        else setNone((n) => new Set(n).add(key));
+      } finally {
+        setFinding(null);
+      }
+    },
     is: (key: string) => s.key === `${owner}:${key}`,
+    finding: (key: string) => finding === key,
+    noPreview: (key: string) => none.has(key),
   };
 }
 

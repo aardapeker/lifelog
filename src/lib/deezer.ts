@@ -221,17 +221,28 @@ export async function findAlbum(artist: string, title: string): Promise<DzReleas
   return hit ? releaseOf(hit) : null;
 }
 
-/** A song by artist and title (the radio's track), with its BPM and release date. */
-export async function findSong(artist: string, title: string): Promise<DzSong | null> {
+/** The search hit for a song by artist and title: same title and artist first, else that artist's best hit. */
+async function searchSong(artist: string, title: string): Promise<Raw | null> {
   const main = mainArtist(artist);
   const r = await dz<{ data?: Raw[] }>(`/search?q=${encodeURIComponent(`artist:"${main}" track:"${title}"`)}&limit=10`);
   const t = norm(title);
   const hits = r.data ?? [];
-  const hit =
+  return (
     hits.find((h) => norm(h.title_short ?? h.title ?? '') === t && norm(h.artist?.name ?? '') === norm(main)) ??
     hits.find((h) => norm(h.artist?.name ?? '') === norm(main)) ??
-    null;
+    null
+  );
+}
+
+/** A song by artist and title (the radio's track), with its BPM and release date. */
+export async function findSong(artist: string, title: string): Promise<DzSong | null> {
+  const hit = await searchSong(artist, title);
   if (!hit) return null;
   const full = await dz(`/track/${hit.id}`).catch(() => hit);
   return { ...trackOf(full, hit.album), bpm: full.bpm || null, date: full.release_date ?? full.album?.release_date ?? null, artistId: full.artist?.id ?? hit.artist?.id ?? null };
+}
+
+/** Just the 30-second preview of a song (one search, no more). Null when Deezer has none. */
+export async function previewOf(artist: string, title: string): Promise<string | null> {
+  return (await searchSong(artist, title))?.preview || null;
 }

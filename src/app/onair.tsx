@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BuildProgress } from '../components/BuildProgress';
 import { SeekBar } from '../components/expressive';
@@ -14,7 +14,10 @@ import { breadcrumb } from '../lib/crashLog';
 import { ActionSheet, type SheetAction } from '../components/ActionSheet';
 import { SongAbout } from '../components/SongAbout';
 import { SongPicker } from '../components/SongPicker';
+import { previewOf } from '../lib/deezer';
 import { useRadio } from '../lib/radioEngine';
+import { cleanTitle } from '../lib/songInfo';
+import { stopPreview, usePreview } from '../radar/components/Preview';
 import { colors, fonts, radius } from '../lib/theme';
 import { useFirstFrame } from '../lib/perf';
 
@@ -27,6 +30,7 @@ export default function OnAirScreen() {
   useFirstFrame('Player'); // Settings → Privacy → Speed
   const insets = useSafeAreaInsets();
   const r = useRadio();
+  const pv = usePreview('draft');
   const { phase, show, current, palette, paused, speaking, progress, station, steps, draft, status, hearts, voice } = r;
 
   useEffect(() => {
@@ -78,19 +82,39 @@ export default function OnAirScreen() {
           // the songs are picked and found on Spotify: reorder or drop some, then the hosts write the talks
           <FadeIn>
             <Text style={styles.reviewTitle}>Tonight's playlist</Text>
-            <Text style={styles.reviewHint}>Move songs up or down, or drop one. The hosts write their talks for this exact order.</Text>
+            <Text style={styles.reviewHint}>Tap a cover to hear 30 seconds of it. Move songs up or down, or drop one. The hosts write their talks for this exact order.</Text>
             {draft.map((t, i) => (
               <View key={t.id} style={styles.row}>
-                <Text style={styles.rowNum}>{i + 1}</Text>
+                {/* tap the cover for a 30-second preview (Deezer), for the songs you don't know */}
+                <Pressable
+                  onPress={() => pv.toggleFind(t.id, () => previewOf(t.artist, cleanTitle(t.name)))}
+                  hitSlop={6}
+                  accessibilityLabel={`${pv.is(t.id) ? 'Stop' : 'Play'} a preview of ${t.name}`}
+                >
+                  {t.image ? <Image source={{ uri: t.image }} style={styles.rowCover} /> : <View style={[styles.rowCover, { backgroundColor: 'rgba(255,255,255,0.08)' }]} />}
+                  <View style={[styles.rowPlay, pv.is(t.id) && styles.rowPlaying]}>
+                    {pv.finding(t.id) ? (
+                      <ActivityIndicator size="small" color={colors.text} />
+                    ) : (
+                      <Ionicons name={pv.is(t.id) ? 'pause' : pv.noPreview(t.id) ? 'volume-mute' : 'play'} size={16} color={colors.text} />
+                    )}
+                  </View>
+                </Pressable>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.rowName} numberOfLines={1}>
+                  <Text style={[styles.rowName, pv.is(t.id) && { color: '#5BE0A0' }]} numberOfLines={1}>
                     {t.requested ? '🎵 ' : ''}
                     {t.name}
                   </Text>
                   <Text style={styles.rowArtist} numberOfLines={1}>
                     {t.spare ? 'Spare · ' : ''}
+                    {pv.noPreview(t.id) ? 'No preview · ' : ''}
                     {t.artist}
                   </Text>
+                  {pv.is(t.id) && (
+                    <View style={styles.previewBar}>
+                      <View style={[styles.previewFill, { width: `${pv.progress * 100}%` }]} />
+                    </View>
+                  )}
                 </View>
                 <Pressable onPress={() => r.moveDraft(i, -1)} hitSlop={6} disabled={i === 0} accessibilityLabel={`Move ${t.name} up`}>
                   <Ionicons name="chevron-up" size={22} color={i === 0 ? colors.line : colors.text} />
@@ -98,17 +122,32 @@ export default function OnAirScreen() {
                 <Pressable onPress={() => r.moveDraft(i, 1)} hitSlop={6} disabled={i === draft.length - 1} accessibilityLabel={`Move ${t.name} down`}>
                   <Ionicons name="chevron-down" size={22} color={i === draft.length - 1 ? colors.line : colors.text} />
                 </Pressable>
-                <Pressable onPress={() => r.dropDraft(i)} hitSlop={6} disabled={draft.length === 1} accessibilityLabel={`Drop ${t.name}`}>
+                <Pressable
+                  onPress={() => {
+                    if (pv.is(t.id)) stopPreview();
+                    r.dropDraft(i);
+                  }}
+                  hitSlop={6}
+                  disabled={draft.length === 1}
+                  accessibilityLabel={`Drop ${t.name}`}
+                >
                   <Ionicons name="close" size={20} color={colors.muted} />
                 </Pressable>
               </View>
             ))}
             <PillButton label="＋ Add a song" onPress={() => setPicking('add')} ghost style={{ alignSelf: 'flex-start', marginTop: 12 }} />
             <View style={styles.after}>
-              <PillButton label="Write the show" onPress={r.writeDraft} />
+              <PillButton
+                label="Write the show"
+                onPress={() => {
+                  stopPreview();
+                  r.writeDraft();
+                }}
+              />
               <PillButton
                 label="Back"
                 onPress={() => {
+                  stopPreview();
                   r.cancelDraft();
                   close();
                 }}
@@ -308,8 +347,12 @@ const styles = StyleSheet.create({
   reviewTitle: { fontFamily: fonts.display, fontSize: 26, color: colors.text, marginBottom: 6 },
   reviewHint: { fontFamily: fonts.sansRegular, fontSize: 14, lineHeight: 20, color: colors.muted, marginBottom: 14 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 10, paddingHorizontal: 10, borderRadius: radius.sm },
-  rowNum: { fontFamily: fonts.serif, fontSize: 15, color: colors.muted, width: 18 },
   rowName: { fontFamily: fonts.sans, fontSize: 15, color: colors.text },
+  rowCover: { width: 44, height: 44, borderRadius: 6 },
+  rowPlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.35)' },
+  rowPlaying: { backgroundColor: 'rgba(0,0,0,0.55)' },
+  previewBar: { height: 2, borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.15)', marginTop: 5, overflow: 'hidden' },
+  previewFill: { height: 2, backgroundColor: '#5BE0A0' },
   rowArtist: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.muted, marginTop: 2 },
   after: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 22 },
   idle: { paddingTop: 40 },
