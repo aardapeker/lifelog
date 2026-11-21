@@ -33,7 +33,7 @@ const styleOf = (name: string, cast: Cast) => (cast.find((c) => c.name === name)
 /** The newer Interactions API (what Google documents for its current TTS models). Returns WAV bytes. */
 async function viaInteractions(apiKey: string, model: string, lines: SpokenLine[], cast: Cast): Promise<Uint8Array> {
   const duo = cast.length > 1;
-  const res = await fetch(`${BASE}/interactions`, {
+  const res = await voiceFetch(`${BASE}/interactions`, {
     method: 'POST',
     headers: jsonHeaders(apiKey),
     body: JSON.stringify({
@@ -70,13 +70,29 @@ async function viaInteractions(apiKey: string, model: string, lines: SpokenLine[
   return isWav(bytes) ? bytes : wav(bytes, 24000);
 }
 
+/**
+ * fetch with a deadline: on a slow line a voice request could hang for good, and a talk stuck
+ * "loading" was never asked for again. It now fails as "timed out" (handled like no internet).
+ */
+async function voiceFetch(url: string, init: RequestInit, ms = 60_000): Promise<Response> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: ctrl.signal });
+  } catch (e) {
+    throw ctrl.signal.aborted ? new Error(`Voice request timed out after ${ms / 1000} s (slow internet)`) : e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** The classic generateContent route (responseModalities AUDIO). Returns WAV bytes. */
 async function viaGenerate(apiKey: string, model: string, lines: SpokenLine[], cast: Cast): Promise<Uint8Array> {
   const duo = cast.length > 1;
   const voiceOf = (v: string) => ({ prebuiltVoiceConfig: { voiceName: v } });
   const direction = cast.map((c) => `${duo ? speakerOf(c.name, cast) : 'Read'} as ${c.style}`).join('; ');
   const script = lines.map((l) => (duo ? `${speakerOf(l.speaker, cast)}: ${l.text}` : l.text)).join('\n');
-  const res = await fetch(`${BASE}/models/${model}:generateContent`, {
+  const res = await voiceFetch(`${BASE}/models/${model}:generateContent`, {
     method: 'POST',
     headers: jsonHeaders(apiKey),
     body: JSON.stringify({

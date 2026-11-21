@@ -218,7 +218,8 @@ function useRadioEngine() {
   const talking = useRef<Talking | null>(null);
   // intros are voiced ahead of time (while the previous song plays), so the host never makes you wait
   const clips = useRef(new Map<number, Promise<string | null>>());
-  const retried = useRef(new Set<number>()); // talks that already got their second chance
+  const retried = useRef(new Set<number>()); // talks that failed at least once (no second "not ready" message)
+  const failedAt = useRef(new Map<number, number>()); // when a talk's voice last failed: asked again after a pause
 
   const prepare = useCallback((i: number) => {
     const s = live.current.show;
@@ -240,12 +241,14 @@ function useRadioEngine() {
         .catch((e) => {
         // say why the hosts went quiet, instead of failing silently (no robot voice: the talk is skipped)
         const why = e instanceof Error ? e.message : String(e);
-        setStatus({ kind: 'err', msg: /music goes on/.test(why) ? why : `⚠️ Couldn't voice this talk, so the hosts skip it. ${why}` });
-        // forget the failure: when its turn comes, it's voiced again (a speed limit is usually gone by then)
-        if (!retried.current.has(i)) {
-          retried.current.add(i);
-          clips.current.delete(i);
-        }
+        // once per talk: the quiet retries every 20 s shouldn't flash a new warning each time
+        if (!retried.current.has(i)) setStatus({ kind: 'err', msg: /music goes on/.test(why) ? why : `⚠️ Couldn't voice this talk yet (${why}). Trying again in a moment.` });
+        // forget the failure, every time: the heartbeat asks again a little later (a slow patch of
+        // internet or a speed limit is usually over by then). It used to give up after one retry,
+        // so after a bad minute on the servis the rest of the show went without voices
+        retried.current.add(i);
+        clips.current.delete(i);
+        failedAt.current.set(i, Date.now());
         return null;
       }),
     );
@@ -433,6 +436,7 @@ function useRadioEngine() {
   }, []);
   const tick = useCallback(async () => {
     const l = live.current;
+    keepVoicesComing(l);
     if (ticking.current || !l.show || l.paused || Date.now() - l.startedAt < 4000) return;
     if (l.speaking && !l.overlapping) return;
     const now = Date.now();
@@ -445,6 +449,19 @@ function useRadioEngine() {
       ticking.current = false;
     }
   }, []);
+
+  /**
+   * The next two talks (and the goodbye near the end) keep getting voiced: one that failed (slow
+   * internet, a speed limit) is asked for again 20 s later, so the hosts come back with the signal.
+   */
+  const keepVoicesComing = (l: typeof live.current) => {
+    if (!l.show || !l.voice || l.paused) return;
+    for (const j of [l.index + 1, l.index + 2]) {
+      if (j > l.show.slots.length || clips.current.has(j)) continue;
+      if (Date.now() - (failedAt.current.get(j) ?? 0) < 20_000) continue;
+      prepare(j);
+    }
+  };
 
   /** One look at Spotify: catch up if it moved on, and step in before the song ends. */
   const follow = async (l: typeof live.current) => {
@@ -584,6 +601,7 @@ function useRadioEngine() {
       live.current = { show: s, index: 0, speaking: false, paused: false, startedAt: 0, voice, talked: -1, overlapping: false };
       clips.current = new Map();
       retried.current = new Set();
+      failedAt.current = new Map();
       if (voice) {
         step('voice');
         prepare(0);
@@ -770,6 +788,7 @@ function useRadioEngine() {
       live.current = { show: s, index: at, speaking: false, paused: false, startedAt: Date.now(), voice, talked: again ? at - 1 : at, overlapping: false };
       clips.current = new Map();
       retried.current = new Set();
+      failedAt.current = new Map();
       if (again && voice) {
         step('voice');
         prepare(at);
