@@ -10,12 +10,13 @@ import { CardMeta } from './CardMeta'
 import { PostBody } from './PostBody'
 
 /** Types whose `author` line is worth showing (channel, paper authors, HN user...). */
-const SHOWS_AUTHOR = new Set(['VIDEO', 'SHORT', 'PAPER', 'PODCAST', 'DISCUSSION', 'MOVIE', 'MUSIC', 'HISTORY'])
+const SHOWS_AUTHOR = new Set(['VIDEO', 'SHORT', 'PAPER', 'PODCAST', 'DISCUSSION', 'MOVIE', 'MUSIC', 'HISTORY', 'TV', 'GAME'])
 
 /** One card for every type; the type decides the media and the extras. Opened items are dimmed. */
 export function FeedCard({ item, onPress }: { item: FeedItem; onPress: () => void }) {
   const isVideo = item.type === 'VIDEO' || item.type === 'SHORT'
-  const sideImage = (item.type === 'ARTICLE' || item.type === 'DISCUSSION' || item.type === 'HISTORY') && item.thumbnailUrl
+  const sideImage = (item.type === 'ARTICLE' || item.type === 'DISCUSSION' || item.type === 'HISTORY' || item.type === 'TV') && item.thumbnailUrl
+  const banner = item.type === 'GAME' && item.thumbnailUrl
 
   return (
     <Pressable
@@ -30,6 +31,7 @@ export function FeedCard({ item, onPress }: { item: FeedItem; onPress: () => voi
       ) : (
         <>
           {isVideo && <VideoThumb item={item} />}
+          {banner && <Image source={{ uri: item.thumbnailUrl! }} style={styles.banner} resizeMode="cover" />}
           <View style={[styles.body, styles.row]}>
             <View style={styles.text}>
               <CardMeta item={item} />
@@ -67,7 +69,7 @@ function Extras({ item }: { item: FeedItem }) {
   const parts: string[] = []
   if (SHOWS_AUTHOR.has(item.type) && item.author) parts.push(item.author)
   if (item.type === 'PODCAST' && item.durationSeconds) parts.push(`🎧 ${formatDuration(item.durationSeconds)}`)
-  if (item.type === 'MOVIE' && item.score != null) parts.push(`★ ${item.score}`)
+  if ((item.type === 'MOVIE' || item.type === 'TV') && item.score != null) parts.push(`★ ${item.score}`)
   if (item.type === 'DISCUSSION' && item.score != null) parts.push(`▲ ${item.score} · ${item.commentCount ?? 0} comments`)
   if (parts.length === 0) return null
   return <Text style={styles.extras}>{parts.join(' · ')}</Text>
@@ -77,6 +79,7 @@ const styles = StyleSheet.create({
   read: { opacity: 0.6 },
   pressed: { borderColor: colors.muted },
   body: { padding: 16 },
+  banner: { width: '100%', aspectRatio: 460 / 215 },
   row: { flexDirection: 'row', gap: 12 },
   text: { flex: 1, gap: 6 },
   title: { color: colors.paper, fontSize: 18, fontFamily: fonts.sansBold, lineHeight: 24 },

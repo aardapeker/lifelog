@@ -13,9 +13,11 @@ import { ReaderView } from '../../../radar/components/ReaderView';
 import { StoryCoverage } from '../../../radar/components/StoryCoverage';
 import { AlbumPage } from '../../../radar/components/AlbumPage';
 import { F1Page } from '../../../radar/components/F1Page';
+import { GamePage } from '../../../radar/components/GamePage';
 import { HistoryPage } from '../../../radar/components/HistoryPage';
 import { MoviePage } from '../../../radar/components/MoviePage';
 import { QuakePage } from '../../../radar/components/QuakePage';
+import { TvPage } from '../../../radar/components/TvPage';
 import { parseGeo } from '../../../radar/local/quakeInfo';
 import { parseTmdbUrl } from '../../../radar/local/tmdbDetails';
 import { isUsefulSnippet } from '../../../radar/format';
@@ -38,6 +40,8 @@ const OPEN_LABEL: Partial<Record<FeedItem['type'], string>> = {
   MOVIE: 'Open on TMDB',
   MUSIC: 'Find on Spotify',
   SPORT: 'Open on Wikipedia',
+  TV: 'Open on TVmaze',
+  GAME: 'Open in Steam',
 };
 
 export default function ItemScreen() {
@@ -94,6 +98,10 @@ function Detail({ item, onChange }: { item: FeedItem; onChange: (i: FeedItem) =>
     <F1Page item={item} save={saving} />
   ) : item.type === 'HISTORY' ? (
     <HistoryPage item={item} save={saving} />
+  ) : item.type === 'TV' && item.mediaUrl ? (
+    <TvPage item={item} save={saving} />
+  ) : item.type === 'GAME' ? (
+    <GamePage item={item} save={saving} />
   ) : null;
   const hide = () =>
     item.domain &&

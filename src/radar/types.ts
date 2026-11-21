@@ -4,7 +4,7 @@
  * the API client instead of the on-phone backend.
  */
 
-export type FeedItemType = 'VIDEO' | 'SHORT' | 'ARTICLE' | 'POST' | 'DISCUSSION' | 'RELEASE' | 'STOCK' | 'PAPER' | 'PODCAST' | 'MOVIE' | 'MUSIC' | 'QUAKE' | 'SPORT' | 'HISTORY';
+export type FeedItemType = 'VIDEO' | 'SHORT' | 'ARTICLE' | 'POST' | 'DISCUSSION' | 'RELEASE' | 'STOCK' | 'PAPER' | 'PODCAST' | 'MOVIE' | 'MUSIC' | 'QUAKE' | 'SPORT' | 'HISTORY' | 'TV' | 'GAME';
 
 export interface FeedItem {
   id: string;
@@ -93,6 +93,10 @@ export interface TopicSources {
   quakeMinMag?: number | null; // earthquakes from this magnitude up (null/0 = off)
   quakeArea?: 'near' | 'turkey'; // near Istanbul (300 km) or all of Turkey
   f1?: boolean; // Formula 1: last race's podium + next race countdown
+  tvShows?: string[]; // TVmaze: new episodes + the next one's countdown
+  tvPremieres?: boolean; // …plus big new series starting on streaming services
+  steamGames?: string[]; // Steam: their sales, release day and developer announcements
+  steamDeals?: boolean; // Steam's specials, 50% off or more (free-to-keep ones too)
 }
 
 export interface Topic {

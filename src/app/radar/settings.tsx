@@ -109,6 +109,10 @@ export default function RadarSettingsScreen() {
                     t.sources.onThisDay ? 'On this day' : '',
                     t.sources.quakeMinMag ? `quakes M${t.sources.quakeMinMag}+` : '',
                     t.sources.f1 ? 'F1' : '',
+                    ...(t.sources.tvShows ?? []).map((x) => `📺 ${x}`),
+                    t.sources.tvPremieres ? 'new series' : '',
+                    ...(t.sources.steamGames ?? []).map((x) => `🎮 ${x}`),
+                    t.sources.steamDeals ? 'Steam deals' : '',
                   ]
                     .filter(Boolean)
                     .join(' · ')}
@@ -262,6 +266,10 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
   const [f1, setF1] = useState(topic?.sources.f1 ?? false);
   const [spotifyArtists, setSpotifyArtists] = useState(topic?.sources.spotifyArtists ?? false);
   const [onThisDay, setOnThisDay] = useState(topic?.sources.onThisDay ?? false);
+  const [tvShows, setTvShows] = useState(topic?.sources.tvShows?.join(', ') ?? '');
+  const [tvPremieres, setTvPremieres] = useState(topic?.sources.tvPremieres ?? false);
+  const [steamGames, setSteamGames] = useState(topic?.sources.steamGames?.join(', ') ?? '');
+  const [steamDeals, setSteamDeals] = useState(topic?.sources.steamDeals ?? false);
   const [busy, setBusy] = useState(false);
 
   // the sources this topic uses: only those are open in the form, the rest wait as "＋" chips
@@ -276,6 +284,8 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
       clear: () => (setArtists(''), setSpotifyArtists(false)),
     },
     { key: 'movies', label: 'Movies', used: tmdbLists.length > 0 || !!tmdbPeople.trim(), open: () => {}, clear: () => (setTmdbLists([]), setTmdbPeople('')) },
+    { key: 'tv', label: 'Series', used: !!tvShows.trim() || tvPremieres, open: () => {}, clear: () => (setTvShows(''), setTvPremieres(false)) },
+    { key: 'games', label: 'Games', used: !!steamGames.trim() || steamDeals, open: () => setSteamDeals(true), clear: () => (setSteamGames(''), setSteamDeals(false)) },
     { key: 'quakes', label: 'Quakes', used: quakeMin > 0, open: () => setQuakeMin(3), clear: () => setQuakeMin(0) },
     { key: 'f1', label: 'F1', used: f1, open: () => setF1(true), clear: () => setF1(false) },
     { key: 'github', label: 'GitHub', used: !!repos.trim(), open: () => {}, clear: () => setRepos('') },
@@ -310,11 +320,13 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
   // a name, plus something to follow: keywords, or any of the sources (a topic can be just quakes or artists)
   const follows =
     splitList(keywords).length > 0 ||
-    [youtube, repos, tags, devtoTags, tmdbPeople, artists].some((v) => splitList(v).length > 0) ||
+    [youtube, repos, tags, devtoTags, tmdbPeople, artists, tvShows, steamGames].some((v) => splitList(v).length > 0) ||
     /https?:\/\//i.test(feeds) ||
     arxiv ||
     spotifyArtists ||
     onThisDay ||
+    tvPremieres ||
+    steamDeals ||
     tmdbLists.length > 0 ||
     quakeMin > 0 ||
     f1;
@@ -343,6 +355,10 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
           f1,
           spotifyArtists,
           onThisDay,
+          tvShows: splitList(tvShows),
+          tvPremieres,
+          steamGames: splitList(steamGames),
+          steamDeals,
           stockSymbol: topic?.sources.stockSymbol ?? null,
         },
       });
@@ -401,6 +417,28 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
             })}
           </View>
           <Field label="Directors & actors (their new films)" value={tmdbPeople} onChange={setTmdbPeople} placeholder="Christopher Nolan, Nuri Bilge Ceylan" />
+        </>,
+      )}
+      {box(
+        'tv',
+        'Series',
+        <>
+          <Field label="Shows (new episodes, and a countdown to the next)" value={tvShows} onChange={setTvShows} placeholder="Severance, The Last of Us" />
+          <View style={styles.switchRow}>
+            <Text style={[ui.body, { flex: 1 }]}>Big new series premiering on streaming</Text>
+            <Switch value={tvPremieres} onValueChange={setTvPremieres} trackColor={{ true: colors.up }} />
+          </View>
+        </>,
+      )}
+      {box(
+        'games',
+        'Games',
+        <>
+          <View style={styles.switchRow}>
+            <Text style={[ui.body, { flex: 1 }]}>Steam deals: 50% off or more, and free-to-keep games</Text>
+            <Switch value={steamDeals} onValueChange={setSteamDeals} trackColor={{ true: colors.up }} />
+          </View>
+          <Field label="Games to follow (sales, release day, updates)" value={steamGames} onChange={setSteamGames} placeholder="Hollow Knight: Silksong, Hades II" />
         </>,
       )}
       {box(
