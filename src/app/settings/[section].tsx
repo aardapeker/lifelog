@@ -27,6 +27,7 @@ import {
 } from '../../lib/spotify';
 import { bannedSongs, getRadioPrefs, likedSongs, saveRadioPrefs, toggleLiked, unbanSong, type RadioPrefs, type SongRef } from '../../lib/songMemory';
 import { Chip, IconButton, InfoButton, PillButton, SectionTitle, StatusLine, type Status } from '../../components/ui';
+import { historySummary, importSpotifyHistory } from '../../lib/listening';
 import { UsageSection } from '../../components/UsageSection';
 import { IconTile } from '../../components/IconTile';
 import { requestPinWidget } from 'react-native-android-widget';
@@ -781,9 +782,12 @@ function RadioSection() {
   const [bans, setBans] = useState<SongRef[]>([]);
   const [hearts, setHearts] = useState<SongRef[]>([]);
   const [access, setAccess] = useState(true);
+  const [history, setHistory] = useState<{ plays: number; since: number | null } | null>(null);
+  const [importing, setImporting] = useState<Status>({ kind: 'idle' });
 
   useFocusEffect(
     useCallback(() => {
+      historySummary(db).then(setHistory).catch(() => {});
       getRadioPrefs(db).then(setP);
       bannedSongs(db).then(setBans);
       likedSongs(db).then(setHearts);
@@ -839,6 +843,41 @@ function RadioSection() {
         value={p.twists}
         onChange={(twists) => update({ twists })}
       />
+      <View style={styles.labelRow}>
+        <Text style={[styles.label, styles.labelInRow]}>Your listening history</Text>
+        <InfoButton
+          title="Listening history"
+          points={[
+            "Spotify only remembers your last 50 plays, so Lifelog saves your new plays every few hours (when it wakes up, when you open it, and before each show). Only on your phone.",
+            'The hosts use it now and then: a song you played 9 times this week, one you haven\'t played for a month, one you\'ve never heard.',
+            'Your years before: on spotify.com → Account → Privacy settings, request "Extended streaming history". Spotify emails a zip in a few days (up to 30).',
+            'Then tap Import below and pick that zip (or the Streaming_History_Audio files in it). Plays shorter than 30 seconds and podcasts are left out. Importing twice is fine: nothing is counted twice.',
+          ]}
+        />
+      </View>
+      <Text style={styles.hint}>
+        {history?.plays
+          ? `${history.plays.toLocaleString('en')} plays saved${history.since ? `, since ${new Date(history.since).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}` : ''}.`
+          : 'Nothing saved yet: your plays are saved from now on while Spotify is connected.'}
+      </Text>
+      <PillButton
+        label="Import Spotify history"
+        ghost
+        style={{ alignSelf: 'flex-start' }}
+        disabled={importing.kind === 'busy'}
+        onPress={async () => {
+          setImporting({ kind: 'busy' });
+          try {
+            const r = await importSpotifyHistory(db);
+            if (!r) return setImporting({ kind: 'idle' });
+            setImporting({ kind: 'ok', msg: `Imported: ${r.added.toLocaleString('en')} new plays (${r.total.toLocaleString('en')} in the file).` });
+            historySummary(db).then(setHistory).catch(() => {});
+          } catch (e) {
+            setImporting({ kind: 'err', msg: e instanceof Error ? e.message : String(e) });
+          }
+        }}
+      />
+      <StatusLine status={importing} />
       <SongList
         title="Hearted"
         icon="heart"

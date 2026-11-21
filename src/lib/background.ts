@@ -13,6 +13,7 @@ import { checkAchievements } from './achievements';
 import { ensureWrapped } from './wrapped';
 import { radarJob } from '../radar/local';
 import { getSetting, setSetting } from './db';
+import { syncListens } from './listening';
 import { time } from './perf';
 
 /**
@@ -54,6 +55,7 @@ export function runBackgroundJobs(db: SQLiteDatabase, opts: { soft?: boolean } =
 async function runAll(db: SQLiteDatabase): Promise<void> {
   const safe = (p: Promise<unknown>) => p.catch((e) => console.warn('background job failed', e));
   await safe(deliverDue(db));
+  await safe(syncListens(db)); // your Spotify plays, before Spotify forgets them (it keeps the last 50)
   await safe(checkAchievements(db)); // silly badges: a few counts, no AI
   await safe(captionPending(db)); // captions first, so they get embedded right after
   await safe(indexPending(db));

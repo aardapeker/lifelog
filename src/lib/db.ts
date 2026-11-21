@@ -298,6 +298,21 @@ const MIGRATIONS: string[] = [
     created_at INTEGER NOT NULL
   );
   `,
+  // v13: your listening history (Spotify plays, kept by Lifelog every few hours, plus an optional import of
+  // Spotify's "Extended streaming history"). slot = played_at / 2 min: the same play from both sources is kept once
+  `
+  CREATE TABLE IF NOT EXISTS listens (
+    track_id  TEXT    NOT NULL,
+    name      TEXT    NOT NULL,
+    artist    TEXT    NOT NULL,
+    played_at INTEGER NOT NULL,
+    slot      INTEGER NOT NULL,
+    ms_played INTEGER,
+    source    TEXT    NOT NULL DEFAULT 'api',
+    PRIMARY KEY (track_id, slot)
+  );
+  CREATE INDEX IF NOT EXISTS listens_time ON listens (played_at);
+  `,
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<void> {

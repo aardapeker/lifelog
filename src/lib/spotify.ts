@@ -397,6 +397,12 @@ export async function currentSong(): Promise<Track | null> {
   return last && Date.now() - Date.parse(last.played_at) < 30 * 60_000 ? toTrack(last.track) : null;
 }
 
+/** Your last plays (up to 50, newest first), after `afterMs` when given: Lifelog keeps its own history from these. */
+export async function recentlyPlayed(afterMs = 0): Promise<{ track: Track; playedAt: number }[]> {
+  const r = await api<{ items: { track: ApiTrack; played_at: string }[] }>(`/me/player/recently-played?limit=50${afterMs ? `&after=${afterMs}` : ''}`);
+  return (r?.items ?? []).filter((i) => i.track?.uri?.startsWith('spotify:track:')).map((i) => ({ track: toTrack(i.track), playedAt: Date.parse(i.played_at) }));
+}
+
 /** Saves tracks as a private playlist and returns its link. */
 export async function savePlaylist(name: string, description: string, uris: string[]): Promise<string> {
   const pl = await api<{ id: string; external_urls: { spotify: string } }>('/me/playlists', {

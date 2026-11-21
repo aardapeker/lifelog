@@ -26,7 +26,7 @@ const PASS_KEY = 'backup.passphrase';
 const TABLES = [
   'notes', 'chunks', 'photos', 'chats', 'facts', 'goals', 'note_goals', 'ideas',
   'messages', 'recaps', 'plans', 'research', 'reads', 'kv',
-  'milestones', 'inbox', 'usage', 'radar_topics', 'radar_items', 'radar_sites', 'studio_projects', 'studio_ideas',
+  'milestones', 'inbox', 'usage', 'radar_topics', 'radar_items', 'radar_sites', 'studio_projects', 'studio_ideas', 'listens',
 ];
 
 export const getPassphrase = () => SecureStore.getItemAsync(PASS_KEY);

@@ -1,4 +1,5 @@
 import { buildCrate, crateText, draw } from './crate';
+import { historyLine, historySummary, songHistories, syncListens } from './listening';
 import { factsFor } from './songFacts';
 import { factsLine, fitOverlap, introFits, type SongFacts } from './songText';
 import type { SQLiteDatabase } from 'expo-sqlite';
@@ -404,7 +405,14 @@ export async function buildShow(
 
   // ── 3. what the hosts should know about each song: tempo, loudness, intro and ending lengths ──
   onStep('checking');
-  const facts = await factsFor(tracks, (n) => onStep('checking', `${n}/${tracks.length}`));
+  await syncListens(db).catch(() => 0); // the newest plays, so "this week" is right
+  const [facts, histories, history] = await Promise.all([
+    factsFor(tracks, (n) => onStep('checking', `${n}/${tracks.length}`)),
+    songHistories(db, tracks.map((t) => t.id)).catch(() => new Map()),
+    historySummary(db).catch(() => ({ plays: 0, since: null })),
+  ]);
+  /** the playlist line's notes: song facts, then what the listener's own history says about it */
+  const notesOf = (k: number) => [factsLine(facts[k]), historyLine(histories.get(tracks[k].id), history.since)].filter(Boolean).join(' · ');
 
   // ── 4. the script, for the playlist that will really play ──
   onStep('writing');
@@ -452,6 +460,9 @@ export async function buildShow(
           `in character, deliver their gag with a fresh twist about THIS listener's life, give the hosts a hard time, ` +
           `then hang up or leave. The hosts treat them like an old, exhausting acquaintance. Their lines use "who":"${regular.name}". `
         : '') +
+      'LISTENING HISTORY: the playlist may say what the listener\'s real Spotify plays say about a song (played it 9 ' +
+      'times this week, hasn\'t played it for a month, never heard it). Once or twice per show, the hosts can tease or ' +
+      'welcome them with it ("nine times this week, are you okay?"), never for every song. ' +
       'SONG FACTS: the playlist may say whether a song is a big hit or a deep cut (from real popularity data): the ' +
       'hosts can play with that ("everybody knows this one", "a hidden gem only real fans know"), now and then, not ' +
       'for every song. It may also give each song\'s tempo (BPM) and its real intro and ending lengths, measured from ' +
@@ -484,7 +495,7 @@ export async function buildShow(
     prompt:
       `Now: ${formatDate(Date.now())}, ${shiftFor(shifts, Date.now())} shift week${city ? `, in ${city}` : ''}.\n` +
       `Show name idea: ${pick.title ?? station.name}\n` +
-      `The playlist:\n${tracks.map((t, k) => `${k + 1}. "${t.name}" by ${t.artist}${factsLine(facts[k]) ? ` (${factsLine(facts[k])})` : ''}`).join('\n')}\n` +
+      `The playlist:\n${tracks.map((t, k) => `${k + 1}. "${t.name}" by ${t.artist}${notesOf(k) ? ` (${notesOf(k)})` : ''}`).join('\n')}\n` +
       (welcome.length ? `Their favourites (greet these like old friends when they come): ${welcome.map(songLine).join('; ')}\n` : '') +
       (wish.trim() ? `The listener asked for: ${wish.trim()}\n` : '') +
       `\n${notesText}` +
