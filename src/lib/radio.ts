@@ -1,3 +1,4 @@
+import { buildCrate, crateText, draw } from './crate';
 import { factsFor } from './songFacts';
 import { factsLine, fitOverlap, introFits, type SongFacts } from './songText';
 import type { SQLiteDatabase } from 'expo-sqlite';
@@ -251,6 +252,19 @@ export async function buildShow(
 
   // ── 1. the playlist: the AI picks the songs (and spares), nothing else ──
   onStep('picking');
+  // the record crate: real songs from Deezer mixes of the station's artists (your top artists on Your Friend)
+  const seedLang = songLangOf(station, await getSetting(db, 'radio.songLang', 'station'));
+  const seedPool = station.seeds
+    ? seedLang === 'tr'
+      ? (station.seeds.tr ?? [])
+      : seedLang === 'en'
+        ? (station.seeds.en ?? [])
+        : [...(station.seeds.tr ?? []), ...(station.seeds.en ?? [])]
+    : taste;
+  const crate = await buildCrate(
+    draw(seedPool, 3),
+    [...played.map((p) => ({ title: p.name, artist: p.artist })), ...banned.map((b) => ({ title: b.name, artist: b.artist }))],
+  ).catch(() => []);
   // a second round can ask for more: `extra` says what didn't work the first time
   const apiKey = writer.apiKey; // checked above (a closure loses that narrowing)
   const askSongs = (count: number, spareCount: number, extra = '') => writer.adapter.complete({
@@ -299,6 +313,12 @@ export async function buildShow(
       (banned.length ? `NEVER play these, the listener banned them: ${banned.slice(0, 60).map(songLine).join('; ')}\n` : '') +
       (wish.trim() ? `The listener asked for: ${wish.trim()}\n` : '') +
       (taste.length ? `Their top artists lately: ${taste.join(', ')}\n` : '') +
+      (crate.length
+        ? `\nRECORD CRATE: real songs from Deezer mixes of artists that fit this station, marked by real popularity. ` +
+          `Pick MOST of the playlist (and the spares) from here: they exist and they fit. Use the popularity marks for ` +
+          `the DEEP CUTS rule. A few picks of your own are fine when they fit better, and skip any crate song that ` +
+          `breaks the station's genre or the song language.\n${crateText(crate)}\n`
+        : '') +
       `\n${notesText}` +
       extra,
   });
@@ -432,7 +452,9 @@ export async function buildShow(
           `in character, deliver their gag with a fresh twist about THIS listener's life, give the hosts a hard time, ` +
           `then hang up or leave. The hosts treat them like an old, exhausting acquaintance. Their lines use "who":"${regular.name}". `
         : '') +
-      'SONG FACTS: the playlist may give each song\'s tempo (BPM) and its real intro and ending lengths, measured from ' +
+      'SONG FACTS: the playlist may say whether a song is a big hit or a deep cut (from real popularity data): the ' +
+      'hosts can play with that ("everybody knows this one", "a hidden gem only real fans know"), now and then, not ' +
+      'for every song. It may also give each song\'s tempo (BPM) and its real intro and ending lengths, measured from ' +
       'when the singing starts and stops. Let the tempo set the talk\'s energy: calm and slower before a slow song, ' +
       'quick and hyped before a fast one, and the hosts may notice a change of pace ("let\'s slow it down", "now the ' +
       'tempo goes up"); say an actual BPM number at most once in the whole show. ' +

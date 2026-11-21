@@ -11,7 +11,7 @@ const API = 'https://api.deezer.com';
 
 export type DzArtist = { id: number; name: string; picture: string | null; fans: number; albums: number; link: string };
 export type DzRelease = { id: number; title: string; cover: string | null; date: string | null; kind: Kind; explicit: boolean };
-export type DzTrack = { id: number; title: string; artist: string; seconds: number; preview: string | null; album: { id: number; title: string; cover: string | null } | null };
+export type DzTrack = { id: number; title: string; artist: string; seconds: number; preview: string | null; rank: number; album: { id: number; title: string; cover: string | null } | null };
 export type DzAlbum = DzRelease & {
   artist: { id: number; name: string; picture: string | null };
   label: string | null;
@@ -87,6 +87,10 @@ export function fansText(n: number): string {
   return String(n);
 }
 
+/** Deezer's rank (0–1,000,000) in words, for the radio's writers: big hit, well known or deep cut. */
+export const fame = (rank: number | null | undefined): 'big hit' | 'well known' | 'deep cut' | null =>
+  !rank ? null : rank >= 750_000 ? 'big hit' : rank >= 500_000 ? 'well known' : 'deep cut';
+
 /** 245 → "4:05" */
 export const trackTime = (sec: number | null | undefined) => (sec ? `${Math.floor(sec / 60)}:${String(Math.round(sec) % 60).padStart(2, '0')}` : null);
 
@@ -116,6 +120,7 @@ const trackOf = (t: Raw, album?: Raw): DzTrack => {
     artist: t.artist?.name ?? '',
     seconds: t.duration ?? 0,
     preview: t.preview || null,
+    rank: t.rank ?? 0, // Deezer's popularity, 0 to 1,000,000
     album: al ? { id: al.id, title: al.title ?? '', cover: al.cover_big ?? al.cover_medium ?? al.cover_xl ?? null } : null,
   };
 };
@@ -179,6 +184,11 @@ export async function releases(artistId: number, limit = 50): Promise<DzRelease[
 /** Their most played songs, with previews. */
 export async function topTracks(artistId: number, limit = 5): Promise<DzTrack[]> {
   return ((await dz<{ data?: Raw[] }>(`/artist/${artistId}/top?limit=${limit}`)).data ?? []).map((t) => trackOf(t));
+}
+
+/** The artist's Deezer radio: songs by them and artists like them (the radio's record crate). */
+export async function artistRadio(artistId: number, limit = 30): Promise<DzTrack[]> {
+  return ((await dz<{ data?: Raw[] }>(`/artist/${artistId}/radio?limit=${limit}`)).data ?? []).map((t) => trackOf(t));
 }
 
 /** "Fans also like". */

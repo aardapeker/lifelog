@@ -1,4 +1,4 @@
-import { findSong } from './deezer';
+import { fame, findSong } from './deezer';
 import { noFacts, lyricTimes, timing, type SongFacts } from './songText';
 import { isrcOf, type Track } from './spotify';
 
@@ -68,6 +68,7 @@ export function songFacts(t: Track): Promise<SongFacts> {
         ...noFacts,
         bpm: dz?.bpm && dz.bpm > 40 ? Math.round(dz.bpm) : null,
         gain: dz?.gain ?? null,
+        fame: fame(dz?.rank),
         instrumental: !!lrc?.instrumental,
         ...(lrc?.syncedLyrics ? timing(lyricTimes(lrc.syncedLyrics), t.durationMs / 1000) : {}),
       };

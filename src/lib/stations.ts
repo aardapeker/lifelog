@@ -34,6 +34,11 @@ export type Station = {
   wishes: string[]; // the quick "Anything else?" picks, in the station's spirit
   // song languages that make sense for its genre (unset = all): no English arabesk, no Turkish dark synthwave
   songLangs?: ('tr' | 'en' | 'mix')[];
+  /**
+   * Artists whose Deezer "artist radio" fills the station's record crate (real songs that sound like the
+   * station), by song language. A few are drawn at random for each show.
+   */
+  seeds?: { tr?: string[]; en?: string[] };
 };
 
 export type Lang = 'auto' | 'en' | 'tr';
@@ -64,6 +69,10 @@ export const STATIONS: Station[] = [
   },
   {
     key: 'neon',
+    seeds: {
+      en: ['a-ha', 'Madonna', 'Duran Duran', 'Tears for Fears', 'Depeche Mode', 'Cyndi Lauper', 'Pet Shop Boys', 'Eurythmics', 'The Human League', 'Kim Wilde', 'M83', 'The Midnight', 'Simple Minds', 'Whitney Houston'],
+      tr: ['Ajda Pekkan', 'Nilüfer', 'Sezen Aksu', 'Kayahan', 'MFÖ', 'Nazan Öncel'],
+    },
     wishes: ['80s pop hits', 'New retro (M83 vibes)', 'Synth-pop & new wave', 'Power ballads', 'Dance floor'],
     name: 'Neon FM',
     freq: '98.3',
@@ -121,6 +130,9 @@ export const STATIONS: Station[] = [
   },
   {
     key: 'nightshift',
+    seeds: {
+      en: ['The Midnight', 'FM-84', 'Gunship', 'Kavinsky', 'Perturbator', 'Carpenter Brut', 'Timecop1983', 'Com Truise', 'Lazerhawk', 'Power Glove', 'College', 'Electric Youth'],
+    },
     songLangs: ['en'],
     wishes: ['Keep me awake', '3 a.m. thoughts', 'Empty city streets', 'Ride home at dawn', 'Make me laugh'],
     name: 'Night Shift FM',
@@ -175,6 +187,10 @@ export const STATIONS: Station[] = [
   },
   {
     key: 'rock',
+    seeds: {
+      en: ['AC/DC', 'Led Zeppelin', "Guns N' Roses", 'Nirvana', 'Foo Fighters', 'Metallica', 'Pearl Jam', 'Queen', 'Deep Purple', 'Soundgarden', 'Linkin Park', 'Red Hot Chili Peppers'],
+      tr: ['Duman', 'maNga', 'Mor ve Ötesi', 'Pentagram', 'Barış Manço', 'Cem Karaca', 'Kurban', 'Athena', 'Teoman', 'Şebnem Ferah'],
+    },
     wishes: ['Warehouse rage', 'Headbang mode', '90s grunge', 'Guitar solos', 'Make me laugh'],
     name: 'Gebze Rock',
     freq: '104.0',
@@ -229,6 +245,10 @@ export const STATIONS: Station[] = [
   },
   {
     key: 'chill',
+    seeds: {
+      en: ['Bon Iver', 'Novo Amor', 'Ben Howard', 'Phoebe Bridgers', 'Cigarettes After Sex', 'Khruangbin', 'Tom Misch', 'Nujabes', 'Iron & Wine', 'The Paper Kites', 'Lord Huron'],
+      tr: ['Canozan', 'Kalben', 'Pinhani', 'Yüzyüzeyken Konuşuruz', 'Evdeki Saat', 'Dolu Kadehi Ters Tut', 'Melike Şahin', 'Büyük Ev Ablukada', 'No Land'],
+    },
     wishes: ['Rain on the window', 'Study & focus', 'Sunday morning', 'Cat nap', 'Wind down'],
     name: 'Şemistan Chill',
     freq: '91.1',
@@ -283,6 +303,9 @@ export const STATIONS: Station[] = [
   },
   {
     key: 'arabesk',
+    seeds: {
+      tr: ['Müslüm Gürses', 'Ferdi Tayfur', 'Orhan Gencebay', 'Bergen', 'Güllü', 'Hakan Altun', 'İbrahim Tatlıses', 'Ebru Gündeş', 'Azer Bülbül', 'Ümit Besen', 'Kibariye', 'Cengiz Kurtoğlu', 'Emrah', 'Arif Susam', 'Bülent Ersoy'],
+    },
     songLangs: ['tr'],
     wishes: ['Damar', 'Ayrılık acısı', 'Eski plaklar (70s–80s)', 'Fantezi', 'Gurbet & hasret'],
     name: 'Tuzla Arabesk FM',

@@ -40,8 +40,9 @@ export type SongFacts = {
   introSec: number | null; // seconds before the first sung line (synced lyrics)
   tailSec: number | null; // seconds of music after the last line has been sung
   instrumental: boolean;
+  fame?: 'big hit' | 'well known' | 'deep cut' | null; // from Deezer's popularity rank
 };
-export const noFacts: SongFacts = { bpm: null, gain: null, introSec: null, tailSec: null, instrumental: false };
+export const noFacts: SongFacts = { bpm: null, gain: null, introSec: null, tailSec: null, instrumental: false, fame: null };
 
 const LINE_SEC = 4; // the last line takes about this long to sing: the instrumental ending starts after it
 
@@ -74,6 +75,7 @@ export function voiceVolume(gain: number | null | undefined): number {
 /** One playlist line's facts for the writer: "96 BPM · 18 s intro before the singing · ends on the vocal". */
 export function factsLine(f: SongFacts): string {
   const parts: string[] = [];
+  if (f.fame) parts.push(f.fame === 'big hit' ? 'a big hit' : f.fame === 'deep cut' ? 'a deep cut' : 'well known');
   if (f.bpm) parts.push(`${Math.round(f.bpm)} BPM (${f.bpm < 90 ? 'slow' : f.bpm < 120 ? 'mid-tempo' : 'fast'})`);
   if (f.instrumental) parts.push('instrumental');
   if (f.introSec != null) parts.push(f.introSec >= 10 ? `${f.introSec} s instrumental intro before the singing` : 'the singing starts right away');
