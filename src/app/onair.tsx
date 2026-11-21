@@ -258,7 +258,17 @@ export default function OnAirScreen() {
             )}
 
             {/* live lyrics: the line being sung, tap one to jump there */}
-            {phase === 'onair' && <LyricsCard track={current.track} progress={progress} running={!paused && !speaking} onSeek={r.seek} />}
+            {phase === 'onair' && (
+              <LyricsCard
+                track={current.track}
+                progress={progress}
+                running={!paused && !speaking}
+                paused={paused}
+                palette={palette}
+                onSeek={r.seek}
+                onTogglePause={r.togglePause}
+              />
+            )}
 
             {/* credits and the artist's card, folded until opened */}
             <SongAbout track={current.track} />
