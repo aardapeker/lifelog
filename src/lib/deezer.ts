@@ -21,7 +21,7 @@ export type DzAlbum = DzRelease & {
   tracks: DzTrack[];
   link: string;
 };
-export type DzSong = DzTrack & { bpm: number | null; date: string | null; artistId: number | null };
+export type DzSong = DzTrack & { bpm: number | null; gain: number | null; date: string | null; artistId: number | null };
 export type Kind = 'Album' | 'EP' | 'Single' | 'Compilation';
 
 type Raw = Record<string, any>;
@@ -257,7 +257,7 @@ export async function findSong(artist: string, title: string, isrc?: string | nu
   if (!found) return null;
   const { hit } = found;
   const full = found.full ? hit : await dz(`/track/${hit.id}`).catch(() => hit);
-  return { ...trackOf(full, hit.album), bpm: full.bpm || null, date: full.release_date ?? full.album?.release_date ?? null, artistId: full.artist?.id ?? hit.artist?.id ?? null };
+  return { ...trackOf(full, hit.album), bpm: full.bpm || null, gain: typeof full.gain === 'number' && full.gain !== 0 ? full.gain : null, date: full.release_date ?? full.album?.release_date ?? null, artistId: full.artist?.id ?? hit.artist?.id ?? null };
 }
 
 /** Just the 30-second preview of a song. Null when Deezer has none. */

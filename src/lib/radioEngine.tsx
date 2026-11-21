@@ -1,3 +1,4 @@
+import { voiceVolume } from './songText';
 import * as Notifications from 'expo-notifications';
 import { breadcrumb } from './crashLog';
 import { notify } from './notify';
@@ -287,7 +288,7 @@ function useRadioEngine() {
         await withTimeout(pausePlayback(), 3000);
         const uri = await withTimeout(clips.current.get(s.slots.length) ?? Promise.resolve(null), 15000);
         if (!live.current.speaking) return;
-        const t = uri ? playClip(uri) : skipTalk();
+        const t = uri ? playClip(uri, false, voiceVolume(s.slots.at(-1)?.facts?.gain)) : skipTalk();
         talking.current = t;
         await t.done;
         live.current.speaking = false;
@@ -331,7 +332,7 @@ function useRadioEngine() {
           if (p?.isPlaying && sameTrack(p.track, s.slots[i].track)) break;
         }
         setSpeaking(true);
-        const t = playClip(uri, true);
+        const t = playClip(uri, true, voiceVolume(s.slots[i].facts?.gain));
         talking.current = t;
         await t.done;
         if (talking.current === t) talking.current = null;
@@ -358,7 +359,8 @@ function useRadioEngine() {
       }
       if (live.current.index !== i || !live.current.speaking) return; // skipped or paused while it was loading
       if (!uri && !retried.current.has(i)) setStatus({ kind: 'err', msg: "⏳ This talk wasn't ready in time, so the hosts skip it. The music goes on." });
-      const t = uri ? playClip(uri, overlap) : skipTalk();
+      // as loud as the song it leads into: after a loud record the voice isn't small, before a quiet one it isn't huge
+      const t = uri ? playClip(uri, overlap, voiceVolume(s.slots[i].facts?.gain)) : skipTalk();
       talking.current = t;
       if (await t.done) start();
     })();

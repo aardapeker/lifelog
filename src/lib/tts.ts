@@ -370,8 +370,9 @@ export type Talking = { done: Promise<boolean>; stop: () => void }; // done: tru
  * the clip's length worked out from the file size, so a show can never hang after a talk.
  */
 /** `duck`: ask Android to turn other audio (Spotify) down while this plays, for talking over a song's end. */
-export function playClip(uri: string, duck = false): Talking {
+export function playClip(uri: string, duck = false, volume = 1): Talking {
   const player = createAudioPlayer(uri);
+  player.volume = volume; // matched to the song next to it (a quiet old record gets a softer voice)
   let settle: (finished: boolean) => void = () => {};
   const done = new Promise<boolean>((r) => (settle = r));
   let over = false;

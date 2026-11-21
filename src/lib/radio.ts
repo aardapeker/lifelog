@@ -1,3 +1,5 @@
+import { factsFor } from './songFacts';
+import { factsLine, fitOverlap, introFits, type SongFacts } from './songText';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getRadioConfig, parseJsonReply } from './chat';
 import { getCheckinSettings, shiftFor } from './checkins';
@@ -17,7 +19,7 @@ import type { SpokenLine } from './tts';
 
 /** overlap: seconds the talk before this song may run over the END of the previous one (0 = wait for it). */
 /** intro: the talk plays over the START of this song instead (music turned down), a DJ hyping it in. */
-export type Slot = { track: Track; talk: SpokenLine[]; label: string | null; overlap: number; intro?: boolean };
+export type Slot = { track: Track; talk: SpokenLine[]; label: string | null; overlap: number; intro?: boolean; facts?: SongFacts };
 /** outro: the goodbye after the last song. */
 /** `guest`: a host from another station who wandered into this show (a crossover), with their voice. */
 /** `regular`: one of the station's own sketch characters (a caller, a live report, a studio visitor). */
@@ -182,7 +184,7 @@ function spoken(station: Station, visitors: (Persona | undefined)[], raw?: RawLi
 }
 
 /** What making a show is busy with, for the progress list on the Radio screen. */
-export type BuildStep = 'journal' | 'favourites' | 'picking' | 'songs' | 'writing';
+export type BuildStep = 'journal' | 'favourites' | 'picking' | 'songs' | 'checking' | 'writing';
 
 export async function buildShow(
   db: SQLiteDatabase,
@@ -380,7 +382,11 @@ export async function buildShow(
   }
   if (!tracks.length) throw new Error('The playlist is empty.');
 
-  // ── 3. the script, for the playlist that will really play ──
+  // ── 3. what the hosts should know about each song: tempo, loudness, intro and ending lengths ──
+  onStep('checking');
+  const facts = await factsFor(tracks, (n) => onStep('checking', `${n}/${tracks.length}`));
+
+  // ── 4. the script, for the playlist that will really play ──
   onStep('writing');
   const reply = await writer.adapter.complete({
     feature: 'radio',
@@ -426,14 +432,20 @@ export async function buildShow(
           `in character, deliver their gag with a fresh twist about THIS listener's life, give the hosts a hard time, ` +
           `then hang up or leave. The hosts treat them like an old, exhausting acquaintance. Their lines use "who":"${regular.name}". `
         : '') +
+      'SONG FACTS: the playlist may give each song\'s tempo (BPM) and its real intro and ending lengths, measured from ' +
+      'when the singing starts and stops. Let the tempo set the talk\'s energy: calm and slower before a slow song, ' +
+      'quick and hyped before a fast one, and the hosts may notice a change of pace ("let\'s slow it down", "now the ' +
+      'tempo goes up"); say an actual BPM number at most once in the whole show. ' +
       'Like a real DJ, sometimes talk over the END of a song: for each talk after the first, set "overlap" to the ' +
       'seconds (4 to 12) the talk may run over the outro of the PREVIOUS song, but only when that previous ' +
-      'song fades out or ends on a long instrumental tail; use 0 when it ends abruptly, on a big final line or a ' +
-      'final chord that deserves silence. About a third of transitions at most. Overlapping talks must be short ' +
-      '(one or two quick lines) and may react to the song that is fading out. ' +
+      'song fades out or ends on a long, repetitive instrumental tail. Use 0 when it "ends right on the vocal", ' +
+      'and ALSO for a song with a perfect ending that deserves to be heard whole: a famous guitar solo or orchestral ' +
+      'finale, a big final chord, a dramatic last note, a ballad\'s quiet last bars. When the facts give the ending\'s ' +
+      'length, the overlap must be shorter than it. About a third of transitions at most. Overlapping talks must be ' +
+      'short (one or two quick lines) and may react to the song that is fading out. ' +
       'INTRO TALK: at most ONE talk in the whole show may play over the START of its song, with the music turned down, ' +
-      'like a DJ hyping a song in: set "intro":true only for a song you are SURE opens with a long instrumental intro ' +
-      '(10 seconds or more before the singing starts). That talk must be very short (one or two quick lines, under ' +
+      'like a DJ hyping a song in: set "intro":true only for a song that opens with a long instrumental intro ' +
+      '(10 seconds or more before the singing starts: trust the song facts when they say so, never when they say the singing starts right away). That talk must be very short (one or two quick lines, under ' +
       '8 seconds spoken), hype the song that is starting, and have "overlap":0. Never the first talk, a commercial or the ' +
       'news. When unsure about a song\'s intro, don\'t. Never sing or quote lyrics. ' +
       'Lines are SPOKEN aloud by a voice engine: no emojis, no markdown, no stage directions in brackets, natural speech, ' +
@@ -450,7 +462,7 @@ export async function buildShow(
     prompt:
       `Now: ${formatDate(Date.now())}, ${shiftFor(shifts, Date.now())} shift week${city ? `, in ${city}` : ''}.\n` +
       `Show name idea: ${pick.title ?? station.name}\n` +
-      `The playlist:\n${tracks.map((t, k) => `${k + 1}. "${t.name}" by ${t.artist}`).join('\n')}\n` +
+      `The playlist:\n${tracks.map((t, k) => `${k + 1}. "${t.name}" by ${t.artist}${factsLine(facts[k]) ? ` (${factsLine(facts[k])})` : ''}`).join('\n')}\n` +
       (welcome.length ? `Their favourites (greet these like old friends when they come): ${welcome.map(songLine).join('; ')}\n` : '') +
       (wish.trim() ? `The listener asked for: ${wish.trim()}\n` : '') +
       `\n${notesText}` +
@@ -473,10 +485,12 @@ export async function buildShow(
     const t = talks.find((x) => Number(x.song) === k + 1) ?? talks[k] ?? {};
     const label = t.label === 'Commercial' || t.label === 'News' ? t.label : null;
     const talk = lines(t.talk);
-    const intro = !introUsed && k > 0 && !label && t.intro === true && talk.length > 0 && talk.length <= 3;
+    const intro = !introUsed && k > 0 && !label && t.intro === true && talk.length > 0 && talk.length <= 3 && introFits(facts[k]);
     if (intro) introUsed = true;
-    const overlap = k && !label && !intro ? Math.max(0, Math.min(12, Math.round(Number(t.overlap) || 0))) : 0;
-    return { track, talk, label, overlap, intro };
+    // the writer guesses from memory; the measured ending has the last word (never over a song that ends on the singing)
+    const asked = k && !label && !intro ? Math.max(0, Math.min(12, Math.round(Number(t.overlap) || 0))) : 0;
+    const overlap = fitOverlap(asked, facts[k - 1]);
+    return { track, talk, label, overlap, intro, facts: facts[k] };
   });
   return {
     title: plan.title?.trim() || pick.title?.trim() || station.name,

@@ -21,6 +21,7 @@ function labelOf(key: string, st: Station, tr: boolean): string {
     picking: [`${host} is picking the records`, `${host} plakları seçiyor`],
     writing: [`${host} is writing the show`, `${host} programı yazıyor`],
     songs: ['Finding the songs on Spotify', "Şarkılar Spotify'da aranıyor"],
+    checking: ['Listening to the intros and endings', 'Girişler ve kapanışlar dinleniyor'],
     voice: [`${host} & ${side} are warming up the mic`, `${host} ve ${side} mikrofonu ısıtıyor`],
     tuning: ['Tuning in', 'Frekans ayarlanıyor'],
   };
