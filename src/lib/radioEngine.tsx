@@ -9,7 +9,7 @@ import { AppState } from 'react-native';
 import type { Status } from '../components/ui';
 import { albumColors, type Palette } from './albumColors';
 import { getSetting, setSetting } from './db';
-import { goOffAir, goOnAir, onBeat, onRemote, setOnAirPlaying, updateOnAir, waitMs } from './onAir';
+import { goOffAir, goOnAir, onBeat, onRemote, setOnAirLiked, setOnAirPlaying, updateOnAir, waitMs } from './onAir';
 import { buildShow, castOf, requestTalks, type Show } from './radio';
 import { countShow } from './achievements';
 import {
@@ -737,6 +737,11 @@ function useRadioEngine() {
         play: () => live.current.paused && controls.current.togglePause(),
         next: () => live.current.show && controls.current.skip(),
         previous: () => live.current.show && controls.current.previous(),
+        like: () => {
+          const s = live.current.show;
+          const t = s?.slots[Math.min(live.current.index, s.slots.length - 1)]?.track;
+          if (t) controls.current.toggleHeart(t);
+        },
       }),
     [],
   );
@@ -917,6 +922,7 @@ function useRadioEngine() {
       position: `${Math.min(index + 1, n)}/${n}`,
       liked: hearts.has(slot.track.id),
     });
+    setOnAirLiked(hearts.has(slot.track.id)); // the lock screen's ♡ too
   }, [phase, show, index, paused, speaking, hearts]);
   useEffect(
     () =>

@@ -65,24 +65,29 @@ export async function setSpotifyClientId(id: string): Promise<void> {
   else await SecureStore.deleteItemAsync(CLIENT_KEY);
 }
 
+// kept in memory after the first read: a lock-screen ⏸ has to reach Spotify at once, before Android
+// freezes the app (the silent keep-alive stops with it), and every SecureStore read was one more wait
+let tokenCache: Tokens | null | undefined;
 async function loadTokens(): Promise<Tokens | null> {
+  if (tokenCache !== undefined) return tokenCache;
   const raw = await SecureStore.getItemAsync(TOKENS_KEY);
-  return raw ? (JSON.parse(raw) as Tokens) : null;
+  tokenCache = raw ? (JSON.parse(raw) as Tokens) : null;
+  return tokenCache;
 }
 
-const saveTokens = (t: AuthSession.TokenResponse, previousRefresh: string | null = null) =>
-  SecureStore.setItemAsync(
-    TOKENS_KEY,
-    JSON.stringify({
-      access: t.accessToken,
-      refresh: t.refreshToken ?? previousRefresh, // Spotify may or may not rotate it
-      expiresAt: Date.now() + (t.expiresIn ?? 3600) * 1000,
-    } satisfies Tokens),
-  );
+const saveTokens = (t: AuthSession.TokenResponse, previousRefresh: string | null = null) => {
+  tokenCache = {
+    access: t.accessToken,
+    refresh: t.refreshToken ?? previousRefresh, // Spotify may or may not rotate it
+    expiresAt: Date.now() + (t.expiresIn ?? 3600) * 1000,
+  } satisfies Tokens;
+  return SecureStore.setItemAsync(TOKENS_KEY, JSON.stringify(tokenCache));
+};
 
 export const spotifyConnected = async () => !!(await loadTokens());
 
 export async function disconnectSpotify(): Promise<void> {
+  tokenCache = null;
   await SecureStore.deleteItemAsync(TOKENS_KEY);
 }
 
@@ -355,7 +360,9 @@ export async function remoteReady(showAuth = AppState.currentState === 'active')
 let lastRemoteError: string | null = null;
 
 export async function pausePlayback(): Promise<void> {
-  if (await remoteReady(false)) return void (await SpotifyRemote!.pause());
+  // no reconnecting first: a pause must go out right away (a lock-screen ⏸ freezes the app soon after),
+  // so it's the connected remote, else the Web API
+  if (SpotifyRemote?.isConnected()) return void (await SpotifyRemote.pause());
   await api('/me/player/pause', { method: 'PUT' });
 }
 

@@ -1,0 +1,151 @@
+diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
+index 6c81fce..1eb1122 100644
+--- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
++++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
+@@ -1105,6 +1105,13 @@ class AudioModule : Module() {
+         }
+       }
+ 
++      // Lifelog patch
++      Function("setLockScreenLiked") { ref: AudioPlaylist, liked: Boolean ->
++        runOnMain {
++          ref.setLockScreenLiked(liked)
++        }
++      }
++
+       Function("clearLockScreenControls") { ref: AudioPlaylist ->
+         runOnMain {
+           ref.clearLockScreenControls()
+diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlaylist.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlaylist.kt
+index bf3f9c5..15de977 100644
+--- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlaylist.kt
++++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlaylist.kt
+@@ -236,6 +236,11 @@ class AudioPlaylist(
+     )
+   }
+ 
++  // Lifelog patch: the lock screen's heart was tapped
++  override fun onLockScreenLike() {
++    emit("lockScreenLike", mapOf<String, Any>())
++  }
++
+   private fun emitTrackChanged(previousIndex: Int, currentIndex: Int) {
+     emit(
+       TRACK_CHANGED,
+diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioRecords.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioRecords.kt
+index b6b3b73..548b7b6 100644
+--- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioRecords.kt
++++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioRecords.kt
+@@ -116,7 +116,9 @@ class AudioLockScreenOptions(
+   @Field val showPreviousTrack: Boolean = false,
+   @Field val isLiveStream: Boolean? = null,
+   @Field val seekForwardIntervalSeconds: Double = 10.0,
+-  @Field val seekBackwardIntervalSeconds: Double = 10.0
++  @Field val seekBackwardIntervalSeconds: Double = 10.0,
++  // Lifelog patch: a heart button on the lock screen (taps come back as a "lockScreenLike" event)
++  @Field val showLike: Boolean = false
+ ) : Record
+ 
+ enum class InterruptionMode(val value: String) : Enumerable {
+diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/LockScreenPlayable.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/LockScreenPlayable.kt
+index 7ac4a57..06a761c 100644
+--- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/LockScreenPlayable.kt
++++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/LockScreenPlayable.kt
+@@ -54,6 +54,16 @@ interface LockScreenPlayable : Playable {
+     }
+   }
+ 
++  // Lifelog patch: fills or empties the lock screen's heart without rebuilding the media session
++  fun setLockScreenLiked(liked: Boolean) {
++    if (isActiveForLockScreen) {
++      serviceConnection.playbackServiceBinder?.service?.setLiked(this, liked)
++    }
++  }
++
++  // Lifelog patch: the lock screen's heart was tapped
++  fun onLockScreenLike() = Unit
++
+   fun updateLockScreenMetadata(metadata: Metadata) {
+     if (isActiveForLockScreen) {
+       this.metadata = metadata
+diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
+index 53c36f7..48df762 100644
+--- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
++++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
+@@ -94,6 +94,7 @@ class AudioControlsService : MediaSessionService() {
+         ACTION_SEEK_BACKWARD -> seekBackward()
+         ACTION_NEXT_TRACK -> nextTrack()
+         ACTION_PREVIOUS_TRACK -> previousTrack()
++        ACTION_LIKE -> like()
+       }
+     }
+ 
+@@ -354,6 +355,18 @@ class AudioControlsService : MediaSessionService() {
+       )
+     }
+ 
++    // Lifelog patch: the heart, next to ⏭ (or in the overflow when there's no room)
++    if (currentOptions?.showLike == true) {
++      mediaButtons.add(
++        CommandButton.Builder(if (liked) CommandButton.ICON_HEART_FILLED else CommandButton.ICON_HEART_UNFILLED)
++          .setDisplayName(if (liked) "Remove the heart" else "Heart")
++          .setEnabled(true)
++          .setSessionCommand(SessionCommand(ACTION_LIKE, Bundle.EMPTY))
++          .setSlots(CommandButton.SLOT_FORWARD_SECONDARY, CommandButton.SLOT_OVERFLOW)
++          .build()
++      )
++    }
++
+     session.setCustomLayout(mediaButtons)
+     session.setMediaButtonPreferences(mediaButtons)
+   }
+@@ -568,6 +581,19 @@ class AudioControlsService : MediaSessionService() {
+     }
+   }
+ 
++  // Lifelog patch: the heart's state for the current song, and its tap
++  private var liked = false
++
++  fun setLiked(playable: LockScreenPlayable, value: Boolean) {
++    if (playable != currentPlayable || value == liked) return
++    liked = value
++    updateSessionCustomLayout(playable.player.isPlaying)
++  }
++
++  fun like() {
++    currentPlayable?.onLockScreenLike()
++  }
++
+   fun seekBackward() {
+     currentPlayable?.player?.let { player ->
+       val intervalMs = seekIntervalMs(currentOptions?.seekBackwardIntervalSeconds)
+@@ -693,5 +719,6 @@ class AudioControlsService : MediaSessionService() {
+     const val ACTION_SEEK_BACKWARD = "expo.modules.audio.action.SEEK_BACKWARD"
+     const val ACTION_NEXT_TRACK = "expo.modules.audio.action.NEXT_TRACK"
+     const val ACTION_PREVIOUS_TRACK = "expo.modules.audio.action.PREVIOUS_TRACK"
++    const val ACTION_LIKE = "expo.modules.audio.action.LIKE"
+   }
+ }
+diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt
+index ee83be1..c0bae81 100644
+--- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt
++++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt
+@@ -38,6 +38,7 @@ class AudioMediaSessionCallback(
+       val availableSessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
+         .add(SessionCommand(AudioControlsService.ACTION_SEEK_BACKWARD, Bundle.EMPTY))
+         .add(SessionCommand(AudioControlsService.ACTION_SEEK_FORWARD, Bundle.EMPTY))
++        .add(SessionCommand(AudioControlsService.ACTION_LIKE, Bundle.EMPTY)) // Lifelog patch
+         .apply {
+           if (service.supportsPreviousTrack()) {
+             add(SessionCommand(AudioControlsService.ACTION_PREVIOUS_TRACK, Bundle.EMPTY))
+@@ -80,6 +81,10 @@ class AudioMediaSessionCallback(
+         service.previousTrack()
+         Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+       }
++      AudioControlsService.ACTION_LIKE -> { // Lifelog patch
++        service.like()
++        Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
++      }
+       else -> super.onCustomCommand(session, controller, command, args)
+     }
+   }

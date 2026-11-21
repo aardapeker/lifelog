@@ -58,13 +58,15 @@
   },
   "devDependencies": {
     "@types/react": "~19.3.0",
+    "patch-package": "8.0.0",
     "typescript": "~6.0.3"
   },
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
     "typecheck": "tsc --noEmit",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "postinstall": "patch-package"
   },
   "private": true
 }

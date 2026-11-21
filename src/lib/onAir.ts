@@ -18,7 +18,7 @@ import { radioAudioMode, wav } from './tts';
  */
 
 let keeper: AudioPlaylist | null = null;
-export type Remote = { pause: () => void; play: () => void; next: () => void; previous: () => void };
+export type Remote = { pause: () => void; play: () => void; next: () => void; previous: () => void; like: () => void };
 let remote: Remote | null = null;
 
 const TRACK_SECONDS = 60;
@@ -90,12 +90,16 @@ export async function goOnAir(title: string, station: string): Promise<void> {
       if (!reloading) {
         lastPlaying = s.playing;
         if (expectedChange) expectedChange = false;
-        else if (s.playing) remote?.play();
+        else if (s.playing) {
+          breadcrumb('lock screen: play');
+          remote?.play();
+        }
         else {
           // At once. It used to wait 700 ms (in case it was a ⏭), but on a locked phone a paused
           // app gets no more updates and its timers freeze, so the wait never ended: ⏸ did nothing.
           // If a track change follows, it was a ⏭ after all, and trackMoved plays on (see above).
           pausedAt = Date.now();
+          breadcrumb('lock screen: pause');
           remote?.pause();
         }
       }
@@ -105,11 +109,21 @@ export async function goOnAir(title: string, station: string): Promise<void> {
     lastTime = s.currentTime;
   });
   keeper.addListener('trackChanged', (e) => trackMoved(e.currentIndex));
+  // ♡ on the lock screen (our patch to expo-audio: patches/expo-audio+*.patch) hearts the song
+  (keeper as unknown as { addListener: (e: string, f: () => void) => void }).addListener('lockScreenLike', () => {
+    breadcrumb('lock screen: heart');
+    remote?.like();
+  });
   breadcrumb('on air: playing the silence');
   keeper.play();
   breadcrumb('on air: lock screen controls');
   try {
-    keeper.setActiveForLockScreen(true, { title, artist: station }, { showNextTrack: true, showSeekForward: false, showSeekBackward: false });
+    keeper.setActiveForLockScreen(true, { title, artist: station }, {
+      showNextTrack: true,
+      showSeekForward: false,
+      showSeekBackward: false,
+      showLike: true, // the patched heart button
+    } as Parameters<AudioPlaylist['setActiveForLockScreen']>[2]);
   } catch {}
   breadcrumb('on air: done');
 }
@@ -118,6 +132,13 @@ export async function goOnAir(title: string, station: string): Promise<void> {
 export function updateOnAir(title: string, station: string, artworkUrl?: string | null): void {
   try {
     keeper?.updateLockScreenMetadata({ title, artist: station, ...(artworkUrl ? { artworkUrl } : {}) });
+  } catch {}
+}
+
+/** Fills or empties the lock screen's heart for the song that's on. */
+export function setOnAirLiked(liked: boolean): void {
+  try {
+    (keeper as unknown as { setLockScreenLiked?: (l: boolean) => void } | null)?.setLockScreenLiked?.(liked);
   } catch {}
 }
 
