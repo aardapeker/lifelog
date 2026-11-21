@@ -1,4 +1,8 @@
 import { album, artistById, findSong, related, type DzArtist } from './deezer';
+import { isrcOf } from './spotify';
+import { cleanTitle, isTurkish, pickMusician, tidy } from './songText';
+
+export { cleanTitle } from './songText';
 
 /*
  * "About this song" for the radio player, like Spotify's song and artist cards: from Deezer (the
@@ -29,23 +33,6 @@ export type SongInfo = {
 
 type Raw = Record<string, any>;
 
-/** "Paranoid Android - Remastered 2017" → "Paranoid Android"; "(feat. X)" goes too. */
-export function cleanTitle(name: string): string {
-  return name
-    .replace(/\s+-\s+.*(remaster|version|live|edit|mix|mono|stereo|acoustic|bonus|demo).*$/i, '')
-    .replace(/\s*[([](feat\.?|ft\.?|with|from)\b[^)\]]*[)\]]/gi, '')
-    .trim();
-}
-
-/** Wikidata descriptions that mean "a musician", in English or Turkish. */
-const MUSICAL = /(^|[^\p{L}])(singer|band|musician|rapper|group|duo|trio|composer|songwriter|dj|producer|vocalist|guitarist|pianist|orchestra|şarkıcı|grubu?|müzisyen|besteci)($|[^\p{L}])/iu;
-
-/** The search hit that is the musician: the first whose description says so. */
-export const pickMusician = (hits: Raw[]): Raw | null => hits.find((h) => MUSICAL.test(h.description ?? '')) ?? null;
-
-/** Turkish citizen or a band from Turkey (Q43): read their Turkish Wikipedia page first. */
-export const isTurkish = (entity: Raw) => ['P27', 'P495'].some((p) => (entity?.claims?.[p] ?? []).some((c: Raw) => c.mainsnak?.datavalue?.value?.id === 'Q43'));
-
 async function json(url: string): Promise<Raw> {
   const res = await fetch(url, { headers: { 'User-Agent': 'LifelogRadar/1.0 ( https://github.com/aardapeker/lifelog )', Accept: 'application/json' } });
   if (!res.ok) throw new Error(`${res.status}`);
@@ -54,18 +41,33 @@ async function json(url: string): Promise<Raw> {
 
 type Wiki = { about: string | null; photo: string | null; bio: string | null; wiki: string | null };
 const noWiki: Wiki = { about: null, photo: null, bio: null, wiki: null };
+const LONG_ENOUGH = 280; // a lead shorter than this ("Zerrin Özer, Türk şarkıcıdır.") gets more sentences
 
-/** The artist's Wikipedia summary, found by name through Wikidata (so "Pinhani" finds the band, not a word). */
+/** A page's opening (up to 6 sentences, so a one-line lead still says something), picture and link. */
+async function page(lang: string, title: string): Promise<{ text: string; photo: string | null; url: string } | null> {
+  const r = await json(
+    `https://${lang}.wikipedia.org/w/api.php?action=query&format=json&redirects=1&prop=extracts|pageimages|info&explaintext=1&exsentences=6&exsectionformat=plain&piprop=thumbnail&pithumbsize=400&inprop=url&titles=${encodeURIComponent(title)}`,
+  );
+  const p: Raw | undefined = Object.values(r.query?.pages ?? {})[0] as Raw | undefined;
+  if (!p || p.missing !== undefined || !p.extract) return null;
+  return { text: tidy(p.extract), photo: p.thumbnail?.source ?? null, url: p.fullurl ?? `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(title)}` };
+}
+
+/** The artist's Wikipedia bio, found by name through Wikidata (so "Pinhani" finds the band, not a word). */
 async function wikipedia(name: string): Promise<Wiki> {
   const found = await json(`https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(name)}&language=en&uselang=en&type=item&limit=8&format=json`);
   const hit = pickMusician(found.search ?? []);
   if (!hit) return noWiki;
   const entity = (await json(`https://www.wikidata.org/wiki/Special:EntityData/${hit.id}.json`)).entities?.[hit.id];
   const links = entity?.sitelinks ?? {};
-  const site = (isTurkish(entity) ? ['trwiki', 'enwiki'] : ['enwiki', 'trwiki']).find((s) => links[s]?.title);
-  if (!site) return { ...noWiki, about: hit.description ?? null };
-  const s = await json(`https://${site.slice(0, 2)}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(links[site].title.replace(/ /g, '_'))}`);
-  return { about: hit.description ?? null, photo: s.thumbnail?.source ?? null, bio: s.extract ?? null, wiki: s.content_urls?.mobile?.page ?? null };
+  const sites = (isTurkish(entity) ? ['trwiki', 'enwiki'] : ['enwiki', 'trwiki']).filter((s) => links[s]?.title);
+  if (!sites.length) return { ...noWiki, about: hit.description ?? null };
+  // the preferred language first; if its page is only a line or two, the other one's (when longer)
+  const first = await page(sites[0].slice(0, 2), links[sites[0]].title).catch(() => null);
+  const second = sites[1] && (!first || first.text.length < LONG_ENOUGH) ? await page(sites[1].slice(0, 2), links[sites[1]].title).catch(() => null) : null;
+  const best = second && second.text.length > (first?.text.length ?? 0) ? second : first;
+  if (!best) return { ...noWiki, about: hit.description ?? null };
+  return { about: hit.description ?? null, photo: first?.photo ?? second?.photo ?? null, bio: best.text, wiki: best.url };
 }
 
 const cache = new Map<string, SongInfo>();
@@ -75,7 +77,7 @@ export async function songInfo(trackId: string, name: string, artistName: string
   if (hit) return hit;
   const title = cleanTitle(name);
   const artist = artistName.split(',')[0].trim(); // Spotify lists featured artists after a comma
-  const song = await findSong(artist, title);
+  const song = await findSong(artist, title, await isrcOf(trackId).catch(() => null));
   const [al, who, wiki, alsoLike] = await Promise.all([
     song?.album ? album(song.album.id).catch(() => null) : null,
     song?.artistId ? artistById(song.artistId).catch(() => null) : null,

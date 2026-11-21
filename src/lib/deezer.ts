@@ -237,15 +237,30 @@ async function searchSong(artist: string, title: string): Promise<Raw | null> {
   return pick(loose.data ?? []) ?? (strict.data ?? []).find((h) => norm(h.artist?.name ?? '') === main) ?? null;
 }
 
-/** A song by artist and title (the radio's track), with its BPM and release date. */
-export async function findSong(artist: string, title: string): Promise<DzSong | null> {
+/** The exact recording by its ISRC (from Spotify); null when Deezer doesn't have it. */
+async function byIsrc(isrc: string | null | undefined): Promise<Raw | null> {
+  if (!isrc || !/^[A-Z]{2}[A-Z0-9]{3}\d{7}$/.test(isrc)) return null;
+  return dz<Raw>(`/track/isrc:${isrc}`).catch(() => null); // "no data" is an error answer
+}
+
+/** A song: by ISRC when Spotify gave one (exact), else by artist and title. */
+async function song(artist: string, title: string, isrc?: string | null): Promise<{ hit: Raw; full: boolean } | null> {
+  const exact = await byIsrc(isrc);
+  if (exact?.id) return { hit: exact, full: true };
   const hit = await searchSong(artist, title);
-  if (!hit) return null;
-  const full = await dz(`/track/${hit.id}`).catch(() => hit);
+  return hit ? { hit, full: false } : null;
+}
+
+/** A song by artist and title (the radio's track), with its BPM and release date. */
+export async function findSong(artist: string, title: string, isrc?: string | null): Promise<DzSong | null> {
+  const found = await song(artist, title, isrc);
+  if (!found) return null;
+  const { hit } = found;
+  const full = found.full ? hit : await dz(`/track/${hit.id}`).catch(() => hit);
   return { ...trackOf(full, hit.album), bpm: full.bpm || null, date: full.release_date ?? full.album?.release_date ?? null, artistId: full.artist?.id ?? hit.artist?.id ?? null };
 }
 
-/** Just the 30-second preview of a song (one search, no more). Null when Deezer has none. */
-export async function previewOf(artist: string, title: string): Promise<string | null> {
-  return (await searchSong(artist, title))?.preview || null;
+/** Just the 30-second preview of a song. Null when Deezer has none. */
+export async function previewOf(artist: string, title: string, isrc?: string | null): Promise<string | null> {
+  return (await song(artist, title, isrc))?.hit.preview || null;
 }

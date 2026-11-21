@@ -16,6 +16,7 @@ import { SongAbout } from '../components/SongAbout';
 import { SongPicker } from '../components/SongPicker';
 import { previewOf } from '../lib/deezer';
 import { useRadio } from '../lib/radioEngine';
+import { isrcOf } from '../lib/spotify';
 import { cleanTitle } from '../lib/songInfo';
 import { stopPreview, usePreview } from '../radar/components/Preview';
 import { colors, fonts, radius } from '../lib/theme';
@@ -87,7 +88,7 @@ export default function OnAirScreen() {
               <View key={t.id} style={styles.row}>
                 {/* tap the cover for a 30-second preview (Deezer), for the songs you don't know */}
                 <Pressable
-                  onPress={() => pv.toggleFind(t.id, () => previewOf(t.artist, cleanTitle(t.name)))}
+                  onPress={() => pv.toggleFind(t.id, async () => previewOf(t.artist, cleanTitle(t.name), await isrcOf(t.id)))}
                   hitSlop={6}
                   accessibilityLabel={`${pv.is(t.id) ? 'Stop' : 'Play'} a preview of ${t.name}`}
                 >

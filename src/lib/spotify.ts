@@ -441,6 +441,23 @@ export async function topArtists(db: SQLiteDatabase): Promise<TopArtist[]> {
   return cached.artists ?? [];
 }
 
+const isrcs = new Map<string, Promise<string | null>>();
+
+/**
+ * A track's ISRC (the recording's world-wide code): Deezer finds the exact same recording by it,
+ * where a search by name missed Turkish songs. Cached; null when Spotify doesn't say.
+ */
+export function isrcOf(trackId: string): Promise<string | null> {
+  if (!isrcs.has(trackId)) {
+    const p = api<{ external_ids?: { isrc?: string } }>(`/tracks/${encodeURIComponent(trackId)}`)
+      .then((t) => t?.external_ids?.isrc?.toUpperCase() ?? null)
+      .catch(() => null);
+    isrcs.set(trackId, p);
+    if (isrcs.size > 200) isrcs.delete(isrcs.keys().next().value!);
+  }
+  return isrcs.get(trackId)!;
+}
+
 /** Just the names (the friend's prompt): the 15 you listen to most. */
 export async function musicTaste(db: SQLiteDatabase): Promise<string[]> {
   return (await topArtists(db)).slice(0, 15).map((a) => a.name);
