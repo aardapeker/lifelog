@@ -91,3 +91,35 @@ export function fitOverlap(asked: number, prev: SongFacts | undefined): number {
 
 /** An intro talk only over a song that really has a long instrumental intro (when we know). */
 export const introFits = (f: SongFacts | undefined) => !f || f.introSec == null || f.introSec >= 10;
+
+/* ── live lyrics (LRCLIB synced lyrics, shown in the player) ── */
+
+export type LyricLine = { ms: number; text: string };
+
+/** "[01:02.50] text" lines → timed lines in order (blank lines kept as pauses: "♪"). */
+export function parseLrc(synced: string | null | undefined): LyricLine[] {
+  const out: LyricLine[] = [];
+  for (const line of (synced ?? '').split('\n')) {
+    // a line can carry several times: "[00:12.00][01:30.00] chorus"
+    const stamps = [...line.matchAll(/\[(\d+):(\d+(?:\.\d+)?)\]/g)];
+    if (!stamps.length) continue;
+    const text = line.replace(/\[\d+:\d+(?:\.\d+)?\]/g, '').trim();
+    for (const m of stamps) out.push({ ms: Math.round((Number(m[1]) * 60 + Number(m[2])) * 1000), text: text || '♪' });
+  }
+  return out.sort((a, b) => a.ms - b.ms);
+}
+
+/** The line being sung at this moment (-1 before the first). */
+export function lineAt(lines: LyricLine[], ms: number): number {
+  let lo = 0;
+  let hi = lines.length - 1;
+  let found = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (lines[mid].ms <= ms) {
+      found = mid;
+      lo = mid + 1;
+    } else hi = mid - 1;
+  }
+  return found;
+}

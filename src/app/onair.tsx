@@ -12,6 +12,7 @@ import { Ban, ColourWash, CoverCloud, GlowingCover, Heart, KeepAwake, showName, 
 import { IconButton, PillButton, StatusLine } from '../components/ui';
 import { breadcrumb } from '../lib/crashLog';
 import { ActionSheet, type SheetAction } from '../components/ActionSheet';
+import { LyricsCard } from '../components/LyricsCard';
 import { SongAbout } from '../components/SongAbout';
 import { SongPicker } from '../components/SongPicker';
 import { previewOf } from '../lib/deezer';
@@ -255,6 +256,9 @@ export default function OnAirScreen() {
                 ))}
               </Glass>
             )}
+
+            {/* live lyrics: the line being sung, tap one to jump there */}
+            {phase === 'onair' && <LyricsCard track={current.track} progress={progress} running={!paused && !speaking} onSeek={r.seek} />}
 
             {/* credits and the artist's card, folded until opened */}
             <SongAbout track={current.track} />

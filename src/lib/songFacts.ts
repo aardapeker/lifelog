@@ -13,7 +13,7 @@ import { isrcOf, type Track } from './spotify';
 const LRCLIB = 'https://lrclib.net/api';
 const UA = 'LifelogRadio/1.0 (https://github.com/aardapeker/lifelog)';
 
-type Lrc = { duration?: number; instrumental?: boolean; syncedLyrics?: string | null };
+export type Lrc = { duration?: number; instrumental?: boolean; syncedLyrics?: string | null; plainLyrics?: string | null };
 
 async function lrclib(path: string): Promise<any> {
   const res = await fetch(`${LRCLIB}${path}`, { headers: { 'Lrclib-Client': UA, 'User-Agent': UA } });
@@ -23,15 +23,33 @@ async function lrclib(path: string): Promise<any> {
 }
 
 /** The synced lyrics of this exact song (same length within 3 s), or null. */
-async function syncedLyrics(t: Track): Promise<Lrc | null> {
+async function findLyrics(t: Track): Promise<Lrc | null> {
   const sec = Math.round(t.durationMs / 1000);
   const artist = t.artist.split(',')[0].trim();
   const q = `artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(t.name)}`;
-  const exact: Lrc | null = await lrclib(`/get?${q}&duration=${sec}`).catch(() => null);
+  const exact: Lrc | null = await lrclib(`/get?${q}&duration=${sec}`);
   if (exact?.syncedLyrics || exact?.instrumental) return exact;
   // not under that exact name and length: search, and take the closest length that has timings
-  const found: Lrc[] = (await lrclib(`/search?${q}`).catch(() => null)) ?? [];
-  return found.filter((x) => x.syncedLyrics && Math.abs((x.duration ?? 0) - sec) <= 3).sort((a, b) => Math.abs((a.duration ?? 0) - sec) - Math.abs((b.duration ?? 0) - sec))[0] ?? null;
+  const found: Lrc[] = (await lrclib(`/search?${q}`)) ?? [];
+  const close = found.filter((x) => Math.abs((x.duration ?? 0) - sec) <= 3).sort((a, b) => Math.abs((a.duration ?? 0) - sec) - Math.abs((b.duration ?? 0) - sec));
+  // timed lines first; else plain text (the player shows it without following along)
+  return close.find((x) => x.syncedLyrics) ?? close.find((x) => x.plainLyrics) ?? exact ?? null;
+}
+
+const lyricsMemo = new Map<string, Promise<Lrc | null>>();
+
+/**
+ * A song's lyrics from LRCLIB (timed lines when it has them), fetched once per song: the show's
+ * timing check and the player's live lyrics share it. A failed lookup is tried again next time.
+ */
+export function lyricsOf(t: Track): Promise<Lrc | null> {
+  if (!lyricsMemo.has(t.id)) {
+    const p = findLyrics(t);
+    lyricsMemo.set(t.id, p);
+    p.catch(() => lyricsMemo.delete(t.id));
+    if (lyricsMemo.size > 200) lyricsMemo.delete(lyricsMemo.keys().next().value!);
+  }
+  return lyricsMemo.get(t.id)!;
 }
 
 const memo = new Map<string, Promise<SongFacts>>();
@@ -44,7 +62,7 @@ export function songFacts(t: Track): Promise<SongFacts> {
         isrcOf(t.id)
           .then((isrc) => findSong(t.artist, title, isrc))
           .catch(() => null),
-        syncedLyrics(t).catch(() => null),
+        lyricsOf(t).catch(() => null),
       ]);
       return {
         ...noFacts,
