@@ -223,15 +223,18 @@ export async function findAlbum(artist: string, title: string): Promise<DzReleas
 
 /** The search hit for a song by artist and title: same title and artist first, else that artist's best hit. */
 async function searchSong(artist: string, title: string): Promise<Raw | null> {
-  const main = mainArtist(artist);
-  const r = await dz<{ data?: Raw[] }>(`/search?q=${encodeURIComponent(`artist:"${main}" track:"${title}"`)}&limit=10`);
+  const main = norm(mainArtist(artist));
   const t = norm(title);
-  const hits = r.data ?? [];
-  return (
-    hits.find((h) => norm(h.title_short ?? h.title ?? '') === t && norm(h.artist?.name ?? '') === norm(main)) ??
-    hits.find((h) => norm(h.artist?.name ?? '') === norm(main)) ??
-    null
-  );
+  const pick = (hits: Raw[]) =>
+    hits.find((h) => norm(h.title_short ?? h.title ?? '') === t && norm(h.artist?.name ?? '') === main) ??
+    hits.find((h) => norm(h.title_short ?? h.title ?? '').startsWith(t) && norm(h.artist?.name ?? '').includes(main)) ??
+    null;
+  // the strict search first; Deezer's strict syntax misses some (accents, "feat."), so then a plain one
+  const strict = await dz<{ data?: Raw[] }>(`/search?q=${encodeURIComponent(`artist:"${mainArtist(artist)}" track:"${title}"`)}&limit=10`);
+  const hit = pick(strict.data ?? []);
+  if (hit) return hit;
+  const loose = await dz<{ data?: Raw[] }>(`/search?q=${encodeURIComponent(`${mainArtist(artist)} ${title}`)}&limit=15`);
+  return pick(loose.data ?? []) ?? (strict.data ?? []).find((h) => norm(h.artist?.name ?? '') === main) ?? null;
 }
 
 /** A song by artist and title (the radio's track), with its BPM and release date. */

@@ -73,7 +73,7 @@ export function usePreview(owner: string) {
   const mine = useRef(owner);
   mine.current = owner;
   const [finding, setFinding] = useState<string | null>(null);
-  const [none, setNone] = useState<ReadonlySet<string>>(new Set());
+  const [none, setNone] = useState<ReadonlyMap<string, string>>(new Map()); // song → why there's no preview
   useEffect(
     () => () => {
       if (state.key?.startsWith(`${mine.current}:`)) stopPreview();
@@ -98,17 +98,24 @@ export function usePreview(owner: string) {
       if (state.key) set({ key: null, progress: 0 });
       setFinding(key);
       try {
-        const url = await find().catch(() => null);
+        let why = 'No preview';
+        const url = await find().catch((e) => {
+          // say why, so "Deezer is down" and "this song has none" don't look the same
+          why = /abort|network|failed to fetch/i.test(String(e)) ? "Couldn't reach Deezer" : String(e?.message ?? e).slice(0, 60);
+          console.warn('Preview lookup failed', e);
+          return null;
+        });
         if (wanted !== k) return; // you tapped something else while it was looking
         if (url) await playPreview(k, url);
-        else setNone((n) => new Set(n).add(key));
+        else setNone((n) => new Map(n).set(key, why));
       } finally {
         setFinding(null);
       }
     },
     is: (key: string) => s.key === `${owner}:${key}`,
     finding: (key: string) => finding === key,
-    noPreview: (key: string) => none.has(key),
+    /** Why this song has no preview (null if it has one, or wasn't tried). */
+    noPreview: (key: string) => none.get(key) ?? null,
   };
 }
 

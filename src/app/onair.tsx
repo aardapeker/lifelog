@@ -107,7 +107,7 @@ export default function OnAirScreen() {
                   </Text>
                   <Text style={styles.rowArtist} numberOfLines={1}>
                     {t.spare ? 'Spare · ' : ''}
-                    {pv.noPreview(t.id) ? 'No preview · ' : ''}
+                    {pv.noPreview(t.id) ? `${pv.noPreview(t.id)} · ` : ''}
                     {t.artist}
                   </Text>
                   {pv.is(t.id) && (
