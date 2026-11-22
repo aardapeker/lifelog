@@ -569,6 +569,15 @@ function useRadioEngine() {
     setDraft(spare ? d.map((x, k) => (k === i ? spare : x)) : d.filter((_, k) => k !== i));
   };
   /** ＋ Add a song: your own pick on the list. The hosts treat it like any other song (only live requests get a dedication). */
+  /** Drag and drop in Tonight's playlist: the song at `from` goes to `to`. */
+  const reorderDraft = (from: number, to: number) =>
+    setDraft((d) => {
+      if (!d || from === to || from < 0 || to < 0 || from >= d.length || to >= d.length) return d;
+      const next = [...d];
+      const [song] = next.splice(from, 1);
+      next.splice(to, 0, song);
+      return next;
+    });
   const addDraft = (t: Track) => setDraft((d) => (d && !d.some((x) => x.id === t.id) ? [...d, { ...t, requested: true }] : d));
   const writeDraft = () => {
     if (!draft) return;
@@ -940,7 +949,7 @@ function useRadioEngine() {
     [],
   );
 
-  return { seek, draft, reviewFirst, setReviewFirst, moveDraft, dropDraft, addDraft, requestSong, requesting, writeDraft, cancelDraft, replay, steps, history, loadHistory, playPast, forgetShow, keepShow, liveKept, keepLive, banned, ban, miniCollapsed, setMiniCollapsed, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
+  return { seek, draft, reviewFirst, setReviewFirst, moveDraft, reorderDraft, dropDraft, addDraft, requestSong, requesting, writeDraft, cancelDraft, replay, steps, history, loadHistory, playPast, forgetShow, keepShow, liveKept, keepLive, banned, ban, miniCollapsed, setMiniCollapsed, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
 }
 
 export type RadioEngine = ReturnType<typeof useRadioEngine>;

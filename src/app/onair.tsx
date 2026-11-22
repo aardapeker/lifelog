@@ -12,6 +12,7 @@ import { Ban, ColourWash, CoverCloud, GlowingCover, Heart, KeepAwake, showName, 
 import { IconButton, PillButton, StatusLine } from '../components/ui';
 import { breadcrumb } from '../lib/crashLog';
 import { ActionSheet, type SheetAction } from '../components/ActionSheet';
+import { DragList } from '../components/DragList';
 import { LyricsCard } from '../components/LyricsCard';
 import { SongAbout } from '../components/SongAbout';
 import { SongPicker } from '../components/SongPicker';
@@ -44,6 +45,7 @@ export default function OnAirScreen() {
   const [menu, setMenu] = useState(false);
   const blur = useBlurSource();
   const [scrolled, setScrolled] = useState(false);
+  const [dragging, setDragging] = useState(false); // a playlist row is held: the page stops scrolling
   const more = () => setMenu(true);
   // the song picker: "add" on the review list, "request" during the show
   const [picking, setPicking] = useState<'add' | 'request' | null>(null);
@@ -77,6 +79,7 @@ export default function OnAirScreen() {
 
       <ScrollView
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 74, paddingBottom: insets.bottom + 40 }]}
+        scrollEnabled={!dragging}
         onScroll={(e) => setScrolled(e.nativeEvent.contentOffset.y > 12)}
         scrollEventThrottle={32}
       >
@@ -86,9 +89,15 @@ export default function OnAirScreen() {
           // the songs are picked and found on Spotify: reorder or drop some, then the hosts write the talks
           <FadeIn>
             <Text style={styles.reviewTitle}>Tonight's playlist</Text>
-            <Text style={styles.reviewHint}>Tap a cover to hear 30 seconds of it. Move songs up or down, or drop one. The hosts write their talks for this exact order.</Text>
-            {draft.map((t, i) => (
-              <View key={t.id} style={styles.row}>
+            <Text style={styles.reviewHint}>Tap a cover to hear 30 seconds of it. Hold a song (or its ≡) and drag it to move it, or drop one with ✕. The hosts write their talks for this exact order.</Text>
+            <DragList
+              items={draft}
+              keyOf={(t) => t.id}
+              onMove={r.reorderDraft}
+              onDragging={setDragging}
+              liftedStyle={styles.rowLifted}
+              renderRow={(t, i, drag) => (
+              <View style={styles.row}>
                 {/* tap the cover for a 30-second preview (Deezer), for the songs you don't know */}
                 <Pressable
                   onPress={() => pv.toggleFind(t.id, async () => previewOf(t.artist, cleanTitle(t.name), await isrcOf(t.id)))}
@@ -120,12 +129,21 @@ export default function OnAirScreen() {
                     </View>
                   )}
                 </View>
-                <Pressable onPress={() => r.moveDraft(i, -1)} hitSlop={6} disabled={i === 0} accessibilityLabel={`Move ${t.name} up`}>
-                  <Ionicons name="chevron-up" size={22} color={i === 0 ? colors.line : colors.text} />
-                </Pressable>
-                <Pressable onPress={() => r.moveDraft(i, 1)} hitSlop={6} disabled={i === draft.length - 1} accessibilityLabel={`Move ${t.name} down`}>
-                  <Ionicons name="chevron-down" size={22} color={i === draft.length - 1 ? colors.line : colors.text} />
-                </Pressable>
+                {/* ≡ drags straight away; holding anywhere on the row works too */}
+                <View
+                  {...drag.handle}
+                  hitSlop={8}
+                  accessible
+                  accessibilityLabel={`Move ${t.name}`}
+                  accessibilityHint="Hold and drag, or use the actions to move it up or down"
+                  accessibilityActions={[
+                    { name: 'increment', label: 'Move up' },
+                    { name: 'decrement', label: 'Move down' },
+                  ]}
+                  onAccessibilityAction={(e) => r.moveDraft(i, e.nativeEvent.actionName === 'increment' ? -1 : 1)}
+                >
+                  <Ionicons name="reorder-three" size={26} color={drag.lifted ? '#5BE0A0' : colors.muted} />
+                </View>
                 <Pressable
                   onPress={() => {
                     if (pv.is(t.id)) stopPreview();
@@ -138,7 +156,8 @@ export default function OnAirScreen() {
                   <Ionicons name="close" size={20} color={colors.muted} />
                 </Pressable>
               </View>
-            ))}
+            )}
+            />
             <PillButton label="＋ Add a song" onPress={() => setPicking('add')} ghost style={{ alignSelf: 'flex-start', marginTop: 12 }} />
             <View style={styles.after}>
               <PillButton
@@ -364,6 +383,7 @@ const styles = StyleSheet.create({
   reviewTitle: { fontFamily: fonts.display, fontSize: 26, color: colors.text, marginBottom: 6 },
   reviewHint: { fontFamily: fonts.sansRegular, fontSize: 14, lineHeight: 20, color: colors.muted, marginBottom: 14 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 10, paddingHorizontal: 10, borderRadius: radius.sm },
+  rowLifted: { backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: radius.sm },
   rowName: { fontFamily: fonts.sans, fontSize: 15, color: colors.text },
   rowCover: { width: 44, height: 44, borderRadius: 6 },
   rowPlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.35)' },
