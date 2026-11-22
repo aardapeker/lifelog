@@ -3,6 +3,7 @@ import { Directory, File, Paths } from 'expo-file-system';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getSetting, setSetting } from './db';
 import { searchDeezer, type DzTrack } from './deezer';
+import { getPlannerSettings } from './planner';
 import { lyricsOf } from './songFacts';
 
 /*
@@ -157,6 +158,8 @@ export async function prepareStationSounds(db: SQLiteDatabase, station: string):
   await ensureDefaultBeds(db, station).catch(() => {});
   await shuffleBeds(db, station);
   showRate = await slowRate(db, station);
+  const w = await resolveWeather(db, await stationWeather(db, station));
+  showWeather = await weatherSound(w).catch(() => null);
 }
 /*
  * "Slowed": the bed played slower with its pitch dropping along (no pitch correction), like the
@@ -176,6 +179,69 @@ export async function slowRate(db: SQLiteDatabase, station: string): Promise<num
 }
 export const setSlowRate = (db: SQLiteDatabase, station: string, rate: number) => setSetting(db, slowKey(station), String(rate));
 
+/*
+ * The station's weather: an ambience under the hosts with the music bed (rain, a storm, wind, birds on a
+ * sunny morning, crickets at night; or the room: an old computer's fan, a buzzing amp, vinyl crackle), or the real weather where you are right now (open-meteo, the place
+ * set for "Plan my day"). The sounds are long nature recordings on Deezer: the first 30-second preview
+ * found is saved once and shared by all stations. It loops (rain doesn't mind) and stays quieter than the bed.
+ */
+export type WeatherKind = 'none' | 'rain' | 'storm' | 'wind' | 'sunny' | 'night' | 'computer' | 'amp' | 'vinyl' | 'live';
+export const WEATHERS: { key: WeatherKind; label: string; query?: string }[] = [
+  { key: 'none', label: 'None' },
+  { key: 'rain', label: '🌧 Rainy', query: 'rain sounds' },
+  { key: 'storm', label: '⛈ Stormy', query: 'thunderstorm sounds' },
+  { key: 'wind', label: '🌬 Windy', query: 'wind sounds' },
+  { key: 'sunny', label: '☀️ Sunny', query: 'birds singing morning nature sounds' },
+  { key: 'night', label: '🌙 Night', query: 'crickets night sounds' },
+  // not weather, the room: Arda's ideas
+  { key: 'computer', label: '🖥️ Old computer', query: 'old computer fan hum sound' },
+  { key: 'amp', label: '🔊 Amp hum', query: 'guitar amp hum buzz sound' },
+  { key: 'vinyl', label: '📀 Vinyl crackle', query: 'vinyl crackle sound' },
+  { key: 'live', label: '📍 Real weather' },
+];
+const weatherKey = (station: string) => `radio.weather.${station}`;
+export async function stationWeather(db: SQLiteDatabase, station: string): Promise<WeatherKind> {
+  const w = (await getSetting(db, weatherKey(station), 'none')) as WeatherKind;
+  return WEATHERS.some((x) => x.key === w) ? w : 'none';
+}
+export const setStationWeather = (db: SQLiteDatabase, station: string, w: WeatherKind) => setSetting(db, weatherKey(station), w);
+
+/** Right now where you are (Plan my day's place): storm, rain, wind, sunny, night, or none. */
+async function liveWeather(db: SQLiteDatabase): Promise<WeatherKind> {
+  const { lat, lon } = await getPlannerSettings(db);
+  if (lat == null || lon == null) return 'none';
+  const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=weather_code,wind_speed_10m,is_day`);
+  if (!res.ok) return 'none';
+  const c = ((await res.json()) as { current?: { weather_code?: number; wind_speed_10m?: number; is_day?: number } }).current;
+  const code = c?.weather_code ?? 0;
+  if (code >= 95) return 'storm';
+  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return 'rain';
+  if ((c?.wind_speed_10m ?? 0) >= 30 || (code >= 71 && code <= 77) || code === 85 || code === 86) return 'wind';
+  if (!c?.is_day) return 'night';
+  return code <= 1 ? 'sunny' : 'none';
+}
+
+const weatherFile = (w: WeatherKind) => new File(dir(), `weather-${w}.mp3`);
+/** The ambience's recording, saved the first time it's needed. */
+async function weatherSound(w: WeatherKind): Promise<string | null> {
+  const query = WEATHERS.find((x) => x.key === w)?.query;
+  if (!query) return null;
+  const file = weatherFile(w);
+  if (file.exists) return file.uri;
+  const t = (await searchDeezer(query, 10)).find((x) => x.preview && x.seconds >= 60);
+  if (!t?.preview) return null;
+  await File.downloadFileAsync(t.preview, file);
+  return file.uri;
+}
+/** What the station's weather is right now (the real weather resolved), for the station page. */
+export async function resolveWeather(db: SQLiteDatabase, w: WeatherKind): Promise<WeatherKind> {
+  return w === 'live' ? liveWeather(db).catch(() => 'none' as const) : w;
+}
+/** Station page: the ambience's recording, to hear it. */
+export const weatherPreview = (w: WeatherKind) => weatherSound(w).catch(() => null);
+
+let showWeather: string | null = null; // this show's ambience file
+
 export async function setStationSoundsOn(db: SQLiteDatabase, on: boolean): Promise<void> {
   enabled = on;
   await setSetting(db, 'radio.stationSounds', on ? 'on' : 'off');
@@ -186,6 +252,8 @@ export async function setStationSoundsOn(db: SQLiteDatabase, on: boolean): Promi
 const BED_VOLUME = 0.12; // well under the voice (0.16 was a bit loud, Arda said)
 
 let bed: AudioPlayer | null = null;
+let ambience: AudioPlayer | null = null;
+const AMBIENCE_VOLUME = 0.09; // under the bed
 const fades = new WeakMap<AudioPlayer, number>(); // per player: the latest fade wins (a new one stops the old one's steps)
 
 const quietly = (f: () => void) => {
@@ -225,9 +293,18 @@ function fade(player: AudioPlayer, to: number, ms: number): Promise<void> {
 
 /** The music bed fades in under the hosts (if one is picked and it's on). It plays once, 30 s, no loop. */
 export async function bedIn(station: string): Promise<void> {
-  const uri = nextBed(station);
-  if (!enabled || !uri) return;
+  if (!enabled) return;
   stopBed();
+  if (showWeather) {
+    const a = createAudioPlayer(showWeather);
+    ambience = a;
+    quietly(() => (a.loop = true)); // rain and wind don't mind starting over
+    quietly(() => (a.volume = 0));
+    quietly(() => a.play());
+    fade(a, AMBIENCE_VOLUME, 900);
+  }
+  const uri = nextBed(station);
+  if (!uri) return;
   const player = createAudioPlayer(uri);
   bed = player;
   quietly(() => (player.loop = false)); // once: a 30-second preview starting over broke the mood
@@ -242,22 +319,25 @@ export async function bedIn(station: string): Promise<void> {
 
 /** The bed fades out (before the next song starts, so they never overlap). */
 export async function bedOut(ms = 900): Promise<void> {
-  const player = bed;
-  if (!player) return;
-  await fade(player, 0, ms);
-  if (bed === player) {
-    bed = null;
-    quietly(() => player.pause());
-    quietly(() => player.remove());
+  const players = [bed, ambience].filter((p): p is AudioPlayer => !!p);
+  if (!players.length) return;
+  await Promise.all(players.map((p) => fade(p, 0, ms)));
+  for (const p of players) {
+    if (bed === p) bed = null;
+    if (ambience === p) ambience = null;
+    quietly(() => p.pause());
+    quietly(() => p.remove());
   }
 }
 function stopBed() {
-  const player = bed;
+  for (const player of [bed, ambience]) {
+    if (!player) continue;
+    fades.set(player, (fades.get(player) ?? 0) + 1); // cancels a fade in progress
+    quietly(() => player.pause());
+    quietly(() => player.remove());
+  }
   bed = null;
-  if (!player) return;
-  fades.set(player, (fades.get(player) ?? 0) + 1); // cancels a fade in progress
-  quietly(() => player.pause());
-  quietly(() => player.remove());
+  ambience = null;
 }
 
 /** Pause, skip, the end of the show: everything stops at once. */

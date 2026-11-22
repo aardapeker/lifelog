@@ -2,10 +2,10 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { usePreview } from '../radar/components/Preview';
+import { stopPreview, usePreview } from '../radar/components/Preview';
 import { RemoteImage } from '../radar/components/RemoteImage';
 import { searchDeezer, trackTime, type DzTrack } from '../lib/deezer';
-import { addBedPick, BED_IDEAS, bedPickUri, bedPicks, ensureDefaultBeds, loadStationSoundsSetting, setSlowRate, SLOW_RATES, slowRate, removeBedPick, setStationSoundsOn, type BedPick } from '../lib/stationSounds';
+import { addBedPick, BED_IDEAS, bedPickUri, bedPicks, ensureDefaultBeds, loadStationSoundsSetting, setSlowRate, SLOW_RATES, slowRate, setStationWeather, stationWeather, resolveWeather, weatherPreview, WEATHERS, type WeatherKind, removeBedPick, setStationSoundsOn, type BedPick } from '../lib/stationSounds';
 import type { Station } from '../lib/stations';
 import { colors, fonts, inputColors, radius } from '../lib/theme';
 import Ionicons from './Icon';
@@ -20,6 +20,8 @@ export function StationSounds({ station }: { station: Station }) {
   const [picks, setPicks] = useState<BedPick[]>([]);
   const [on, setOn] = useState(true);
   const [rate, setRate] = useState(1);
+  const [weather, setWeather] = useState<WeatherKind>('none');
+  const [liveNow, setLiveNow] = useState<WeatherKind | null>(null); // what "Real weather" is right now
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
   const [picking, setPicking] = useState(false);
   const pv = usePreview(`beds-${station.key}`);
@@ -32,6 +34,7 @@ export function StationSounds({ station }: { station: Station }) {
     reload();
     loadStationSoundsSetting(db).then(setOn).catch(() => {});
     slowRate(db, station.key).then(setRate).catch(() => {});
+    stationWeather(db, station.key).then(setWeather).catch(() => {});
     ensureDefaultBeds(db, station.key).then(reload).catch(() => {}); // the first time: 3 to start with
   }, [db, reload, station.key]);
 
@@ -98,6 +101,28 @@ export function StationSounds({ station }: { station: Station }) {
         <Text style={styles.hint}>None yet. Pick instrumental tracks from Deezer:</Text>
       )}
       <PillButton label="＋ Pick from Deezer" ghost onPress={() => setPicking(true)} style={{ alignSelf: 'flex-start', marginTop: 10 }} />
+
+      {/* the station's weather (or room): an ambience under the hosts, with the music */}
+      <Text style={[styles.sub, { marginTop: 18 }]}>Weather</Text>
+      <View style={styles.chips}>
+        {WEATHERS.map((w) => (
+          <Chip
+            key={w.key}
+            label={w.key === 'live' && weather === 'live' && liveNow ? `${w.label}: ${WEATHERS.find((x) => x.key === liveNow)?.label ?? ''}` : w.label}
+            active={weather === w.key}
+            onPress={async () => {
+              setWeather(w.key);
+              setStationWeather(db, station.key, w.key).catch(() => {});
+              const now = await resolveWeather(db, w.key);
+              if (w.key === 'live') setLiveNow(now);
+              if (now === 'none') return stopPreview();
+              const uri = await weatherPreview(now); // hear it (the first time it's fetched and saved)
+              if (uri) pv.toggle(`weather-${now}`, uri);
+            }}
+          />
+        ))}
+      </View>
+      <Text style={styles.hint}>A quiet sound under the hosts, with the music. "Real weather" follows the sky where you are (the place set in Plan my day).</Text>
       <StatusLine status={status} />
 
       <Modal visible={picking} animationType="slide" onRequestClose={() => setPicking(false)} statusBarTranslucent>
