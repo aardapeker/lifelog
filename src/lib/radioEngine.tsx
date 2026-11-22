@@ -9,6 +9,7 @@ import { AppState } from 'react-native';
 import type { Status } from '../components/ui';
 import { albumColors, type Palette } from './albumColors';
 import { getSetting, setSetting } from './db';
+import { bedIn, bedOut, loadStationSoundsSetting, playJingle, stopStationSounds } from './stationSounds';
 import { goOffAir, goOnAir, onBeat, onRemote, setOnAirLiked, setOnAirPlaying, updateOnAir, waitMs } from './onAir';
 import { buildShow, castOf, requestTalks, speakIn, type Show } from './radio';
 import { countShow } from './achievements';
@@ -257,6 +258,7 @@ function useRadioEngine() {
   const shush = () => {
     talking.current?.stop();
     talking.current = null;
+    stopStationSounds();
   };
 
   const stopEngine = useCallback(() => {
@@ -266,6 +268,7 @@ function useRadioEngine() {
     goOffAir();
     talking.current?.stop();
     talking.current = null;
+    stopStationSounds();
     clearClips();
   }, []);
   useEffect(() => stopEngine, [stopEngine]);
@@ -295,9 +298,12 @@ function useRadioEngine() {
         await withTimeout(pausePlayback(), 3000);
         const uri = await withTimeout(clips.current.get(s.slots.length) ?? Promise.resolve(null), 15000);
         if (!live.current.speaking) return;
+        if (uri) await bedIn(s.station.key); // the goodbye over the station's music bed
+        if (!live.current.speaking) return stopStationSounds();
         const t = uri ? playClip(uri, false, voiceVolume(s.slots.at(-1)?.facts?.gain)) : skipTalk();
         talking.current = t;
         await t.done;
+        await bedOut();
         live.current.speaking = false;
         setSpeaking(false);
         finish();
@@ -367,9 +373,19 @@ function useRadioEngine() {
       if (live.current.index !== i || !live.current.speaking) return; // skipped or paused while it was loading
       if (!uri && !retried.current.has(i)) setStatus({ kind: 'err', msg: "⏳ This talk wasn't ready in time, so the hosts skip it. The music goes on." });
       // as loud as the song it leads into: after a loud record the voice isn't small, before a quiet one it isn't huge
+      // in the silence between songs (never over one): the station's jingle before the first talk and every
+      // third one, then its music bed under the hosts. A talk over a song's ending has the song as its bed
+      if (uri && !overlap) {
+        if (i % 3 === 0) await playJingle(s.station.key);
+        if (live.current.index !== i || !live.current.speaking) return;
+        await bedIn(s.station.key);
+        if (live.current.index !== i || !live.current.speaking) return stopStationSounds();
+      }
       const t = uri ? playClip(uri, overlap, voiceVolume(s.slots[i].facts?.gain)) : skipTalk();
       talking.current = t;
-      if (await t.done) start();
+      const finished = await t.done;
+      await bedOut(); // gone before the next song starts: the two never play together
+      if (finished) start();
     })();
   }, [stopEngine, prepare, record]);
 
@@ -600,6 +616,7 @@ function useRadioEngine() {
     bannedSongs(db).then((b) => setBanned(new Set(b.map((x) => x.id)))).catch(() => {}); // Settings may have let some back
     getSetting(db, 'voiceModel', '').then(preferVoiceModel).catch(() => {}); // Settings → AI Models
     likedSongs(db).then((l) => setHearts(new Set(l.map((x) => x.id)))).catch(() => {}); // hearts changed in Settings
+    loadStationSoundsSetting(db).catch(() => {}); // jingles and music beds on or off (station page)
     try {
       preview.current?.stop();
       const s = await buildShow(db, station, wish, length, step, reviewFirst ? review : undefined);

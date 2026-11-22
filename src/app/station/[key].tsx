@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FadeIn } from '../../components/motion';
 import { StationArt } from '../../components/StationArt';
 import { StationBackdrop } from '../../components/StationBackdrop';
+import { StationSounds } from '../../components/StationSounds';
 import { Chip, IconButton, PillButton, StatusLine } from '../../components/ui';
 import { getSetting, setSetting } from '../../lib/db';
 import { SHOW_LENGTHS, songLangOf, songLangsFor, type SongLang } from '../../lib/radio';
@@ -146,6 +147,8 @@ export default function StationScreen() {
         <Pressable onPress={() => setRecast((x) => !x)} hitSlop={8} style={styles.recast}>
           <Text style={styles.recastText}>{recast ? 'Done' : 'Change voices'}</Text>
         </Pressable>
+
+        <StationSounds station={station} />
 
         <Text style={styles.label}>Anything else? (optional)</Text>
         <View style={[styles.chips, { marginBottom: 10 }]}>
