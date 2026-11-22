@@ -109,6 +109,7 @@
       ],
       "./plugins/withSpotifyRemote",
       "./plugins/withReleaseSigning",
+      "./plugins/withLockScreenHeart",
       [
         "expo-location",
         {

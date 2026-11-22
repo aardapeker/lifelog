@@ -77,7 +77,7 @@ index 7ac4a57..901071e 100644
      if (isActiveForLockScreen) {
        this.metadata = metadata
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
-index 53c36f7..cb17f94 100644
+index 53c36f7..464d966 100644
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
 @@ -94,6 +94,7 @@ class AudioControlsService : MediaSessionService() {
@@ -88,14 +88,17 @@ index 53c36f7..cb17f94 100644
        }
      }
  
-@@ -354,6 +355,18 @@ class AudioControlsService : MediaSessionService() {
+@@ -354,6 +355,21 @@ class AudioControlsService : MediaSessionService() {
        )
      }
  
 +    // Lifelog patch: the heart, next to ⏭ (or in the overflow when there's no room)
 +    if (currentOptions?.showLike == true) {
++      // the app's own heart (plugins/withLockScreenHeart: a smaller, cleaner one than Media3's), if it's there
++      val ownHeart = resources.getIdentifier(if (liked) "lifelog_heart_filled" else "lifelog_heart", "drawable", packageName)
 +      mediaButtons.add(
-+        CommandButton.Builder(if (liked) CommandButton.ICON_HEART_FILLED else CommandButton.ICON_HEART_UNFILLED)
++        (if (ownHeart != 0) CommandButton.Builder(CommandButton.ICON_UNDEFINED).setCustomIconResId(ownHeart)
++        else CommandButton.Builder(if (liked) CommandButton.ICON_HEART_FILLED else CommandButton.ICON_HEART_UNFILLED))
 +          .setDisplayName(if (liked) "Remove the heart" else "Heart")
 +          .setEnabled(true)
 +          .setSessionCommand(SessionCommand(ACTION_LIKE, Bundle.EMPTY))
@@ -107,7 +110,7 @@ index 53c36f7..cb17f94 100644
      session.setCustomLayout(mediaButtons)
      session.setMediaButtonPreferences(mediaButtons)
    }
-@@ -568,6 +581,31 @@ class AudioControlsService : MediaSessionService() {
+@@ -568,6 +584,31 @@ class AudioControlsService : MediaSessionService() {
      }
    }
  
@@ -139,7 +142,7 @@ index 53c36f7..cb17f94 100644
    fun seekBackward() {
      currentPlayable?.player?.let { player ->
        val intervalMs = seekIntervalMs(currentOptions?.seekBackwardIntervalSeconds)
-@@ -693,5 +731,6 @@ class AudioControlsService : MediaSessionService() {
+@@ -693,5 +734,6 @@ class AudioControlsService : MediaSessionService() {
      const val ACTION_SEEK_BACKWARD = "expo.modules.audio.action.SEEK_BACKWARD"
      const val ACTION_NEXT_TRACK = "expo.modules.audio.action.NEXT_TRACK"
      const val ACTION_PREVIOUS_TRACK = "expo.modules.audio.action.PREVIOUS_TRACK"
