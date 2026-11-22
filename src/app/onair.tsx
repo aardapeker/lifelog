@@ -13,6 +13,7 @@ import { IconButton, PillButton, StatusLine } from '../components/ui';
 import { breadcrumb } from '../lib/crashLog';
 import { ActionSheet, type SheetAction } from '../components/ActionSheet';
 import { DragList } from '../components/DragList';
+import { alpha, coverTones } from '../lib/coverTint';
 import { LyricsCard } from '../components/LyricsCard';
 import { SongAbout } from '../components/SongAbout';
 import { SongPicker } from '../components/SongPicker';
@@ -269,7 +270,8 @@ export default function OnAirScreen() {
 
             {/* what the hosts said before this song (the pill folds it) */}
             {talkOpen && onMic.talk.length > 0 && (
-              <Glass radius={22} style={styles.talk} fill="rgba(20, 19, 19, 0.38)">
+              // glass tinted with the cover's colour (the lyrics card's shade), dark enough for white text
+              <Glass radius={22} style={styles.talk} fill={alpha(coverTones(palette).bg, 0.62)}>
                 <Text style={styles.talkHead}>
                   {onMic.label === 'News' ? '📰 NEWS' : onMic.label === 'Commercial' ? '📢 COMMERCIAL BREAK' : onMic.label === 'Goodbye' ? '👋 GOODBYE' : '🎙️ ON THE MIC'}
                 </Text>

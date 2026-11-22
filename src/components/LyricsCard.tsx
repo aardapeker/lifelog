@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Palette } from '../lib/albumColors';
+import { alpha, coverTones } from '../lib/coverTint';
 import { lyricsOf, type Lrc } from '../lib/songFacts';
 import { lineAt, parseLrc, type LyricLine } from '../lib/songText';
 import type { Track } from '../lib/spotify';
@@ -22,22 +23,10 @@ import { PressScale } from './motion';
 
 /* ── colours from the cover ── */
 
-const rgbOf = (c: string) => (c.match(/\d+(\.\d+)?/g) ?? ['80', '70', '90']).slice(0, 3).map(Number);
-/** a + (b − a)·t, as "rgb(…)" */
-function mix(a: string, b: string, t: number): string {
-  const x = rgbOf(a);
-  const y = rgbOf(b);
-  return `rgb(${x.map((v, i) => Math.round(v + (y[i] - v) * t)).join(', ')})`;
-}
-const alpha = (c: string, a: number) => `rgba(${rgbOf(c).join(', ')}, ${a})`;
-
-/** The card's colours: a deep, saturated version of the cover (like Spotify's), and a light tint for the lines. */
+/** The card is one flat colour (like Spotify's): the soft edges fade into exactly this colour, no darker bands. */
 function tones(p: Palette | null) {
-  const glow = p?.glow ?? 'rgb(150, 110, 140)';
-  const deep = p?.deep ?? 'rgb(40, 30, 40)';
-  // one flat colour (like Spotify's card): the soft edges fade into exactly this colour, no darker bands
-  const bg = mix(deep, glow, 0.4);
-  return { top: bg, bottom: bg, line: alpha(mix(glow, 'rgb(255, 255, 255)', 0.55), 0.9) };
+  const { bg, line } = coverTones(p);
+  return { top: bg, bottom: bg, line };
 }
 
 /**
