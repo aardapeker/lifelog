@@ -135,10 +135,13 @@ export function updateOnAir(title: string, station: string, artworkUrl?: string 
   } catch {}
 }
 
-/** What Android's lock screen really got from us (custom buttons like the heart), or null when off air. */
-export function lockScreenCheck(): string | null {
+/** What Android's lock screen really got from us (custom buttons like the heart), or why there is nothing to check. */
+export function lockScreenCheck(): string {
+  if (!keeper) return 'no show on right now: start one, then come back here';
+  const debug = (keeper as unknown as { lockScreenDebug?: () => string }).lockScreenDebug;
+  if (typeof debug !== 'function') return "this build doesn't have the lock screen patch";
   try {
-    return (keeper as unknown as { lockScreenDebug?: () => string } | null)?.lockScreenDebug?.() ?? null;
+    return debug.call(keeper);
   } catch (e) {
     return `check failed: ${e instanceof Error ? e.message : String(e)}`;
   }
