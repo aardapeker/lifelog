@@ -90,10 +90,40 @@ async function update(db: SQLiteDatabase, id: number, fields: Partial<Record<'st
   );
 }
 
+// ---------------------------------------------------------------- versions (like commits)
+
+export type Version = { id: number; project_id: number; script: string; label: string; created_at: number };
+
+/** Newest first. */
+export const listVersions = (db: SQLiteDatabase, id: number) =>
+  db.getAllAsync<Version>('SELECT * FROM studio_versions WHERE project_id = ? ORDER BY id DESC', id);
+
+/** Keeps a version, unless it's the same text as the last one kept. */
+async function keepVersion(db: SQLiteDatabase, id: number, script: string | null | undefined, label: string): Promise<void> {
+  if (!script?.trim()) return;
+  const last = await db.getFirstAsync<{ script: string }>('SELECT script FROM studio_versions WHERE project_id = ? ORDER BY id DESC LIMIT 1', id);
+  if (last?.script === script) return;
+  await db.runAsync('INSERT INTO studio_versions (project_id, script, label, created_at) VALUES (?, ?, ?, ?)', id, script, label, Date.now());
+}
+
+/** Before the AI (or a restore) changes the script: your typing since the last version becomes a version. */
+async function keepEdits(db: SQLiteDatabase, id: number): Promise<void> {
+  const p = await getProject(db, id);
+  const any = await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM studio_versions WHERE project_id = ?', id);
+  await keepVersion(db, id, p?.script, any?.n ? 'Your edits' : 'The script before');
+}
+
+/** Back to an old version. Nothing is lost: the script you had is kept first, so this can be undone too. */
+export async function restoreVersion(db: SQLiteDatabase, id: number, version: Version): Promise<void> {
+  await keepEdits(db, id);
+  await update(db, id, { script: version.script, status: 'ready' });
+  await keepVersion(db, id, version.script, `Back to: ${version.label}`);
+}
+
 /** Your edits to the script (from the editor). */
 export const saveScript = (db: SQLiteDatabase, id: number, script: string) => update(db, id, { script });
 
-export { fixNote, scenesOf, sceneMarkdown, spokenMinutes, WORDS_PER_MINUTE, type CheckItem, type Scene } from './studioScript';
+export { diffStats, diffWords, fixNote, scenesOf, sceneMarkdown, spokenMinutes, WORDS_PER_MINUTE, type CheckItem, type DiffPart, type Scene } from './studioScript';
 import { fixNote, parseCheck, scenesOf, sceneMarkdown, WORDS_PER_MINUTE, type CheckItem } from './studioScript';
 
 // ---------------------------------------------------------------- the AI work
@@ -230,7 +260,10 @@ export function writeScript(db: SQLiteDatabase, id: number): Promise<void> {
       thumbnail: (r.thumbnail ?? []).map(String).filter(Boolean).slice(0, 3),
       shorts: (r.shorts ?? []).filter((s) => s?.script?.trim()).map((s) => ({ title: s.title ?? 'Short', script: s.script! })).slice(0, 3),
     };
-    await update(db, id, { status: 'ready', step: null, script: sceneMarkdown(scenes), kit: JSON.stringify(kit) });
+    await keepEdits(db, id);
+    const script = sceneMarkdown(scenes);
+    await update(db, id, { status: 'ready', step: null, script, kit: JSON.stringify(kit) });
+    await keepVersion(db, id, script, p.script ? 'New script' : 'First script');
   });
 }
 
@@ -238,7 +271,7 @@ export function writeScript(db: SQLiteDatabase, id: number): Promise<void> {
  * Your note to the AI ("make scene 3 funnier", "shorter intro", "more drama when Hawking warns"):
  * it rewrites the script and keeps the scene format. Only the parts the note is about should change.
  */
-export function reviseScript(db: SQLiteDatabase, id: number, note: string): Promise<void> {
+export function reviseScript(db: SQLiteDatabase, id: number, note: string, label = `AI: ${note.trim().slice(0, 80)}`): Promise<void> {
   return job(db, id, async () => {
     const p = await getProject(db, id);
     if (!p?.script) return;
@@ -261,7 +294,9 @@ export function reviseScript(db: SQLiteDatabase, id: number, note: string): Prom
     });
     const script = reply.replace(/^```(?:markdown|md)?\s*|\s*```$/g, '').trim();
     if (!scenesOf(script).length) throw new Error("The rewrite didn't come back as a script. Try again?");
+    await keepEdits(db, id);
     await update(db, id, { status: 'ready', step: null, script });
+    await keepVersion(db, id, script, label);
   });
 }
 
@@ -316,7 +351,8 @@ export function factCheck(db: SQLiteDatabase, id: number): Promise<void> {
 }
 
 /** "Fix these": the rewrite gets the fact check's findings as its editor's note. */
-export const fixChecked = (db: SQLiteDatabase, id: number, items: CheckItem[]) => reviseScript(db, id, fixNote(items));
+export const fixChecked = (db: SQLiteDatabase, id: number, items: CheckItem[]) =>
+  reviseScript(db, id, fixNote(items), `AI: fact-check fixes (${items.length})`);
 
 // ---------------------------------------------------------------- ideas
 

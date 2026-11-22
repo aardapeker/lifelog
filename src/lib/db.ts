@@ -313,6 +313,18 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX IF NOT EXISTS listens_time ON listens (played_at);
   `,
+  // v14: Studio script versions: every AI rewrite (and your edits before it) is kept, to see what changed
+  // and to go back to any of them
+  `
+  CREATE TABLE IF NOT EXISTS studio_versions (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES studio_projects(id) ON DELETE CASCADE,
+    script     TEXT    NOT NULL,
+    label      TEXT    NOT NULL, -- what made it: "First script", "AI: make scene 3 funnier", "Your edits"
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS studio_versions_project ON studio_versions (project_id, id);
+  `,
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<void> {

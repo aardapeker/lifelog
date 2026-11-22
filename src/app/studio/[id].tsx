@@ -16,8 +16,12 @@ import {
   deleteProject,
   factCheck,
   fixChecked,
+  diffStats,
+  diffWords,
   getProject,
   isRunning,
+  listVersions,
+  restoreVersion,
   research,
   reviseScript,
   saveScript,
@@ -25,12 +29,14 @@ import {
   spokenMinutes,
   writeScript,
   type Check,
+  type DiffPart,
   type Project,
+  type Version,
 } from '../../lib/studio';
 import { colors, fonts, frost, inputColors, radius } from '../../lib/theme';
 import { useKeyboardHeight } from '../../lib/useKeyboardVisible';
 
-type Tab = 'script' | 'research' | 'kit';
+type Tab = 'script' | 'research' | 'kit' | 'changes';
 
 /** One documentary: its research, the script (edit by hand or by asking the AI) and the publish kit. */
 export default function StudioProjectScreen() {
@@ -155,6 +161,7 @@ export default function StudioProjectScreen() {
               <Chip label="Script" active={tab === 'script'} onPress={() => setTab('script')} />
               <Chip label={`Research · ${p.research.sources.length} sources`} active={tab === 'research'} onPress={() => setTab('research')} />
               {p.kit && <Chip label="Publish kit" active={tab === 'kit'} onPress={() => setTab('kit')} />}
+              {!!p.script && <Chip label="Changes" active={tab === 'changes'} onPress={() => setTab('changes')} />}
             </View>
           )}
 
@@ -233,6 +240,29 @@ export default function StudioProjectScreen() {
           )}
 
           {/* ── the publish kit ── */}
+          {/* ── every version of the script, what each step changed, and going back ── */}
+          {tab === 'changes' && (
+            <Changes
+              pid={pid}
+              script={script}
+              busy={busy}
+              stamp={p.updated_at}
+              onRestore={(v) =>
+                showAlert('Go back to this version?', `"${v.label}" becomes the script. The one you have now is kept in the list, so you can come back to it.`, [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Go back',
+                    onPress: async () => {
+                      await restoreVersion(db, pid, v);
+                      setScript(v.script);
+                      await load();
+                    },
+                  },
+                ])
+              }
+            />
+          )}
+
           {tab === 'kit' && p.kit && (
             <View style={{ gap: 14 }}>
               <KitCard title="Titles" items={p.kit.titles} />
@@ -282,6 +312,87 @@ function KitCard({ title, items }: { title: string; items: string[] }) {
         </Pressable>
       ))}
     </Glass>
+  );
+}
+
+/**
+ * The script's history, like commits: every AI rewrite, and your own edits before it, newest first. Tap one
+ * to see what that step changed (added words green, removed ones red and struck through); "Go back" makes an
+ * old version the script again (the current one is kept first, so going back can be undone too).
+ */
+function Changes({ pid, script, busy, stamp, onRestore }: { pid: number; script: string; busy: boolean; stamp: number; onRestore: (v: Version) => void }) {
+  const db = useSQLiteContext();
+  const [versions, setVersions] = useState<Version[] | null>(null);
+  const [open, setOpen] = useState<number | null>(null); // a version's id, or 0 for your current edits
+  useEffect(() => {
+    listVersions(db, pid).then(setVersions).catch(() => setVersions([]));
+  }, [db, pid, stamp]);
+  if (!versions) return null;
+  const edited = !!versions.length && versions[0].script !== script; // typing since the last version
+  const rows: { key: number; label: string; at: number | null; before: string; after: string; version: Version | null }[] = [
+    ...(edited ? [{ key: 0, label: 'Your edits (now)', at: null, before: versions[0].script, after: script, version: null }] : []),
+    ...versions.map((v, i) => ({ key: v.id, label: v.label, at: v.created_at, before: versions[i + 1]?.script ?? '', after: v.script, version: v })),
+  ];
+  if (!rows.length)
+    return (
+      <Glass radius={radius.lg} style={styles.card} fill={frost.backgroundColor}>
+        <Text style={styles.cardText}>No versions yet. From now on, every AI rewrite is kept here (and your edits before it), so you can see what changed and go back.</Text>
+      </Glass>
+    );
+  const current = edited ? null : versions[0]?.id; // the version that IS the script now
+  return (
+    <View style={{ gap: 10 }}>
+      {rows.map((r) => {
+        const isOpen = open === r.key;
+        const parts = isOpen ? diffWords(r.before, r.after) : null;
+        const st = parts ? diffStats(parts) : null;
+        return (
+          <Glass key={r.key} radius={radius.lg} style={styles.card} fill={frost.backgroundColor}>
+            <Pressable onPress={() => setOpen(isOpen ? null : r.key)} style={styles.versionHead} accessibilityLabel={`${r.label}: show what changed`}>
+              <View style={[styles.checkDot, { backgroundColor: r.key === current || r.key === 0 ? '#5BE0A0' : colors.muted }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cardText} numberOfLines={isOpen ? undefined : 1}>
+                  {r.label}
+                </Text>
+                <Text style={styles.hint}>
+                  {r.at ? new Date(r.at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'not kept as a version yet'}
+                  {r.key === current ? ' · the script now' : ''}
+                  {st ? ` · +${st.added} −${st.removed} words` : ''}
+                </Text>
+              </View>
+              <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color={colors.muted} />
+            </Pressable>
+            {parts && (r.before ? <Diff parts={parts} /> : <Text style={styles.hint}>The first version: nothing to compare it with.</Text>)}
+            {isOpen && r.version && r.key !== current && <PillButton label="Go back to this version" ghost disabled={busy} onPress={() => onRestore(r.version!)} />}
+          </Glass>
+        );
+      })}
+    </View>
+  );
+}
+
+/** A diff as text: long unchanged stretches are cut to their ends, so the changes stand out. */
+function Diff({ parts }: { parts: DiffPart[] }) {
+  if (!parts.some((p) => p.op !== 'same')) return <Text style={styles.hint}>No changes.</Text>;
+  const KEEP = 12; // words of context on each side of a change
+  return (
+    <Text style={styles.diff} selectable>
+      {parts.map((p, i) => {
+        if (p.op === 'add') return <Text key={i} style={styles.added}>{p.text}</Text>;
+        if (p.op === 'del') return <Text key={i} style={styles.removed}>{p.text}</Text>;
+        const words = p.text.match(/\S+\s*/g) ?? [];
+        if (words.length <= KEEP * 2 + 4) return <Text key={i}>{p.text}</Text>;
+        const head = i === 0 ? '' : words.slice(0, KEEP).join('');
+        const tail = i === parts.length - 1 ? '' : words.slice(-KEEP).join('');
+        return (
+          <Text key={i}>
+            {head}
+            <Text style={styles.hint}>{head ? ' … ' : '… '}</Text>
+            {tail ? `\n${tail}` : ''}
+          </Text>
+        );
+      })}
+    </Text>
   );
 }
 
@@ -351,6 +462,10 @@ const styles = StyleSheet.create({
   editor: { fontFamily: fonts.serif, fontSize: 17, lineHeight: 27, color: colors.text, minHeight: 300 },
   hint: { fontFamily: fonts.sansRegular, fontSize: 12, color: colors.muted },
   checkRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  versionHead: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  diff: { fontFamily: fonts.serif, fontSize: 15, lineHeight: 24, color: 'rgba(255,255,255,0.78)' },
+  added: { color: '#B8F5CF', backgroundColor: 'rgba(91, 224, 160, 0.22)' },
+  removed: { color: '#FFB4B4', backgroundColor: 'rgba(255, 90, 90, 0.18)', textDecorationLine: 'line-through' },
   checkDot: { width: 8, height: 8, borderRadius: 4, marginTop: 6 },
   noteHead: { fontFamily: fonts.sansBold, fontSize: 16, color: colors.text },
   noteText: { fontFamily: fonts.serif, fontSize: 15, lineHeight: 24, color: colors.text },
