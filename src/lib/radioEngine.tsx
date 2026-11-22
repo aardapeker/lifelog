@@ -67,6 +67,7 @@ const END_MARGIN_MS = 2500; // the latest a talk-over may start, and the heartbe
 // the song is stopped this close to its real end, on a timer (not the ~1 s heartbeat), so the last note
 // isn't cut but Spotify doesn't roll on into its own autoplay; covers Spotify's progress lag
 const STOP_BEFORE_END_MS = 700;
+const BED_DELAY_MS = 2000; // the music bed starts this long after the host does
 
 type Phase = 'pick' | 'building' | 'review' | 'onair' | 'done';
 
@@ -256,6 +257,17 @@ function useRadioEngine() {
     );
   }, []);
 
+  /**
+   * The music bed (and the weather) comes in 2 s after the host starts talking, like a DJ bringing the
+   * music up under the voice; not at all if the talk is already over, skipped or paused by then.
+   */
+  const talkOver = useRef(new WeakSet<Talking>()).current;
+  const bedUnder = (t: Talking, station: string) => {
+    waitMs(BED_DELAY_MS).then(() => {
+      if (talking.current === t && !talkOver.has(t) && live.current.speaking) bedIn(station);
+    });
+  };
+
   const shush = () => {
     talking.current?.stop();
     talking.current = null;
@@ -299,11 +311,11 @@ function useRadioEngine() {
         await withTimeout(pausePlayback(), 3000);
         const uri = await withTimeout(clips.current.get(s.slots.length) ?? Promise.resolve(null), 15000);
         if (!live.current.speaking) return;
-        if (uri) await bedIn(s.station.key); // the goodbye over the station's music bed
-        if (!live.current.speaking) return stopStationSounds();
         const t = uri ? playClip(uri, false, voiceVolume(s.slots.at(-1)?.facts?.gain)) : skipTalk();
         talking.current = t;
+        if (uri) bedUnder(t, s.station.key); // the goodbye over the station's music bed
         await t.done;
+        talkOver.add(t);
         await bedOut();
         live.current.speaking = false;
         setSpeaking(false);
@@ -376,13 +388,11 @@ function useRadioEngine() {
       // as loud as the song it leads into: after a loud record the voice isn't small, before a quiet one it isn't huge
       // in the silence between songs (never over one): the station's music bed under the hosts. A talk
       // over a song's ending has the song as its bed
-      if (uri && !overlap) {
-        await bedIn(s.station.key);
-        if (live.current.index !== i || !live.current.speaking) return stopStationSounds();
-      }
       const t = uri ? playClip(uri, overlap, voiceVolume(s.slots[i].facts?.gain)) : skipTalk();
       talking.current = t;
+      if (uri && !overlap) bedUnder(t, s.station.key);
       const finished = await t.done;
+      talkOver.add(t);
       await bedOut(); // gone before the next song starts: the two never play together
       if (finished) start();
     })();
