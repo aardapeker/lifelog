@@ -405,6 +405,7 @@ function useRadioEngine() {
   const endTimer = useRef<{ at: number; timer: ReturnType<typeof setTimeout> } | null>(null); // the precise stop at a song's end
   const ended = useRef(-1); // the last song whose end was handled
   const skipTo = useRef<((i: number) => void) | null>(null);
+  const timing = useRef({ checkedAt: 0, endsAt: 0 }); // go easy on Spotify's API: look often only near the end
   const startSong = useCallback(async (i: number) => {
     const s = live.current.show;
     if (!s) return;
@@ -415,16 +416,21 @@ function useRadioEngine() {
     // the rest of the show goes to Spotify as one queue: if Lifelog is in the background and
     // can't step in between songs, Spotify still plays OUR next song, not the album or autoplay
     const rest = s.slots.slice(i).map((x) => x.track.uri);
-    // on mobile data Spotify can take a while to buffer: look a few times over ~10 s
+    // on mobile data Spotify can take a while to buffer: while it holds OUR song, keep looking (~10 s).
+    // But when it isn't even on our song after ~3 s, it ignored the command (asleep, the phone's screen
+    // off): don't sit out the full 10 s in silence, wake it and ask again right away.
     const playing = async () => {
-      for (let k = 0; k < 5; k++) {
-        await waitMs(2000); // works in the background too
+      for (let k = 0; k < 6; k++) {
+        await waitMs(k ? 2000 : 1500); // works in the background too
         if (live.current.index !== i) return true;
         const p = await playbackState().catch(() => null);
-        if (p?.isPlaying && sameTrack(p.track, s.slots[i].track)) return true;
+        const ours = !!p?.track && sameTrack(p.track, s.slots[i].track);
+        if (ours && p?.isPlaying) return true;
+        if (!ours && k >= 1) return false;
       }
       return false;
     };
+    timing.current = { checkedAt: 0, endsAt: 0 }; // the last song's end is no clock for this one: look at once
     try {
       await playTracks(rest);
       if (await playing()) return setStatus({ kind: 'idle' });
@@ -453,7 +459,6 @@ function useRadioEngine() {
 
   /** Watches Spotify: when the song is about to end, the next one gets its intro. */
   const ticking = useRef(false);
-  const timing = useRef({ checkedAt: 0, endsAt: 0 }); // go easy on Spotify's API: look often only near the end
   const shownAt = useRef(0); // when the progress bar last moved on its own
   /** The progress bar: jump to a spot in the song (not while the hosts talk, the song isn't on yet). */
   const seek = useCallback(async (frac: number) => {
