@@ -174,16 +174,41 @@ type ApiTrack = {
  * before it don't have it, and "market=from_token" then made EVERY song unplayable ("Couldn't find those
  * songs on Spotify"). So: no country known → no market, songs looked up as before (reconnect to get it).
  */
-let market: Promise<string> | null = null;
-const marketParam = (): Promise<string> =>
+// Spotify's development-mode apps may leave the country out of /me even with the permission (Arda reconnected
+// and it was still missing), so the phone's own country is the fallback: its time zone (Europe/Istanbul → TR),
+// else the region in its language setting ("tr-TR"; "en-US" on a phone set to English says little, so last).
+const ZONES: Record<string, string> = {
+  'Europe/Istanbul': 'TR', 'Europe/London': 'GB', 'Europe/Berlin': 'DE', 'Europe/Paris': 'FR', 'Europe/Amsterdam': 'NL',
+  'Europe/Madrid': 'ES', 'Europe/Rome': 'IT', 'Europe/Athens': 'GR', 'Europe/Sofia': 'BG', 'Asia/Nicosia': 'CY',
+  'America/New_York': 'US', 'America/Chicago': 'US', 'America/Denver': 'US', 'America/Los_Angeles': 'US',
+};
+function phoneCountry(): string | null {
+  try {
+    const o = Intl.DateTimeFormat().resolvedOptions();
+    return ZONES[o.timeZone] ?? o.locale?.match(/-([A-Z]{2})\b/)?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+export type Market = { country: string | null; from: 'spotify' | 'phone' | null };
+let market: Promise<Market> | null = null;
+/** Which country's catalogue songs are looked up in, and where that came from. */
+export const spotifyMarket = (): Promise<Market> =>
   (market ??= api<{ country?: string }>('/me')
-    .then((me) => (me?.country && /^[A-Z]{2}$/.test(me.country) ? `market=${me.country}&` : ''))
-    .catch(() => {
+    .then((me): Market => {
+      if (me?.country && /^[A-Z]{2}$/.test(me.country)) return { country: me.country, from: 'spotify' };
+      const c = phoneCountry();
+      return { country: c, from: c ? 'phone' : null };
+    })
+    .catch((): Market => {
       market = null; // offline or a hiccup: ask again next time
-      return '';
+      const c = phoneCountry();
+      return { country: c, from: c ? 'phone' : null };
     }));
-/** Spotify knows your country (a login with the user-read-private permission). Settings shows a hint if not. */
-export const spotifyKnowsCountry = async () => (await marketParam()) !== '';
+const marketParam = async (): Promise<string> => {
+  const m = await spotifyMarket();
+  return m.country ? `market=${m.country}&` : '';
+};
 const playable = (t: ApiTrack | null | undefined): t is ApiTrack => !!t?.uri?.startsWith('spotify:track:') && t.is_playable !== false;
 const toTrack = (t: ApiTrack): Track => ({
   id: t.id,

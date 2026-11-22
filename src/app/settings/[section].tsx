@@ -24,7 +24,8 @@ import {
   spotifyName,
   testPlayback,
   likedAccess,
-  spotifyKnowsCountry,
+  spotifyMarket,
+  type Market,
 } from '../../lib/spotify';
 import { bannedSongs, getRadioPrefs, likedSongs, saveRadioPrefs, toggleLiked, unbanSong, type RadioPrefs, type SongRef } from '../../lib/songMemory';
 import { Chip, IconButton, InfoButton, PillButton, SectionTitle, StatusLine, type Status } from '../../components/ui';
@@ -683,7 +684,7 @@ function SpotifySection() {
   const db = useSQLiteContext();
   const [clientId, setClientId] = useState('');
   const [who, setWho] = useState<string | null>(null);
-  const [country, setCountry] = useState(true); // the login knows your country (older logins don't)
+  const [market, setMarket] = useState<Market | null>(null); // which country's catalogue songs come from
   const [status, run] = useStatus();
 
   useFocusEffect(
@@ -692,7 +693,7 @@ function SpotifySection() {
       spotifyConnected().then((on) => {
         if (!on) return setWho(null);
         spotifyName().then(setWho).catch(() => setWho('you'));
-        spotifyKnowsCountry().then(setCountry).catch(() => {});
+        spotifyMarket().then(setMarket).catch(() => {});
       });
     }, []),
   );
@@ -703,6 +704,7 @@ function SpotifySection() {
       if (!(await connectSpotify())) return 'Cancelled.';
       const name = await spotifyName();
       setWho(name);
+      spotifyMarket().then(setMarket).catch(() => {}); // the new login may know your country
       await setSetting(db, 'spotify.likedAccess', '1'); // a fresh login includes Liked Songs
       await setSetting(db, 'spotify.liked', '{}');
       // also open the direct line to the Spotify app now (Spotify asks once to allow it)
@@ -725,10 +727,11 @@ function SpotifySection() {
       {who ? (
         <>
           <Text style={styles.keyTitle}>Connected as {who}</Text>
-          {!country && (
+          {market && (
             <Text style={styles.hint}>
-              ⚠️ This login doesn't tell Lifelog your country, so the radio can't skip song versions that won't play there. Disconnect and connect
-              again once (Spotify will ask for one more permission).
+              {market.country
+                ? `Songs are looked up in Spotify's ${market.country} catalogue (${market.from === 'spotify' ? 'from your account' : "from your phone's time zone"}), so the radio skips versions that won't play there.`
+                : "⚠️ Lifelog doesn't know your country, so the radio can't skip song versions that won't play there."}
             </Text>
           )}
           <Text style={styles.hint}>Test plays one song the way the radio does and says what Spotify sees.</Text>
