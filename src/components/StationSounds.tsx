@@ -5,32 +5,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePreview } from '../radar/components/Preview';
 import { RemoteImage } from '../radar/components/RemoteImage';
 import { searchDeezer, trackTime, type DzTrack } from '../lib/deezer';
-import {
-  addBedPick,
-  BED_IDEAS,
-  bedPickUri,
-  bedPicks,
-  hearStationSound,
-  loadStationSoundsSetting,
-  makeStationSound,
-  removeBedPick,
-  setStationSoundsOn,
-  soundsOf,
-  stopStationSounds,
-  type BedPick,
-} from '../lib/stationSounds';
+import { addBedPick, BED_IDEAS, bedPickUri, bedPicks, loadStationSoundsSetting, removeBedPick, setStationSoundsOn, type BedPick } from '../lib/stationSounds';
 import type { Station } from '../lib/stations';
 import { colors, fonts, inputColors, radius } from '../lib/theme';
 import Ionicons from './Icon';
 import { Chip, IconButton, PillButton, StatusLine, type Status } from './ui';
 
 /**
- * The station page's "Station sounds": the sung jingle (made once with Lyria), the music beds under the
- * hosts (real instrumental tracks you pick from Deezer; a show uses one of them), and on/off for shows.
+ * The station page's "Music under the hosts": real instrumental tracks you pick from Deezer (a show uses
+ * one of them), and on/off for shows.
  */
 export function StationSounds({ station }: { station: Station }) {
   const db = useSQLiteContext();
-  const [have, setHave] = useState(() => soundsOf(station.key));
   const [picks, setPicks] = useState<BedPick[]>([]);
   const [on, setOn] = useState(true);
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
@@ -38,57 +24,29 @@ export function StationSounds({ station }: { station: Station }) {
   const pv = usePreview(`beds-${station.key}`);
 
   const reload = useCallback(() => {
-    setHave(soundsOf(station.key));
     bedPicks(db, station.key).then(setPicks).catch(() => {});
   }, [db, station.key]);
   useEffect(() => {
     reload();
     loadStationSoundsSetting(db).then(setOn).catch(() => {});
-    return () => stopStationSounds(); // leaving the page stops a sound you were hearing
   }, [db, reload]);
-
-  const makeJingle = async () => {
-    setStatus({ kind: 'ok', msg: 'Recording the jingle… (about 30 s)' });
-    try {
-      await makeStationSound(station, 'jingle');
-      setStatus({ kind: 'ok', msg: 'Done! Tap ▶ Jingle to hear it.' });
-    } catch (e) {
-      setStatus({ kind: 'err', msg: e instanceof Error ? e.message : String(e) });
-    }
-    reload();
-  };
-  const recording = status.kind === 'ok' && status.msg.startsWith('Recording');
 
   return (
     <View>
-      <Text style={styles.label}>Station sounds</Text>
-      <Text style={styles.hint}>
-        A sung jingle before the first talk (and every third one), and quiet music under the hosts while they talk. Only in the pauses
-        between songs, never over Spotify.
-      </Text>
-
-      {/* the jingle */}
-      <View style={styles.chips}>
-        {have.jingle && <Chip label="▶ Jingle" onPress={() => hearStationSound(station.key, 'jingle')} />}
-        <Chip
-          label={on ? 'On in shows' : 'Off in shows'}
-          active={on}
-          onPress={() => {
-            setOn(!on);
-            setStationSoundsOn(db, !on).catch(() => {});
-          }}
-        />
-      </View>
-      <PillButton
-        label={have.jingle ? 'New jingle (Lyria)' : 'Make the jingle (Lyria, a few cents)'}
-        ghost={have.jingle}
-        disabled={recording}
-        onPress={makeJingle}
-        style={{ alignSelf: 'flex-start', marginTop: 10 }}
-      />
-
-      {/* the music beds */}
-      <Text style={[styles.sub, { marginTop: 18 }]}>Music under the hosts</Text>
+      <Text style={styles.label}>Music under the hosts</Text>
+      <Text style={styles.hint}>Quiet instrumental music while the hosts talk. Only in the pauses between songs, never over Spotify.</Text>
+      {picks.length > 0 && (
+        <View style={styles.chips}>
+          <Chip
+            label={on ? 'On in shows' : 'Off in shows'}
+            active={on}
+            onPress={() => {
+              setOn(!on);
+              setStationSoundsOn(db, !on).catch(() => {});
+            }}
+          />
+        </View>
+      )}
       {picks.length ? (
         <View style={{ gap: 4, marginTop: 6 }}>
           {picks.map((p) => {
@@ -118,7 +76,7 @@ export function StationSounds({ station }: { station: Station }) {
           <Text style={styles.hint}>Each show uses one of these, a different one each time.</Text>
         </View>
       ) : (
-        <Text style={styles.hint}>{have.bed ? 'Using the music Lyria made. Pick real tracks from Deezer instead:' : 'None yet. Pick instrumental tracks from Deezer:'}</Text>
+        <Text style={styles.hint}>None yet. Pick instrumental tracks from Deezer:</Text>
       )}
       <PillButton label="＋ Pick from Deezer" ghost onPress={() => setPicking(true)} style={{ alignSelf: 'flex-start', marginTop: 10 }} />
       <StatusLine status={status} />
@@ -201,11 +159,12 @@ function BedPicker({ station, picked, onAdded, onClose }: { station: Station; pi
         style={styles.input}
         {...inputColors}
       />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.ideas}>
+      {/* wrapped, not a sideways scroll: in the sheet's column that scroll got squashed and hid the words */}
+      <View style={styles.ideas}>
         {ideas.map((i) => (
           <Chip key={i} label={i} active={q === i} onPress={() => search(i)} />
         ))}
-      </ScrollView>
+      </View>
       <Text style={styles.hint}>Pick tracks without singing: the hosts talk over them. Tap one to hear 30 seconds.</Text>
       {err && <Text style={styles.err}>{err}</Text>}
       {busy && <ActivityIndicator color={colors.text} style={{ marginTop: 16 }} />}
@@ -259,5 +218,5 @@ const styles = StyleSheet.create({
   sheetHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   sheetTitle: { flex: 1, textAlign: 'center', fontFamily: fonts.sans, fontSize: 16, color: colors.text },
   input: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: radius.sm, backgroundColor: colors.raised, color: colors.text, fontFamily: fonts.sansRegular, fontSize: 15 },
-  ideas: { gap: 8, paddingVertical: 10 },
+  ideas: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 10 },
 });

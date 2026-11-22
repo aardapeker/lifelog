@@ -9,7 +9,7 @@ import { AppState } from 'react-native';
 import type { Status } from '../components/ui';
 import { albumColors, type Palette } from './albumColors';
 import { getSetting, setSetting } from './db';
-import { bedIn, bedOut, playJingle, prepareStationSounds, stopStationSounds } from './stationSounds';
+import { bedIn, bedOut, prepareStationSounds, stopStationSounds } from './stationSounds';
 import { goOffAir, goOnAir, onBeat, onRemote, setOnAirLiked, setOnAirPlaying, updateOnAir, waitMs } from './onAir';
 import { buildShow, castOf, requestTalks, speakIn, type Show } from './radio';
 import { countShow } from './achievements';
@@ -374,11 +374,9 @@ function useRadioEngine() {
       if (live.current.index !== i || !live.current.speaking) return; // skipped or paused while it was loading
       if (!uri && !retried.current.has(i)) setStatus({ kind: 'err', msg: "⏳ This talk wasn't ready in time, so the hosts skip it. The music goes on." });
       // as loud as the song it leads into: after a loud record the voice isn't small, before a quiet one it isn't huge
-      // in the silence between songs (never over one): the station's jingle before the first talk and every
-      // third one, then its music bed under the hosts. A talk over a song's ending has the song as its bed
+      // in the silence between songs (never over one): the station's music bed under the hosts. A talk
+      // over a song's ending has the song as its bed
       if (uri && !overlap) {
-        if (i % 3 === 0) await playJingle(s.station.key);
-        if (live.current.index !== i || !live.current.speaking) return;
         await bedIn(s.station.key);
         if (live.current.index !== i || !live.current.speaking) return stopStationSounds();
       }
