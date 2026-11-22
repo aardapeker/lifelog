@@ -66,8 +66,11 @@ export function GlowingCover({ uri, glow, live, talking }: { uri: string; glow: 
   const scale = breath.interpolate({ inputRange: [0.5, 1], outputRange: [0.97, 1.02] });
   return (
     <View style={styles.coverWrap}>
+      {/* drawn once into a texture: the breathing only fades and scales that picture. Without it the big soft
+          shadow was blurred again on every frame, the whole time a show was on screen */}
       <Animated.View
         pointerEvents="none"
+        renderToHardwareTextureAndroid
         style={[
           StyleSheet.absoluteFill,
           styles.halo,
@@ -161,7 +164,9 @@ export function CoverCloud({ uri, moving }: { uri: string; moving: boolean }) {
   return (
     <View style={[StyleSheet.absoluteFill, cloud.wrap]} pointerEvents="none">
       <FadeIn key={uri} from={0} style={[cloud.center, { width: size, height: size }]}>
+        {/* a texture, turned and zoomed as a whole: the stretched cover isn't redrawn on every frame */}
         <Animated.View
+          renderToHardwareTextureAndroid
           style={{
             width: size,
             height: size,
