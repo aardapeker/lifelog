@@ -30,6 +30,7 @@ const SCOPES = [
   'user-top-read',
   'playlist-modify-private',
   'user-library-read', // your Liked Songs, as favourites for the radio
+  'user-read-private', // your country: songs are looked up in the catalogue you can actually play
 ];
 const CLIENT_KEY = 'spotify.clientId';
 const TOKENS_KEY = 'spotify.tokens';
@@ -88,6 +89,7 @@ export const spotifyConnected = async () => !!(await loadTokens());
 
 export async function disconnectSpotify(): Promise<void> {
   tokenCache = null;
+  market = null;
   await SecureStore.deleteItemAsync(TOKENS_KEY);
 }
 
@@ -109,6 +111,7 @@ export async function connectSpotify(): Promise<boolean> {
     discovery,
   );
   await saveTokens(tokens);
+  market = null; // a new login may know your country now
   return true;
 }
 
@@ -164,12 +167,23 @@ type ApiTrack = {
   is_playable?: boolean;
 };
 /**
- * Every song lookup asks for YOUR country's catalogue (market=from_token): Spotify then hands back the
- * version you can play (another release of the same song, if needed) and marks the rest unplayable.
- * Without it, a song like James Blunt's "I'll Be Your Man" came back in a version that won't play in
- * Turkey: Lifelog said it was on, Spotify stayed silent ("Spotify didn't start the song").
+ * Every song lookup asks for YOUR country's catalogue (market=TR): Spotify then hands back the version you
+ * can play (another release of the same song, if needed) and marks the rest unplayable. Without it, James
+ * Blunt's "I'll Be Your Man" came back in a version that won't play in Turkey ("Spotify didn't start the song").
+ * The country comes from your Spotify account, which needs the user-read-private permission: logins from
+ * before it don't have it, and "market=from_token" then made EVERY song unplayable ("Couldn't find those
+ * songs on Spotify"). So: no country known → no market, songs looked up as before (reconnect to get it).
  */
-const MARKET = 'market=from_token';
+let market: Promise<string> | null = null;
+const marketParam = (): Promise<string> =>
+  (market ??= api<{ country?: string }>('/me')
+    .then((me) => (me?.country && /^[A-Z]{2}$/.test(me.country) ? `market=${me.country}&` : ''))
+    .catch(() => {
+      market = null; // offline or a hiccup: ask again next time
+      return '';
+    }));
+/** Spotify knows your country (a login with the user-read-private permission). Settings shows a hint if not. */
+export const spotifyKnowsCountry = async () => (await marketParam()) !== '';
 const playable = (t: ApiTrack | null | undefined): t is ApiTrack => !!t?.uri?.startsWith('spotify:track:') && t.is_playable !== false;
 const toTrack = (t: ApiTrack): Track => ({
   id: t.id,
@@ -188,7 +202,7 @@ export async function spotifyName(): Promise<string> {
 export async function findTrack(title: string, artist = ''): Promise<Track | null> {
   const exact = artist ? `track:${title} artist:${artist}` : title;
   for (const q of [exact, `${title} ${artist}`.trim()]) {
-    const res = await api<{ tracks: { items: ApiTrack[] } }>(`/search?type=track&limit=5&${MARKET}&q=${encodeURIComponent(q)}`);
+    const res = await api<{ tracks: { items: ApiTrack[] } }>(`/search?type=track&limit=5&${await marketParam()}q=${encodeURIComponent(q)}`);
     const t = res?.tracks.items.find(playable); // the best match you can actually play
     if (t) return toTrack(t);
   }
@@ -207,19 +221,19 @@ export async function searchTracks(query: string): Promise<Track[]> {
     const t = await getTrack(link[1]);
     return t ? [t] : [];
   }
-  const res = await api<{ tracks: { items: ApiTrack[] } }>(`/search?type=track&limit=10&${MARKET}&q=${encodeURIComponent(q)}`);
+  const res = await api<{ tracks: { items: ApiTrack[] } }>(`/search?type=track&limit=10&${await marketParam()}q=${encodeURIComponent(q)}`);
   return (res?.tracks.items ?? []).filter(playable).map(toTrack);
 }
 
 export async function getTrack(id: string): Promise<Track | null> {
-  const t = await api<ApiTrack>(`/tracks/${encodeURIComponent(id)}?${MARKET}`);
+  const t = await api<ApiTrack>(`/tracks/${encodeURIComponent(id)}?${await marketParam()}`);
   return t ? toTrack(t) : null;
 }
 
 /** Can this song be played in your country? null when Spotify couldn't be asked. */
 export async function isPlayable(id: string): Promise<boolean | null> {
   try {
-    const t = await api<ApiTrack>(`/tracks/${encodeURIComponent(id)}?${MARKET}`);
+    const t = await api<ApiTrack>(`/tracks/${encodeURIComponent(id)}?${await marketParam()}`);
     return t ? t.is_playable !== false : null;
   } catch {
     return null;
@@ -508,7 +522,7 @@ export async function spotifyLikedSongs(db: SQLiteDatabase): Promise<Track[]> {
     if (cached.day === today && cached.songs) return cached.songs;
     const songs: Track[] = [];
     for (let offset = 0; offset < 200; offset += 50) {
-      const page = await api<{ items: { track: ApiTrack | null }[]; next: string | null }>(`/me/tracks?limit=50&offset=${offset}&${MARKET}`);
+      const page = await api<{ items: { track: ApiTrack | null }[]; next: string | null }>(`/me/tracks?${await marketParam()}limit=50&offset=${offset}`);
       for (const it of page?.items ?? []) if (playable(it.track)) songs.push(toTrack(it.track));
       if (!page?.next) break;
     }

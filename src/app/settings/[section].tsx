@@ -24,6 +24,7 @@ import {
   spotifyName,
   testPlayback,
   likedAccess,
+  spotifyKnowsCountry,
 } from '../../lib/spotify';
 import { bannedSongs, getRadioPrefs, likedSongs, saveRadioPrefs, toggleLiked, unbanSong, type RadioPrefs, type SongRef } from '../../lib/songMemory';
 import { Chip, IconButton, InfoButton, PillButton, SectionTitle, StatusLine, type Status } from '../../components/ui';
@@ -682,12 +683,17 @@ function SpotifySection() {
   const db = useSQLiteContext();
   const [clientId, setClientId] = useState('');
   const [who, setWho] = useState<string | null>(null);
+  const [country, setCountry] = useState(true); // the login knows your country (older logins don't)
   const [status, run] = useStatus();
 
   useFocusEffect(
     useCallback(() => {
       getSpotifyClientId().then((id) => setClientId(id ?? ''));
-      spotifyConnected().then((on) => (on ? spotifyName().then(setWho).catch(() => setWho('you')) : setWho(null)));
+      spotifyConnected().then((on) => {
+        if (!on) return setWho(null);
+        spotifyName().then(setWho).catch(() => setWho('you'));
+        spotifyKnowsCountry().then(setCountry).catch(() => {});
+      });
     }, []),
   );
 
@@ -719,6 +725,12 @@ function SpotifySection() {
       {who ? (
         <>
           <Text style={styles.keyTitle}>Connected as {who}</Text>
+          {!country && (
+            <Text style={styles.hint}>
+              ⚠️ This login doesn't tell Lifelog your country, so the radio can't skip song versions that won't play there. Disconnect and connect
+              again once (Spotify will ask for one more permission).
+            </Text>
+          )}
           <Text style={styles.hint}>Test plays one song the way the radio does and says what Spotify sees.</Text>
           <View style={styles.row}>
             <PillButton label="Test playback" onPress={() => run(testPlayback)} />
