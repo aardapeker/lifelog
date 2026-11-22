@@ -35,9 +35,9 @@ const alpha = (c: string, a: number) => `rgba(${rgbOf(c).join(', ')}, ${a})`;
 function tones(p: Palette | null) {
   const glow = p?.glow ?? 'rgb(150, 110, 140)';
   const deep = p?.deep ?? 'rgb(40, 30, 40)';
-  const top = mix(deep, glow, 0.25);
-  const bottom = mix(deep, glow, 0.5);
-  return { top, bottom, line: alpha(mix(glow, 'rgb(255, 255, 255)', 0.55), 0.9) };
+  // one flat colour (like Spotify's card): the soft edges fade into exactly this colour, no darker bands
+  const bg = mix(deep, glow, 0.4);
+  return { top: bg, bottom: bg, line: alpha(mix(glow, 'rgb(255, 255, 255)', 0.55), 0.9) };
 }
 
 /**
@@ -248,7 +248,9 @@ function FullLyrics({
         <Lines lines={lines} at={at} tint={t.line} height={h} fade={t.bottom} fadeTop={t.top} onSeek={onLine} big scrollable />
       </View>
       <View style={[styles.fullFoot, { paddingBottom: insets.bottom + 16 }]}>
-        <SeekBar progress={progress} durationMs={track.durationMs} seed={track.id} onSeek={onSeek} />
+        <View style={{ alignSelf: 'stretch' }}>
+          <SeekBar progress={progress} durationMs={track.durationMs} seed={track.id} onSeek={onSeek} />
+        </View>
         <PressScale onPress={onTogglePause} scaleTo={0.9} style={styles.play} accessibilityLabel={paused ? 'Play' : 'Pause'}>
           <Ionicons name={paused ? 'play' : 'pause'} size={30} color="#111" />
         </PressScale>
