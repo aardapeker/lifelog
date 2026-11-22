@@ -190,14 +190,16 @@ function Mark({ skin, lit, size = 9 }: { skin: Skin; lit: boolean; size?: number
     skin.marker === 'diamond' || skin.marker === 'square'
       ? { width: size * 0.8, height: size * 0.8, transform: [{ rotate: '45deg' }] }
       : skin.marker === 'bar' || skin.marker === 'cursor'
-        ? { width: size * 0.6, height: size * 2, borderRadius: skin.marker === 'bar' ? 1 : 0 }
+        ? { width: Math.max(2, size * 0.45), height: size * 1.4, borderRadius: skin.marker === 'bar' ? 1 : 0 }
         : { width: size, height: size, borderRadius: size / 2 };
-  return <View style={[shape, { backgroundColor: color, borderWidth: 1.5, borderColor: skin.panel }, skin.glow ? { boxShadow: `0 0 6px ${color}` } : null]} />;
+  return <View style={[shape, { backgroundColor: color }, skin.glow ? { boxShadow: `0 0 6px ${color}` } : null]} />;
 }
 
 /**
- * The show as a cassette strip. Blocks are as long as their songs; a talk sits on the line between two
- * songs (laid out by hand, so twenty songs still fit on a phone).
+ * The show as a cassette strip. Blocks are as long as their songs; each talk is a small mark in a lane
+ * above the gap before its song, like the ticks on a tape counter (laid out by hand). They used to sit on
+ * the blocks, and with twenty songs the strip turned into a string of beads. The marks shrink a little
+ * when the songs are many.
  */
 export function ShowTape({
   skin,
@@ -225,6 +227,7 @@ export function ShowTape({
     x += (Math.max(1, s.track.durationMs || 0) / total) * usable + GAP;
   }
   const width = (i: number) => (Math.max(1, show.slots[i].track.durationMs || 0) / total) * usable;
+  const markSize = Math.round(Math.max(5, Math.min(9, (usable / Math.max(1, n)) * 0.3)));
   const { at, total: length } = tapeTimes(show, Math.min(index, n), index >= n ? 0 : progress);
   const head = [styles.tapeHead, { color: skin.said, fontFamily: skin.promptFont.startsWith('JetBrains') ? skin.promptFont : 'Inter_600SemiBold' }];
   return (
@@ -265,13 +268,13 @@ export function ShowTape({
                 accessibilityLabel={`Hear the talk before ${s.track.name}`}
                 style={[styles.mark, { left: xs[i] - GAP / 2 - 12 }]}
               >
-                <Mark skin={skin} lit={speaking && i === index} />
+                <Mark skin={skin} lit={speaking && i === index} size={markSize} />
               </Pressable>
             ) : null,
           )}
         {w > 0 && show.outro.length > 0 && (
           <View style={[styles.mark, { left: w - 12 }]} accessibilityLabel="The goodbye">
-            <Mark skin={skin} lit={index >= n} />
+            <Mark skin={skin} lit={index >= n} size={markSize} />
           </View>
         )}
       </View>
@@ -295,7 +298,8 @@ const styles = StyleSheet.create({
   tape: { paddingHorizontal: 14, paddingTop: 10, paddingBottom: 14, marginTop: 18 },
   tapeTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
   tapeHead: { fontSize: 11, letterSpacing: 1 },
-  strip: { height: 22, marginTop: 10 },
-  block: { position: 'absolute', top: 1, height: 20, overflow: 'hidden' },
-  mark: { position: 'absolute', top: -1, width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
+  strip: { height: 34, marginTop: 8 },
+  // the talks' lane (top 14 px), then the songs
+  block: { position: 'absolute', top: 16, height: 18, overflow: 'hidden' },
+  mark: { position: 'absolute', top: -5, width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
 });
