@@ -10,7 +10,7 @@ import type { Status } from '../components/ui';
 import { albumColors, type Palette } from './albumColors';
 import { getSetting, setSetting } from './db';
 import { goOffAir, goOnAir, onBeat, onRemote, setOnAirLiked, setOnAirPlaying, updateOnAir, waitMs } from './onAir';
-import { buildShow, castOf, requestTalks, type Show } from './radio';
+import { buildShow, castOf, requestTalks, speakIn, type Show } from './radio';
 import { countShow } from './achievements';
 import {
   nudgeSpotify,
@@ -121,7 +121,7 @@ function useRadioEngine() {
                   : `Hey! I'm ${p.name}, and you're listening to ${station.name} ${station.freq}.`,
             },
           ],
-          [{ name: p.name, voice, style: p.style }],
+          [{ name: p.name, voice, style: p.style + speakIn(station.lang === 'tr' ? 'tr' : 'en') }],
         );
         uri = keepSample(made, saved);
       }
@@ -236,7 +236,7 @@ function useRadioEngine() {
     }
     clips.current.set(
       i,
-      synthesize(lines, castOf(s.station, s.guest, s.regular))
+      synthesize(lines, castOf(s.station, s.lang, s.guest, s.regular))
         .then((uri) => (saved && liveId.current === id ? keepSample(uri, saved) : uri))
         .catch((e) => {
         // say why the hosts went quiet, instead of failing silently (no robot voice: the talk is skipped)

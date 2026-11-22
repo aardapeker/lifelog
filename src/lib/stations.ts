@@ -93,7 +93,7 @@ export const STATIONS: Station[] = [
       name: 'Rico',
       gender: 'male',
       voice: 'Algieba', // Arda's pick
-      style: 'a sarcastic, deadpan comedian sidekick, dry and unimpressed, mumbling the punchlines',
+      style: 'a sarcastic, deadpan comedian sidekick, dry and unimpressed, landing the punchlines slowly and clearly',
       bio: "Candy's co-host, a broke comedian who mocks everything, especially the listener's life choices",
     },
     regulars: [

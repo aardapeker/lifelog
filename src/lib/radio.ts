@@ -537,12 +537,22 @@ export async function buildShow(
   };
 }
 
-/** The voices a show needs, for the speech engine. */
+/**
+ * The voice direction for the language they speak. Gemini guesses the language from the text, and with
+ * an English style ("a deadpan comedian…") some voices read Turkish with an English accent (Rico did):
+ * so a Turkish show says so, plainly.
+ */
+export const speakIn = (lang: string): string =>
+  lang.toLowerCase().startsWith('tr')
+    ? ', speaking natural native Turkish (İstanbul Turkish) with Turkish pronunciation, vowels and stress, never with an English accent; only English names and song titles keep their own pronunciation'
+    : '';
+
+/** The voices a show needs, for the speech engine. `lang`: the show's language (tr-TR, en-US). */
 // `phone`: callers and live reports sound like a phone line
-export const castOf = (station: Station, ...visitors: (Persona | undefined)[]) =>
+export const castOf = (station: Station, lang: string, ...visitors: (Persona | undefined)[]) =>
   [station.host, station.sidekick, ...visitors]
     .filter((p): p is Persona => !!p)
-    .map((p) => ({ name: p.name, voice: p.voice, style: p.style, phone: p.via === 'phone' || p.via === 'live' }));
+    .map((p) => ({ name: p.name, voice: p.voice, style: p.style + speakIn(lang), phone: p.via === 'phone' || p.via === 'live' }));
 
 /**
  * A live request during the show: the hosts' short dedication before the requested song, and the talk
