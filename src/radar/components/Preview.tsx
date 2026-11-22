@@ -45,7 +45,8 @@ export function stopPreview(): void {
   if (state.key) set({ key: null, progress: 0 });
 }
 
-export async function playPreview(key: string, url: string): Promise<void> {
+/** `rate` under 1 plays it slowed, the pitch dropping along (the radio's "Slowed" music beds). */
+export async function playPreview(key: string, url: string, rate = 1): Promise<void> {
   const mine = ++tap;
   wanted = key;
   release();
@@ -54,6 +55,10 @@ export async function playPreview(key: string, url: string): Promise<void> {
   const p = createAudioPlayer(url);
   player = p;
   set({ key, progress: 0 });
+  if (rate !== 1) {
+    p.shouldCorrectPitch = false;
+    p.setPlaybackRate(rate);
+  }
   p.addListener('playbackStatusUpdate', (s) => {
     if (player !== p) return;
     if (s.didJustFinish) return stopPreview();
@@ -83,10 +88,10 @@ export function usePreview(owner: string) {
   return {
     playing: s.key,
     progress: s.progress,
-    toggle: (key: string, url: string | null) => {
+    toggle: (key: string, url: string | null, rate = 1) => {
       const k = `${owner}:${key}`;
       if (state.key === k || wanted === k) stopPreview();
-      else if (url) playPreview(k, url);
+      else if (url) playPreview(k, url, rate);
     },
     /** For lists without preview links yet (the radio's playlist): look it up on the first tap. */
     toggleFind: async (key: string, find: () => Promise<string | null>) => {

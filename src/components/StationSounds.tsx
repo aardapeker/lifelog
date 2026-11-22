@@ -58,7 +58,7 @@ export function StationSounds({ station }: { station: Station }) {
             return (
               <View key={p.id} style={styles.row}>
                 <Pressable
-                  onPress={() => pv.toggle(String(p.id), bedPickUri(station.key, p.id))}
+                  onPress={() => pv.toggle(String(p.id), bedPickUri(station.key, p.id), rate)}
                   style={styles.rowMain}
                   accessibilityLabel={`${playing ? 'Stop' : 'Hear'} ${p.title}`}
                 >
@@ -92,7 +92,7 @@ export function StationSounds({ station }: { station: Station }) {
               />
             ))}
           </View>
-          <Text style={styles.hint}>Slowed plays the music slower and deeper, like the "slowed + reverb" edits (in shows; the ▶ here plays it normally).</Text>
+          <Text style={styles.hint}>Slowed plays the music slower and deeper, like the "slowed + reverb" edits. The ▶ above plays it at this speed.</Text>
         </View>
       ) : (
         <Text style={styles.hint}>None yet. Pick instrumental tracks from Deezer:</Text>
