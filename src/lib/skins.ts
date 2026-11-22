@@ -41,6 +41,8 @@ export type Skin = {
   hard?: boolean;
   /** night shift: a CRT's scan lines over the panels */
   scan?: boolean;
+  /** something behind the whole player (Neon FM: the synthwave sun over a grid floor) */
+  backdrop?: 'sunset';
   marker: Marker;
   /** the tape's song blocks: played, still to come */
   played: string;
@@ -118,6 +120,7 @@ export const SKINS: Record<string, Skin> = {
     promptSize: 14,
     radius: 10,
     glow: '#FF2FD0',
+    backdrop: 'sunset',
     marker: 'bar',
     played: '#7B5CFF',
     todo: 'rgba(123, 92, 255, 0.32)',

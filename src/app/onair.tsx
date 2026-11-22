@@ -12,7 +12,7 @@ import { IconButton, PillButton, StatusLine } from '../components/ui';
 import { breadcrumb } from '../lib/crashLog';
 import { ActionSheet, type SheetAction } from '../components/ActionSheet';
 import { DragList } from '../components/DragList';
-import { Booth, ShowTape } from '../components/booth';
+import { Booth, ShowTape, StationBackdrop } from '../components/booth';
 import { ProgressLine } from '../components/ProgressLine';
 import { skinOf } from '../lib/skins';
 import { useLateFonts } from '../lib/lateFonts';
@@ -76,6 +76,8 @@ export default function OnAirScreen() {
       {/* on air: the cover as a slowly turning colour cloud; still while paused, during talks, and when the
           top bar frosts over it (a moving picture under a live blur would make the blur redo every frame) */}
       {phase === 'onair' && current?.track.image && <CoverCloud uri={current.track.image} moving={!paused && !speaking && !scrolled} />}
+      {/* the station's own backdrop over the cloud (Neon FM's synthwave sun), still, behind everything else */}
+      {(phase === 'onair' || phase === 'done') && <StationBackdrop skin={skin} top={insets.top + 64} />}
       {phase === 'onair' && <KeepAwake />}
       <ActionSheet visible={menu} title={show ? showName(show) : 'The show'} actions={actions} onClose={() => setMenu(false)} />
       <SongPicker
