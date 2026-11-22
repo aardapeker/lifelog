@@ -1,12 +1,16 @@
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
-index 6c81fce..1eb1122 100644
+index 6c81fce..1cba178 100644
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
-@@ -1105,6 +1105,13 @@ class AudioModule : Module() {
+@@ -1105,6 +1105,17 @@ class AudioModule : Module() {
          }
        }
  
 +      // Lifelog patch
++      Function("lockScreenDebug") { ref: AudioPlaylist ->
++        ref.lockScreenDebug()
++      }
++
 +      Function("setLockScreenLiked") { ref: AudioPlaylist, liked: Boolean ->
 +        runOnMain {
 +          ref.setLockScreenLiked(liked)
@@ -48,10 +52,10 @@ index b6b3b73..548b7b6 100644
  
  enum class InterruptionMode(val value: String) : Enumerable {
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/LockScreenPlayable.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/LockScreenPlayable.kt
-index 7ac4a57..06a761c 100644
+index 7ac4a57..901071e 100644
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/LockScreenPlayable.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/LockScreenPlayable.kt
-@@ -54,6 +54,16 @@ interface LockScreenPlayable : Playable {
+@@ -54,6 +54,20 @@ interface LockScreenPlayable : Playable {
      }
    }
  
@@ -65,11 +69,15 @@ index 7ac4a57..06a761c 100644
 +  // Lifelog patch: the lock screen's heart was tapped
 +  fun onLockScreenLike() = Unit
 +
++  // Lifelog patch: what the lock screen received, for a diagnostic line
++  fun lockScreenDebug(): String =
++    serviceConnection.playbackServiceBinder?.service?.lockScreenDebug() ?: "lock-screen service not bound"
++
    fun updateLockScreenMetadata(metadata: Metadata) {
      if (isActiveForLockScreen) {
        this.metadata = metadata
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
-index 53c36f7..48df762 100644
+index 53c36f7..cb17f94 100644
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
 @@ -94,6 +94,7 @@ class AudioControlsService : MediaSessionService() {
@@ -99,7 +107,7 @@ index 53c36f7..48df762 100644
      session.setCustomLayout(mediaButtons)
      session.setMediaButtonPreferences(mediaButtons)
    }
-@@ -568,6 +581,19 @@ class AudioControlsService : MediaSessionService() {
+@@ -568,6 +581,31 @@ class AudioControlsService : MediaSessionService() {
      }
    }
  
@@ -116,10 +124,22 @@ index 53c36f7..48df762 100644
 +    currentPlayable?.onLockScreenLike()
 +  }
 +
++  // Lifelog patch: what Android's lock screen really received (custom buttons), shown in the app's settings
++  fun lockScreenDebug(): String {
++    val session = mediaSession ?: return "no lock-screen session"
++    return try {
++      val state = android.media.session.MediaController(this, session.platformToken).playbackState
++      val custom = state?.customActions?.joinToString(", ") { it.action.substringAfterLast('.') } ?: "none"
++      "showLike=${currentOptions?.showLike} liked=$liked android custom buttons=[$custom]"
++    } catch (e: Exception) {
++      "check failed: ${e.message}"
++    }
++  }
++
    fun seekBackward() {
      currentPlayable?.player?.let { player ->
        val intervalMs = seekIntervalMs(currentOptions?.seekBackwardIntervalSeconds)
-@@ -693,5 +719,6 @@ class AudioControlsService : MediaSessionService() {
+@@ -693,5 +731,6 @@ class AudioControlsService : MediaSessionService() {
      const val ACTION_SEEK_BACKWARD = "expo.modules.audio.action.SEEK_BACKWARD"
      const val ACTION_NEXT_TRACK = "expo.modules.audio.action.NEXT_TRACK"
      const val ACTION_PREVIOUS_TRACK = "expo.modules.audio.action.PREVIOUS_TRACK"

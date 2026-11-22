@@ -28,6 +28,7 @@ import {
 import { bannedSongs, getRadioPrefs, likedSongs, saveRadioPrefs, toggleLiked, unbanSong, type RadioPrefs, type SongRef } from '../../lib/songMemory';
 import { Chip, IconButton, InfoButton, PillButton, SectionTitle, StatusLine, type Status } from '../../components/ui';
 import { historySummary, importSpotifyHistory } from '../../lib/listening';
+import { lockScreenCheck } from '../../lib/onAir';
 import { UsageSection } from '../../components/UsageSection';
 import { IconTile } from '../../components/IconTile';
 import { requestPinWidget } from 'react-native-android-widget';
@@ -784,10 +785,12 @@ function RadioSection() {
   const [access, setAccess] = useState(true);
   const [history, setHistory] = useState<{ plays: number; since: number | null } | null>(null);
   const [importing, setImporting] = useState<Status>({ kind: 'idle' });
+  const [lockCheck, setLockCheck] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       historySummary(db).then(setHistory).catch(() => {});
+      setLockCheck(lockScreenCheck());
       getRadioPrefs(db).then(setP);
       bannedSongs(db).then(setBans);
       likedSongs(db).then(setHearts);
@@ -878,6 +881,7 @@ function RadioSection() {
         }}
       />
       <StatusLine status={importing} />
+      {lockCheck && <Text style={styles.hint}>Lock screen check (while a show is on): {lockCheck}</Text>}
       <SongList
         title="Hearted"
         icon="heart"

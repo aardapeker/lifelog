@@ -135,6 +135,15 @@ export function updateOnAir(title: string, station: string, artworkUrl?: string 
   } catch {}
 }
 
+/** What Android's lock screen really got from us (custom buttons like the heart), or null when off air. */
+export function lockScreenCheck(): string | null {
+  try {
+    return (keeper as unknown as { lockScreenDebug?: () => string } | null)?.lockScreenDebug?.() ?? null;
+  } catch (e) {
+    return `check failed: ${e instanceof Error ? e.message : String(e)}`;
+  }
+}
+
 /** Fills or empties the lock screen's heart for the song that's on. */
 export function setOnAirLiked(liked: boolean): void {
   try {
