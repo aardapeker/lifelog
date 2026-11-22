@@ -21,12 +21,17 @@ export const pickMusician = (hits: Raw[]): Raw | null => hits.find((h) => MUSICA
 /** Turkish citizen or a band from Turkey (Q43): read their Turkish Wikipedia page first. */
 export const isTurkish = (entity: Raw) => ['P27', 'P495'].some((p) => (entity?.claims?.[p] ?? []).some((c: Raw) => c.mainsnak?.datavalue?.value?.id === 'Q43'));
 
-/** Plain-text extracts keep section titles and blank lines: keep the prose, one paragraph break at most. */
+/**
+ * Plain-text extracts keep section titles and blank lines: keep the prose, one paragraph break at most.
+ * Titles come as "== Hayatı ve kariyeri ==" or, in the plain format, a bare short line without a full stop
+ * ("Hayatı ve kariyeri", which the justified bio stretched across the card): both go.
+ */
+const isHeading = (l: string) => /^=+.*=+$/.test(l) || (l.length < 70 && !/[.!?…:;"”)\]]$/.test(l));
 export const tidy = (text: string) =>
   text
     .split(/\n+/)
     .map((l) => l.trim())
-    .filter((l) => l && !/^=+.*=+$/.test(l))
+    .filter((l) => l && !isHeading(l))
     .join('\n\n')
     .trim();
 
