@@ -63,7 +63,9 @@ export function GlowingCover({ uri, glow, live, talking }: { uri: string; glow: 
     loop.start();
     return () => loop.stop();
   }, [live, talking, breath]);
-  const scale = breath.interpolate({ inputRange: [0.5, 1], outputRange: [0.97, 1.02] });
+  // never bigger than the cover: at 1.02 the halo's solid colour peeked out as a thin border round the
+  // picture (an old look); only its soft glow should show
+  const scale = breath.interpolate({ inputRange: [0.5, 1], outputRange: [0.94, 0.99] });
   return (
     <View style={styles.coverWrap}>
       {/* drawn once into a texture: the breathing only fades and scales that picture. Without it the big soft
