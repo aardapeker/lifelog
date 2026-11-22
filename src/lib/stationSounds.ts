@@ -119,19 +119,29 @@ export async function removeBedPick(db: SQLiteDatabase, station: string, id: num
   } catch {}
 }
 
-/** This show's bed: one of your picks (a different one than last show, when there are two or more). */
-let showBed: { station: string; uri: string } | null = null;
+/**
+ * The show's beds: your picks in a shuffled order, a different one under each talk (each plays once, 30 s),
+ * round and round; a new shuffle per show, not starting with the one the last show ended on.
+ */
+let deck: { station: string; uris: string[]; next: number } | null = null;
 let lastBed = '';
-async function chooseShowBed(db: SQLiteDatabase, station: string): Promise<void> {
-  const picks = await bedPicks(db, station);
-  const pool = picks.length > 1 ? picks.filter((p) => `${station}-${p.id}` !== lastBed) : picks;
-  const p = pool[Math.floor(Math.random() * pool.length)];
-  if (p) {
-    lastBed = `${station}-${p.id}`;
-    showBed = { station, uri: pickFile(station, p.id).uri };
-  } else showBed = null;
+async function shuffleBeds(db: SQLiteDatabase, station: string): Promise<void> {
+  const uris = (await bedPicks(db, station)).map((p) => pickFile(station, p.id).uri);
+  for (let i = uris.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [uris[i], uris[j]] = [uris[j], uris[i]];
+  }
+  if (uris.length > 1 && uris[0] === lastBed) uris.push(uris.shift()!);
+  deck = uris.length ? { station, uris, next: 0 } : null;
 }
-const bedUri = (station: string) => (showBed?.station === station ? showBed.uri : null);
+/** The next bed for this station's talk. */
+function nextBed(station: string): string | null {
+  if (deck?.station !== station || !deck.uris.length) return null;
+  const uri = deck.uris[deck.next % deck.uris.length];
+  deck.next++;
+  lastBed = uri;
+  return uri;
+}
 
 /* ── on or off (Settings live in the database; the show reads this copy) ── */
 
@@ -140,12 +150,12 @@ export async function loadStationSoundsSetting(db: SQLiteDatabase): Promise<bool
   enabled = (await getSetting(db, 'radio.stationSounds', 'on')) !== 'off';
   return enabled;
 }
-/** A show is starting: on or off, and which bed it gets. */
+/** A show is starting: on or off, and the order of its beds. */
 export async function prepareStationSounds(db: SQLiteDatabase, station: string): Promise<void> {
   dropLyriaFiles();
   await loadStationSoundsSetting(db);
   await ensureDefaultBeds(db, station).catch(() => {});
-  await chooseShowBed(db, station);
+  await shuffleBeds(db, station);
 }
 export async function setStationSoundsOn(db: SQLiteDatabase, on: boolean): Promise<void> {
   enabled = on;
@@ -196,7 +206,7 @@ function fade(player: AudioPlayer, to: number, ms: number): Promise<void> {
 
 /** The music bed fades in under the hosts (if one is picked and it's on). It plays once, 30 s, no loop. */
 export async function bedIn(station: string): Promise<void> {
-  const uri = bedUri(station);
+  const uri = nextBed(station);
   if (!enabled || !uri) return;
   stopBed();
   const player = createAudioPlayer(uri);

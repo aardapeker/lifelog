@@ -74,7 +74,7 @@ export function StationSounds({ station }: { station: Station }) {
               </View>
             );
           })}
-          <Text style={styles.hint}>Each show uses one of these, a different one each time.</Text>
+          <Text style={styles.hint}>Each talk gets the next one of these, in a new shuffled order every show.</Text>
         </View>
       ) : (
         <Text style={styles.hint}>None yet. Pick instrumental tracks from Deezer:</Text>
