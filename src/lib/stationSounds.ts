@@ -82,6 +82,30 @@ async function hasLyrics(t: DzTrack): Promise<boolean> {
   return !!lrc && !lrc.instrumental && !!(lrc.syncedLyrics || lrc.plainLyrics);
 }
 
+/*
+ * A station's own starter beds, picked by Arda (Neon FM: his synthwave Spotify list, Nov 2026). They're found
+ * on Deezer by artist and title; a station without a list gets the top results of its first search idea.
+ */
+const STARTERS: Record<string, { artist: string; title: string }[]> = {
+  neon: [
+    { artist: 'The Motion', title: 'Where Is My Mind? - Retrowave' },
+    { artist: 'Mr.Kitty', title: 'After Dark' },
+    { artist: 'Casa Noir', title: 'Resonance' },
+    { artist: 'Øneheart', title: 'snowfall' },
+    { artist: 'VØJ', title: 'Memory Reboot' },
+    { artist: 'Home', title: 'Resonance' },
+  ],
+};
+/** Bumped when a station's starter list changes: it replaces that station's beds once. */
+const STARTERS_VERSION = '2';
+const loose = (x: string) => x.toLowerCase().normalize('NFKD').replace(/[^a-z0-9ø]+/g, '');
+
+async function findStarter(want: { artist: string; title: string }): Promise<DzTrack | null> {
+  const name = loose(want.title.split(' - ')[0]);
+  const found = (await searchDeezer(`${want.artist} ${want.title}`, 10)).filter((t) => t.preview);
+  return found.find((t) => loose(t.artist).includes(loose(want.artist)) && loose(t.title).startsWith(name)) ?? null;
+}
+
 const DEFAULTS = 3;
 const defaultedKey = (station: string) => `radio.beds.${station}.defaulted`;
 const defaulting = new Map<string, Promise<void>>();
@@ -93,6 +117,17 @@ export function ensureDefaultBeds(db: SQLiteDatabase, station: string): Promise<
   const running = defaulting.get(station);
   if (running) return running;
   const job = (async () => {
+    const starters = STARTERS[station];
+    if (starters) {
+      if ((await getSetting(db, defaultedKey(station), '')) === STARTERS_VERSION) return;
+      const picked = (await Promise.all(starters.map((w) => findStarter(w).catch(() => null)))).filter((t): t is DzTrack => !!t);
+      if (!picked.length) return; // offline: try again next show
+      for (const p of await bedPicks(db, station)) await removeBedPick(db, station, p.id); // the list replaces what was there, once
+      let added = 0;
+      for (const t of picked) await addBedPick(db, station, t).then(() => added++, () => null);
+      if (added) await setSetting(db, defaultedKey(station), STARTERS_VERSION);
+      return;
+    }
     if ((await getSetting(db, defaultedKey(station), '')) || (await bedPicks(db, station)).length) return;
     const idea = BED_IDEAS[station]?.[0];
     if (!idea) return;
@@ -171,10 +206,12 @@ export const SLOW_RATES = [
   { rate: 0.85, label: 'Slowed' },
   { rate: 0.8, label: 'Very slowed' },
 ] as const;
+/** A station that starts slowed until you pick its speed: Neon FM, the slowest (Arda's pick). */
+const DEFAULT_SLOW: Record<string, number> = { neon: 0.8 };
 const slowKey = (station: string) => `radio.slowed.${station}`;
 let showRate = 1;
 export async function slowRate(db: SQLiteDatabase, station: string): Promise<number> {
-  const r = Number(await getSetting(db, slowKey(station), '1'));
+  const r = Number(await getSetting(db, slowKey(station), String(DEFAULT_SLOW[station] ?? 1)));
   return SLOW_RATES.some((x) => x.rate === r) ? r : 1;
 }
 export const setSlowRate = (db: SQLiteDatabase, station: string, rate: number) => setSetting(db, slowKey(station), String(rate));
