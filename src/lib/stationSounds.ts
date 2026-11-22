@@ -186,19 +186,22 @@ export const setSlowRate = (db: SQLiteDatabase, station: string, rate: number) =
  * found is saved once and shared by all stations. It loops (rain doesn't mind) and stays quieter than the bed.
  */
 export type WeatherKind = 'none' | 'rain' | 'storm' | 'wind' | 'sunny' | 'night' | 'computer' | 'amp' | 'vinyl' | 'live';
-export const WEATHERS: { key: WeatherKind; label: string; query?: string }[] = [
+/** `fits`: the title has to say it's that sound (the first "night sounds" hit had a voice talking in it). */
+export const WEATHERS: { key: WeatherKind; label: string; query?: string; fits?: RegExp }[] = [
   { key: 'none', label: 'None' },
-  { key: 'rain', label: '🌧 Rainy', query: 'rain sounds' },
-  { key: 'storm', label: '⛈ Stormy', query: 'thunderstorm sounds' },
-  { key: 'wind', label: '🌬 Windy', query: 'wind sounds' },
-  { key: 'sunny', label: '☀️ Sunny', query: 'birds singing morning nature sounds' },
-  { key: 'night', label: '🌙 Night', query: 'crickets night sounds' },
+  { key: 'rain', label: '🌧 Rainy', query: 'rain sounds', fits: /rain/i },
+  { key: 'storm', label: '⛈ Stormy', query: 'thunderstorm sounds', fits: /thunder|storm/i },
+  { key: 'wind', label: '🌬 Windy', query: 'wind sounds', fits: /wind/i },
+  { key: 'sunny', label: '☀️ Sunny', query: 'birds singing morning nature sounds', fits: /bird/i },
+  { key: 'night', label: '🌙 Night', query: 'crickets chirping night', fits: /cricket/i },
   // not weather, the room: Arda's ideas
-  { key: 'computer', label: '🖥️ Old computer', query: 'old computer fan hum sound' },
-  { key: 'amp', label: '🔊 Amp hum', query: 'guitar amp hum buzz sound' },
-  { key: 'vinyl', label: '📀 Vinyl crackle', query: 'vinyl crackle sound' },
+  { key: 'computer', label: '🖥️ Old computer', query: 'old computer fan hum sound', fits: /computer|fan|hum/i },
+  { key: 'amp', label: '🔊 Amp hum', query: 'guitar amp hum buzz sound', fits: /amp|hum|buzz/i },
+  { key: 'vinyl', label: '📀 Vinyl crackle', query: 'vinyl crackle sound', fits: /vinyl|crackle/i },
   { key: 'live', label: '📍 Real weather' },
 ];
+/** Titles that give away a voice or music on top: guided meditations, sleep stories, songs. */
+const VOICED = /meditat|guided|story|stories|affirmation|hypno|whisper|asmr|talk|spoken|voice|lullaby|song|feat\.|remix|piano|guitar(?! amp)|music|mix\b/i;
 const weatherKey = (station: string) => `radio.weather.${station}`;
 export async function stationWeather(db: SQLiteDatabase, station: string): Promise<WeatherKind> {
   const w = (await getSetting(db, weatherKey(station), 'none')) as WeatherKind;
@@ -221,14 +224,23 @@ async function liveWeather(db: SQLiteDatabase): Promise<WeatherKind> {
   return code <= 1 ? 'sunny' : 'none';
 }
 
-const weatherFile = (w: WeatherKind) => new File(dir(), `weather-${w}.mp3`);
+// v2: the files picked before the title check are left behind (and deleted), so each is chosen again
+const weatherFile = (w: WeatherKind) => new File(dir(), `weather2-${w}.mp3`);
+function dropOldWeather(): void {
+  try {
+    for (const f of dir().list()) if (f instanceof File && /^weather-[a-z]+\.mp3$/.test(f.name)) f.delete();
+  } catch {}
+}
 /** The ambience's recording, saved the first time it's needed. */
 async function weatherSound(w: WeatherKind): Promise<string | null> {
-  const query = WEATHERS.find((x) => x.key === w)?.query;
-  if (!query) return null;
+  const kind = WEATHERS.find((x) => x.key === w);
+  if (!kind?.query) return null;
+  dropOldWeather();
   const file = weatherFile(w);
   if (file.exists) return file.uri;
-  const t = (await searchDeezer(query, 10)).find((x) => x.preview && x.seconds >= 60);
+  const found = (await searchDeezer(kind.query, 25)).filter((x) => x.preview && x.seconds >= 60 && !VOICED.test(`${x.title} ${x.album?.title ?? ''}`));
+  let t = found.find((x) => kind.fits?.test(x.title));
+  for (const x of t ? [] : found) if (!(await hasLyrics(x))) { t = x; break; } // nothing named right: at least nobody singing
   if (!t?.preview) return null;
   await File.downloadFileAsync(t.preview, file);
   return file.uri;
