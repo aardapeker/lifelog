@@ -9,7 +9,7 @@ import { AppState } from 'react-native';
 import type { Status } from '../components/ui';
 import { albumColors, type Palette } from './albumColors';
 import { getSetting, setSetting } from './db';
-import { bedIn, bedOut, loadStationSoundsSetting, playJingle, stopStationSounds } from './stationSounds';
+import { bedIn, bedOut, playJingle, prepareStationSounds, stopStationSounds } from './stationSounds';
 import { goOffAir, goOnAir, onBeat, onRemote, setOnAirLiked, setOnAirPlaying, updateOnAir, waitMs } from './onAir';
 import { buildShow, castOf, requestTalks, speakIn, type Show } from './radio';
 import { countShow } from './achievements';
@@ -631,7 +631,7 @@ function useRadioEngine() {
     bannedSongs(db).then((b) => setBanned(new Set(b.map((x) => x.id)))).catch(() => {}); // Settings may have let some back
     getSetting(db, 'voiceModel', '').then(preferVoiceModel).catch(() => {}); // Settings → AI Models
     likedSongs(db).then((l) => setHearts(new Set(l.map((x) => x.id)))).catch(() => {}); // hearts changed in Settings
-    loadStationSoundsSetting(db).catch(() => {}); // jingles and music beds on or off (station page)
+    prepareStationSounds(db, station.key).catch(() => {}); // jingles and music beds: on or off, and this show's bed
     try {
       preview.current?.stop();
       const s = await buildShow(db, station, wish, length, step, reviewFirst ? review : undefined);

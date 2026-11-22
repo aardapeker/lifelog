@@ -186,6 +186,12 @@ export async function topTracks(artistId: number, limit = 5): Promise<DzTrack[]>
   return ((await dz<{ data?: Raw[] }>(`/artist/${artistId}/top?limit=${limit}`)).data ?? []).map((t) => trackOf(t));
 }
 
+/** Free-text track search (the radio's music bed picker: "synthwave instrumental", "bağlama taksim"). */
+export async function searchDeezer(q: string, limit = 20): Promise<DzTrack[]> {
+  if (!q.trim()) return [];
+  return ((await dz<{ data?: Raw[] }>(`/search?q=${encodeURIComponent(q.trim())}&limit=${limit}`)).data ?? []).map((t) => trackOf(t)).filter((t) => t.preview);
+}
+
 /** The artist's Deezer radio: songs by them and artists like them (the radio's record crate). */
 export async function artistRadio(artistId: number, limit = 30): Promise<DzTrack[]> {
   return ((await dz<{ data?: Raw[] }>(`/artist/${artistId}/radio?limit=${limit}`)).data ?? []).map((t) => trackOf(t));

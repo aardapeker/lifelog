@@ -3,6 +3,8 @@ import { Directory, File, Paths } from 'expo-file-system';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { fromBase64 } from './albumColors';
 import { getSetting, setSetting } from './db';
+import type { DzTrack } from './deezer';
+import { lyricsOf } from './songFacts';
 import { jsonHeaders } from './gemini';
 import { getKey } from './keys';
 import type { Station } from './stations';
@@ -105,12 +107,92 @@ export async function makeStationSound(station: Station, kind: SoundKind): Promi
   }
 }
 
+/* ── music beds you pick from Deezer ── */
+
+/*
+ * Lyria's beds sounded like AI elevator music, so you can pick real instrumental tracks for each station
+ * from Deezer (its free 30-second previews, the same ones the song lists play). Each show uses one of the
+ * station's picks, a different one each time; with none picked, the Lyria bed (if made) still plays.
+ * The preview is saved on the phone when you pick it (Deezer's preview links expire).
+ */
+export type BedPick = { id: number; title: string; artist: string; cover: string | null };
+
+/** Search ideas per station, for the picker's chips. */
+export const BED_IDEAS: Record<string, string[]> = {
+  friend: ['acoustic guitar instrumental', 'coffee jazz piano', 'chill acoustic'],
+  neon: ['synthwave instrumental', 'retrowave', '80s synth instrumental'],
+  nightshift: ['dark ambient synth', 'darksynth instrumental', 'night drive synth'],
+  rock: ['rock instrumental', 'guitar riff instrumental', 'post rock'],
+  chill: ['lofi beats', 'lofi hip hop', 'rain piano'],
+  arabesk: ['arabesk enstrümantal', 'bağlama taksim', 'keman taksim'],
+};
+
+const picksKey = (station: string) => `radio.beds.${station}`;
+const pickFile = (station: string, id: number) => new File(dir(), `${station}-bed-${id}.mp3`);
+/** A picked bed's saved preview, to hear it on the station page. */
+export const bedPickUri = (station: string, id: number) => pickFile(station, id).uri;
+
+export async function bedPicks(db: SQLiteDatabase, station: string): Promise<BedPick[]> {
+  try {
+    const all = JSON.parse(await getSetting(db, picksKey(station), '[]')) as BedPick[];
+    return all.filter((p) => pickFile(station, p.id).exists); // a file that's gone (cleared storage) isn't a pick
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Keeps a Deezer track as one of the station's beds: its preview is saved on the phone. Returns a warning
+ * when LRCLIB knows lyrics for it (someone sings: the hosts would talk over a singer), else null.
+ */
+export async function addBedPick(db: SQLiteDatabase, station: string, t: DzTrack): Promise<string | null> {
+  if (!t.preview) throw new Error('This one has no preview on Deezer.');
+  const file = pickFile(station, t.id);
+  if (file.exists) file.delete();
+  await File.downloadFileAsync(t.preview, file).catch((e) => {
+    throw new Error(`Couldn't save the preview (${e instanceof Error ? e.message : e}). Online?`);
+  });
+  const picks = (await bedPicks(db, station)).filter((p) => p.id !== t.id);
+  picks.push({ id: t.id, title: t.title, artist: t.artist, cover: t.album?.cover ?? null });
+  await setSetting(db, picksKey(station), JSON.stringify(picks));
+  const lrc = await lyricsOf({ id: `dz${t.id}`, uri: '', name: t.title, artist: t.artist, image: null, durationMs: t.seconds * 1000 }).catch(() => null);
+  return lrc && !lrc.instrumental && (lrc.syncedLyrics || lrc.plainLyrics) ? 'Heads-up: LRCLIB has lyrics for this one, so someone may sing under the hosts.' : null;
+}
+
+export async function removeBedPick(db: SQLiteDatabase, station: string, id: number): Promise<void> {
+  const picks = (await bedPicks(db, station)).filter((p) => p.id !== id);
+  await setSetting(db, picksKey(station), JSON.stringify(picks));
+  try {
+    const f = pickFile(station, id);
+    if (f.exists) f.delete();
+  } catch {}
+}
+
+/** This show's bed: one of your picks (a different one than last show, when there are two or more), else Lyria's. */
+let showBed: { station: string; uri: string } | null = null;
+let lastBed = '';
+async function chooseShowBed(db: SQLiteDatabase, station: string): Promise<void> {
+  const picks = await bedPicks(db, station);
+  const pool = picks.length > 1 ? picks.filter((p) => `${station}-${p.id}` !== lastBed) : picks;
+  const p = pool[Math.floor(Math.random() * pool.length)];
+  if (p) {
+    lastBed = `${station}-${p.id}`;
+    showBed = { station, uri: pickFile(station, p.id).uri };
+  } else showBed = has(station, 'bed') ? { station, uri: soundFile(station, 'bed').uri } : null;
+}
+const bedUri = (station: string) => (showBed?.station === station ? showBed.uri : has(station, 'bed') ? soundFile(station, 'bed').uri : null);
+
 /* ── on or off (Settings live in the database; the show reads this copy) ── */
 
 let enabled = true;
 export async function loadStationSoundsSetting(db: SQLiteDatabase): Promise<boolean> {
   enabled = (await getSetting(db, 'radio.stationSounds', 'on')) !== 'off';
   return enabled;
+}
+/** A show is starting: on or off, and which bed it gets. */
+export async function prepareStationSounds(db: SQLiteDatabase, station: string): Promise<void> {
+  await loadStationSoundsSetting(db);
+  await chooseShowBed(db, station);
 }
 export async function setStationSoundsOn(db: SQLiteDatabase, on: boolean): Promise<void> {
   enabled = on;
@@ -198,9 +280,10 @@ function stopJingle() {
 
 /** The music bed fades in under the hosts (if made and on). */
 export async function bedIn(station: string): Promise<void> {
-  if (!enabled || !has(station, 'bed')) return;
+  const uri = bedUri(station);
+  if (!enabled || !uri) return;
   stopBed();
-  const player = createAudioPlayer(soundFile(station, 'bed').uri);
+  const player = createAudioPlayer(uri);
   bed = player;
   quietly(() => (player.loop = true));
   quietly(() => (player.volume = 0));
