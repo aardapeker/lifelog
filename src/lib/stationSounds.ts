@@ -119,7 +119,7 @@ export async function setStationSoundsOn(db: SQLiteDatabase, on: boolean): Promi
 
 /* ── playing them ── */
 
-const BED_VOLUME = 0.16; // well under the voice
+const BED_VOLUME = 0.12; // well under the voice (0.16 was a bit loud, Arda said)
 const JINGLE_VOLUME = 0.85;
 const JINGLE_MAX_MS = 7000; // the clip is 30 s; the sung part is at the start
 
