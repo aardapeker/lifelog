@@ -56,9 +56,9 @@ export function SongAbout({ track }: { track: Track }) {
         ) : !a && !info.album ? (
           <Text style={styles.muted}>Deezer doesn't know this one.</Text>
         ) : (
-          <View style={{ gap: 14 }}>
-            {/* the song */}
-            <View style={{ gap: 4 }}>
+          <View style={{ gap: 18 }}>
+            {/* the song: a small table, labels in one column, values lined up in the next */}
+            <View style={{ gap: 8 }}>
               {(info.album || info.released) && <Fact label="From" value={[info.album, year(info.released)].filter(Boolean).join(' · ')} />}
               {info.genres.length > 0 && <Fact label="Genre" value={info.genres.join(', ')} />}
               {!!info.bpm && <Fact label="Tempo" value={`${info.bpm} BPM`} />}
@@ -66,7 +66,7 @@ export function SongAbout({ track }: { track: Track }) {
             </View>
             {/* the artist */}
             {a && (
-              <View style={{ gap: 10 }}>
+              <View style={[styles.section, { gap: 12 }]}>
                 <View style={styles.artistRow}>
                   {a.photo ? <Image source={withAgent(a.photo)} style={styles.photo} /> : null}
                   <View style={{ flex: 1, gap: 2 }}>
@@ -94,7 +94,7 @@ export function SongAbout({ track }: { track: Track }) {
               </View>
             )}
             {info.alsoLike.length > 0 && (
-              <View style={{ gap: 10 }}>
+              <View style={[styles.section, { gap: 12 }]}>
                 <Text style={styles.label}>FANS ALSO LIKE</Text>
                 <ArtistRow artists={info.alsoLike} />
               </View>
@@ -108,10 +108,10 @@ export function SongAbout({ track }: { track: Track }) {
 
 function Fact({ label, value }: { label: string; value: string }) {
   return (
-    <Text style={styles.fact}>
-      <Text style={styles.muted}>{label} </Text>
-      {value}
-    </Text>
+    <View style={styles.factRow}>
+      <Text style={[styles.muted, styles.factLabel]}>{label}</Text>
+      <Text style={[styles.fact, { flex: 1 }]}>{value}</Text>
+    </View>
   );
 }
 
@@ -121,11 +121,14 @@ const styles = StyleSheet.create({
   label: { fontFamily: fonts.sans, fontSize: 11, letterSpacing: 1.2, color: colors.muted },
   muted: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.muted },
   fact: { fontFamily: fonts.sansRegular, fontSize: 15, color: colors.text, lineHeight: 22 },
+  factRow: { flexDirection: 'row', alignItems: 'baseline', gap: 12 },
+  factLabel: { width: 58, fontSize: 13 },
+  section: { paddingTop: 18, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.14)' }, // a thin line between song, artist and "fans also like"
   artistRow: { flexDirection: 'row', gap: 14, alignItems: 'center' },
   photo: { width: 72, height: 72, borderRadius: 36 },
   name: { fontFamily: fonts.sansBold, fontSize: 18, color: colors.text },
   genres: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.text, opacity: 0.8 },
-  bio: { fontFamily: fonts.serif, fontSize: 15, lineHeight: 23, color: colors.text, opacity: 0.9 },
+  bio: { fontFamily: fonts.serif, fontSize: 15, lineHeight: 24, color: colors.text, opacity: 0.9, textAlign: 'justify' },
   link: { fontFamily: fonts.sansBold, fontSize: 14, color: colors.text },
   credit: { fontFamily: fonts.sansRegular, fontSize: 11, color: colors.muted },
 });
