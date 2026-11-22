@@ -35,6 +35,10 @@ export default function OnAirScreen() {
   const r = useRadio();
   const pv = usePreview('draft');
   const { phase, show, current, palette, paused, speaking, progress, station, steps, draft, status, hearts, voice } = r;
+  // what's on the mic: the talk before the current song, or the goodbye once the last song is over
+  // (it used to keep showing the last song's talk while the hosts said goodbye)
+  const goodbye = !!show && r.index >= show.slots.length;
+  const onMic = goodbye && show ? { talk: show.outro, label: 'Goodbye' } : { talk: current?.talk ?? [], label: current?.label ?? null };
 
   useEffect(() => {
     if (phase === 'onair') breadcrumb('radio: player drawn');
@@ -247,8 +251,8 @@ export default function OnAirScreen() {
               <Tap icon={voice ? 'mic-outline' : 'mic-off-outline'} label={voice ? 'Hosts on (tap to mute them)' : 'Hosts off'} onPress={r.toggleVoice} small />
               <Pressable style={styles.pill} onPress={() => setTalkOpen((o) => !o)} accessibilityLabel="What the hosts said">
                 <Text style={styles.pillText} numberOfLines={1}>
-                  {current.talk[0]
-                    ? `${current.label === 'News' ? '📰' : current.label === 'Commercial' ? '📢' : '🎙️'} ${current.talk[0].text.replace(/<[^>]+>/g, '').trim()}`
+                  {onMic.talk[0]
+                    ? `${onMic.label === 'News' ? '📰' : onMic.label === 'Commercial' ? '📢' : onMic.label === 'Goodbye' ? '👋' : '🎙️'} ${onMic.talk[0].text.replace(/<[^>]+>/g, '').trim()}`
                     : '🎵 Just the music'}
                 </Text>
               </Pressable>
@@ -264,12 +268,12 @@ export default function OnAirScreen() {
             </View>
 
             {/* what the hosts said before this song (the pill folds it) */}
-            {talkOpen && current.talk.length > 0 && (
+            {talkOpen && onMic.talk.length > 0 && (
               <Glass radius={22} style={styles.talk} fill="rgba(20, 19, 19, 0.38)">
                 <Text style={styles.talkHead}>
-                  {current.label === 'News' ? '📰 NEWS' : current.label === 'Commercial' ? '📢 COMMERCIAL BREAK' : '🎙️ ON THE MIC'}
+                  {onMic.label === 'News' ? '📰 NEWS' : onMic.label === 'Commercial' ? '📢 COMMERCIAL BREAK' : onMic.label === 'Goodbye' ? '👋 GOODBYE' : '🎙️ ON THE MIC'}
                 </Text>
-                {current.talk.map((l, k) => (
+                {onMic.talk.map((l, k) => (
                   <Text key={k} style={[styles.line, speaking && { color: colors.text }]}>
                     {show.station.sidekick && <Text style={styles.who}>{l.speaker}: </Text>}
                     {l.text.replace(/<[^>]+>/g, '').trim()}

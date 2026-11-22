@@ -286,6 +286,7 @@ function useRadioEngine() {
       };
       if (!live.current.voice || !s.outro.length || live.current.talked === s.slots.length) return finish();
       live.current.index = s.slots.length;
+      setIndex(s.slots.length); // the screen shows the goodbye's talk, not the last song's
       record({ done: true }); // the music is over: closed during the goodbye, it's still a finished show
       live.current.speaking = true;
       setSpeaking(true);
