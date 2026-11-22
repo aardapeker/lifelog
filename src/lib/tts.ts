@@ -71,19 +71,54 @@ async function viaInteractions(apiKey: string, model: string, lines: SpokenLine[
 }
 
 /**
- * fetch with a deadline: on a slow line a voice request could hang for good, and a talk stuck
- * "loading" was never asked for again. It now fails as "timed out" (handled like no internet).
+ * The voice request, made for the servis's weak signal. A talk comes back as ~1 MB of audio, and on a
+ * slow line that download alone can take minutes: the old fixed 60 s deadline cut it off every time, so
+ * on slow internet no talk ever arrived (retrying didn't help, each try was cut off the same way).
+ * Now it only gives up when the line is really stuck: no answer at all within 90 s, or the download
+ * stopping for 30 s. A slow but moving download is allowed up to 5 minutes. (XMLHttpRequest, not fetch:
+ * only it reports progress on React Native.)
  */
-async function voiceFetch(url: string, init: RequestInit, ms = 60_000): Promise<Response> {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), ms);
-  try {
-    return await fetch(url, { ...init, signal: ctrl.signal });
-  } catch (e) {
-    throw ctrl.signal.aborted ? new Error(`Voice request timed out after ${ms / 1000} s (slow internet)`) : e;
-  } finally {
-    clearTimeout(timer);
-  }
+const FIRST_BYTE_MS = 90_000; // the voice is made before anything comes back (long talks take a while)
+const STALL_MS = 30_000;
+const MAX_MS = 5 * 60_000;
+function voiceFetch(url: string, init: { method: string; headers: Record<string, string>; body: string }): Promise<Response> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const startedAt = Date.now();
+    let lastByte = 0; // when the last piece of the answer arrived (0: nothing yet)
+    let over = false;
+    const finish = (f: () => void) => {
+      if (over) return;
+      over = true;
+      clearInterval(watch);
+      f();
+    };
+    const watch = setInterval(() => {
+      const now = Date.now();
+      const why =
+        now - startedAt > MAX_MS
+          ? `took over ${MAX_MS / 60_000} minutes`
+          : !lastByte && now - startedAt > FIRST_BYTE_MS
+            ? `no answer in ${FIRST_BYTE_MS / 1000} s`
+            : lastByte && now - lastByte > STALL_MS
+              ? `download stalled for ${STALL_MS / 1000} s`
+              : null;
+      if (!why) return;
+      finish(() => {
+        try {
+          xhr.abort();
+        } catch {}
+        reject(new Error(`Voice request timed out: ${why} (slow internet)`));
+      });
+    }, 1000);
+    xhr.open(init.method, url);
+    for (const [k, v] of Object.entries(init.headers)) xhr.setRequestHeader(k, v);
+    xhr.onprogress = () => (lastByte = Date.now());
+    xhr.onload = () => finish(() => resolve(new Response(xhr.responseText, { status: xhr.status, statusText: xhr.statusText })));
+    xhr.onerror = () => finish(() => reject(new Error('Network request failed')));
+    xhr.ontimeout = () => finish(() => reject(new Error('Voice request timed out (slow internet)')));
+    xhr.send(init.body);
+  });
 }
 
 /** The classic generateContent route (responseModalities AUDIO). Returns WAV bytes. */
