@@ -156,7 +156,26 @@ export async function prepareStationSounds(db: SQLiteDatabase, station: string):
   await loadStationSoundsSetting(db);
   await ensureDefaultBeds(db, station).catch(() => {});
   await shuffleBeds(db, station);
+  showRate = await slowRate(db, station);
 }
+/*
+ * "Slowed": the bed played slower with its pitch dropping along (no pitch correction), like the
+ * "slowed + reverb" edits: deeper and dreamier. Per station; 1 = normal.
+ */
+export const SLOW_RATES = [
+  { rate: 1, label: 'Normal' },
+  { rate: 0.9, label: 'Slowed a bit' },
+  { rate: 0.85, label: 'Slowed' },
+  { rate: 0.8, label: 'Very slowed' },
+] as const;
+const slowKey = (station: string) => `radio.slowed.${station}`;
+let showRate = 1;
+export async function slowRate(db: SQLiteDatabase, station: string): Promise<number> {
+  const r = Number(await getSetting(db, slowKey(station), '1'));
+  return SLOW_RATES.some((x) => x.rate === r) ? r : 1;
+}
+export const setSlowRate = (db: SQLiteDatabase, station: string, rate: number) => setSetting(db, slowKey(station), String(rate));
+
 export async function setStationSoundsOn(db: SQLiteDatabase, on: boolean): Promise<void> {
   enabled = on;
   await setSetting(db, 'radio.stationSounds', on ? 'on' : 'off');
@@ -213,6 +232,10 @@ export async function bedIn(station: string): Promise<void> {
   bed = player;
   quietly(() => (player.loop = false)); // once: a 30-second preview starting over broke the mood
   quietly(() => (player.volume = 0));
+  if (showRate !== 1) {
+    quietly(() => (player.shouldCorrectPitch = false)); // the pitch drops with the speed: that's the "slowed" sound
+    quietly(() => player.setPlaybackRate(showRate));
+  }
   quietly(() => player.play());
   await fade(player, BED_VOLUME, 700);
 }

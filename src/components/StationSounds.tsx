@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePreview } from '../radar/components/Preview';
 import { RemoteImage } from '../radar/components/RemoteImage';
 import { searchDeezer, trackTime, type DzTrack } from '../lib/deezer';
-import { addBedPick, BED_IDEAS, bedPickUri, bedPicks, ensureDefaultBeds, loadStationSoundsSetting, removeBedPick, setStationSoundsOn, type BedPick } from '../lib/stationSounds';
+import { addBedPick, BED_IDEAS, bedPickUri, bedPicks, ensureDefaultBeds, loadStationSoundsSetting, setSlowRate, SLOW_RATES, slowRate, removeBedPick, setStationSoundsOn, type BedPick } from '../lib/stationSounds';
 import type { Station } from '../lib/stations';
 import { colors, fonts, inputColors, radius } from '../lib/theme';
 import Ionicons from './Icon';
@@ -19,16 +19,19 @@ export function StationSounds({ station }: { station: Station }) {
   const db = useSQLiteContext();
   const [picks, setPicks] = useState<BedPick[]>([]);
   const [on, setOn] = useState(true);
+  const [rate, setRate] = useState(1);
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
   const [picking, setPicking] = useState(false);
   const pv = usePreview(`beds-${station.key}`);
 
+  const saveRate = (r: number) => setSlowRate(db, station.key, r).catch(() => {});
   const reload = useCallback(() => {
     bedPicks(db, station.key).then(setPicks).catch(() => {});
   }, [db, station.key]);
   useEffect(() => {
     reload();
     loadStationSoundsSetting(db).then(setOn).catch(() => {});
+    slowRate(db, station.key).then(setRate).catch(() => {});
     ensureDefaultBeds(db, station.key).then(reload).catch(() => {}); // the first time: 3 to start with
   }, [db, reload, station.key]);
 
@@ -75,6 +78,21 @@ export function StationSounds({ station }: { station: Station }) {
             );
           })}
           <Text style={styles.hint}>Each talk gets the next one of these, in a new shuffled order every show.</Text>
+          <Text style={[styles.sub, { marginTop: 12 }]}>Speed</Text>
+          <View style={styles.chips}>
+            {SLOW_RATES.map((r) => (
+              <Chip
+                key={r.rate}
+                label={r.rate === 1 ? r.label : `${r.label} ${r.rate}×`}
+                active={rate === r.rate}
+                onPress={() => {
+                  setRate(r.rate);
+                  saveRate(r.rate);
+                }}
+              />
+            ))}
+          </View>
+          <Text style={styles.hint}>Slowed plays the music slower and deeper, like the "slowed + reverb" edits (in shows; the ▶ here plays it normally).</Text>
         </View>
       ) : (
         <Text style={styles.hint}>None yet. Pick instrumental tracks from Deezer:</Text>
