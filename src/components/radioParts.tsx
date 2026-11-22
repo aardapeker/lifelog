@@ -1,5 +1,4 @@
 import Ionicons from './Icon';
-import { useKeepAwake } from 'expo-keep-awake';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, Easing, Image, StyleSheet, View } from 'react-native';
@@ -12,12 +11,6 @@ import { showAlert } from '../lib/dialog';
 /*
  * Pieces shared by the radio's screens (home, station, on air, playlist).
  */
-
-/** Keeps the screen on while the show runs (the host needs the app awake to talk). */
-export function KeepAwake() {
-  useKeepAwake('radio');
-  return null;
-}
 
 /** The show's own name, without the station repeated in front ("Neon FM 98.3: Pazar Sabahı…" → "Pazar Sabahı…"). */
 export const showName = (s: { title: string; station: { name: string; freq: string } }) =>

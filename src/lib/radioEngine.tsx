@@ -446,6 +446,7 @@ function useRadioEngine() {
   /** Watches Spotify: when the song is about to end, the next one gets its intro. */
   const ticking = useRef(false);
   const timing = useRef({ checkedAt: 0, endsAt: 0 }); // go easy on Spotify's API: look often only near the end
+  const shownAt = useRef(0); // when the progress bar last moved on its own
   /** The progress bar: jump to a spot in the song (not while the hosts talk, the song isn't on yet). */
   const seek = useCallback(async (frac: number) => {
     const l = live.current;
@@ -464,8 +465,15 @@ function useRadioEngine() {
     if (ticking.current || !l.show || l.paused || Date.now() - l.startedAt < 4000) return;
     if (l.speaking && !l.overlapping) return;
     const now = Date.now();
-    // look every few seconds, and every beat in the last ~20 s (talk-overs start up to 12 s before the end)
-    if (now - timing.current.checkedAt < 4000 && now < timing.current.endsAt - 20000) return;
+    // between looks, the progress bar counts on by itself (every 2 s), from the song's end Spotify reported
+    const dur = l.show.slots[l.index]?.track.durationMs;
+    if (!l.overlapping && dur && timing.current.endsAt && now - shownAt.current >= 2000) {
+      shownAt.current = now;
+      setProgress(Math.max(0, Math.min(1, 1 - (timing.current.endsAt - now) / dur)));
+    }
+    // look every 10 s mid-song (each look is a network call: every 4 s kept the phone's radio awake and
+    // warm for the whole show), and every beat in the last ~25 s (talk-overs start up to 12 s before the end)
+    if (now - timing.current.checkedAt < 10_000 && now < timing.current.endsAt - 25_000) return;
     ticking.current = true;
     try {
       await follow(l);

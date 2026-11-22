@@ -7,7 +7,7 @@ import { BuildProgress } from '../components/BuildProgress';
 import { BlurSource, FrostedGlass, Glass, useBlurSource } from '../components/Glass';
 import Ionicons from '../components/Icon';
 import { FadeIn, PressScale, Pulse } from '../components/motion';
-import { Ban, ColourWash, CoverCloud, GlowingCover, Heart, KeepAwake, showName, WASH_BASE, withAlpha } from '../components/radioParts';
+import { Ban, ColourWash, CoverCloud, GlowingCover, Heart, showName, WASH_BASE, withAlpha } from '../components/radioParts';
 import { IconButton, PillButton, StatusLine } from '../components/ui';
 import { breadcrumb } from '../lib/crashLog';
 import { ActionSheet, type SheetAction } from '../components/ActionSheet';
@@ -76,7 +76,8 @@ export default function OnAirScreen() {
       {/* on air: the cover as a slowly turning colour cloud; still while paused, during talks, and when the
           top bar frosts over it (a moving picture under a live blur would make the blur redo every frame) */}
       {phase === 'onair' && current?.track.image && <CoverCloud uri={current.track.image} moving={!paused && !speaking && !scrolled} />}
-      {phase === 'onair' && <KeepAwake />}
+      {/* no KeepAwake: the screen sleeps as usual and the show goes on, like with the phone locked
+          (the screen on for a whole show, with the cloud turning, drained the battery) */}
       <ActionSheet visible={menu} title={show ? showName(show) : 'The show'} actions={actions} onClose={() => setMenu(false)} />
       <SongPicker
         visible={picking !== null}
@@ -209,7 +210,9 @@ export default function OnAirScreen() {
             </FadeIn>
 
             {/* the player: frosted glass tinted with the cover's colours, the song, the progress line, the controls */}
-            <Glass blur radius={28} style={styles.player} fill="rgba(30, 29, 29, 0.18)">
+            {/* no live blur: under it the cover cloud turns all the time, and a blur over moving pictures is
+                redone every frame (the phone got hot). The cloud is already soft; a tint looks the same */}
+            <Glass radius={28} style={styles.player} fill="rgba(30, 29, 29, 0.3)">
               <LinearGradient
                 colors={[withAlpha(palette?.glow ?? 'rgb(120, 110, 130)', 0.42), withAlpha(palette?.deep ?? 'rgb(40, 36, 44)', 0.55)]}
                 start={{ x: 0, y: 0 }}

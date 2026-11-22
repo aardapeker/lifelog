@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Palette } from '../lib/albumColors';
@@ -78,11 +78,13 @@ export function LyricsCard({ track, progress, running, paused, palette, skin, on
     };
   }, [track.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const lines = parseLrc(lrc?.syncedLyrics);
+  const lines = useMemo(() => parseLrc(lrc?.syncedLyrics), [lrc]);
   const now = usePlayhead(progress, track.durationMs, running);
   const at = lineAt(lines, now + 300); // a hair early, like karaoke: you see the line as it starts
   const t = tones(palette);
-  const seekTo = (l: LyricLine) => onSeek(l.ms / Math.max(1, track.durationMs));
+  const seekRef = useRef((_l: LyricLine) => {});
+  seekRef.current = (l: LyricLine) => onSeek(l.ms / Math.max(1, track.durationMs));
+  const seekTo = useCallback((l: LyricLine) => seekRef.current(l), []); // stable, so the lines don't redraw every tick
 
   if (lrc === undefined) return null; // still looking: nothing yet (no flicker of "no lyrics")
   const plain = !lines.length ? lrc?.plainLyrics?.trim() : null;
@@ -136,7 +138,7 @@ const CARD_LINES = 330; // the card's window onto the song, in px (about six lin
  * The lines in a window of `height` px that keeps the sung one about a third of the way down,
  * scrolling smoothly when it changes. Scrolling by hand pauses that for a few seconds (like Spotify).
  */
-function Lines({
+const Lines = memo(function Lines({
   lines,
   at,
   tint,
@@ -191,7 +193,7 @@ function Lines({
       <LinearGradient colors={[alpha(fade, 0), fade]} style={[styles.fade, { bottom: 0, height: 56 }]} pointerEvents="none" />
     </View>
   );
-}
+}); // only redraws when the sung line changes, not on every playhead tick
 
 /** Full screen: the whole song, scrolling along; the seek bar and play/pause at the bottom. */
 function FullLyrics({
