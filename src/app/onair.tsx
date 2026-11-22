@@ -71,6 +71,8 @@ export default function OnAirScreen() {
         title={picking === 'request' ? '🎵 Request a song' : '＋ Add a song to the show'}
         onPick={(t) => (picking === 'request' ? r.requestSong(t) : r.addDraft(t))}
         onClose={() => setPicking(null)}
+        multi={picking === 'add'}
+        chosen={picking === 'add' && draft ? new Set(draft.map((t) => t.id)) : undefined}
       />
 
       <ScrollView
