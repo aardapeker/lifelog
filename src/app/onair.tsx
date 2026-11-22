@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BuildProgress } from '../components/BuildProgress';
-import { SeekBar } from '../components/expressive';
 import { BlurSource, FrostedGlass, Glass, useBlurSource } from '../components/Glass';
 import Ionicons from '../components/Icon';
 import { FadeIn, PressScale, Pulse } from '../components/motion';
@@ -13,7 +12,10 @@ import { IconButton, PillButton, StatusLine } from '../components/ui';
 import { breadcrumb } from '../lib/crashLog';
 import { ActionSheet, type SheetAction } from '../components/ActionSheet';
 import { DragList } from '../components/DragList';
-import { alpha, coverTones } from '../lib/coverTint';
+import { Booth, ShowTape } from '../components/booth';
+import { ProgressLine } from '../components/ProgressLine';
+import { skinOf } from '../lib/skins';
+import { useLateFonts } from '../lib/lateFonts';
 import { LyricsCard } from '../components/LyricsCard';
 import { SongAbout } from '../components/SongAbout';
 import { SongPicker } from '../components/SongPicker';
@@ -40,6 +42,9 @@ export default function OnAirScreen() {
   // (it used to keep showing the last song's talk while the hosts said goodbye)
   const goodbye = !!show && r.index >= show.slots.length;
   const onMic = goodbye && show ? { talk: show.outro, label: 'Goodbye' } : { talk: current?.talk ?? [], label: current?.label ?? null };
+  // the station's look on the booth, the tape and the progress line (Cinzel, Monoton… load a moment after the start)
+  const skin = skinOf((show ?? { station }).station.key);
+  useLateFonts();
 
   useEffect(() => {
     if (phase === 'onair') breadcrumb('radio: player drawn');
@@ -203,7 +208,7 @@ export default function OnAirScreen() {
               )}
             </FadeIn>
 
-            {/* the player: frosted glass tinted with the cover's colours, the song, a seekable waveform, the controls */}
+            {/* the player: frosted glass tinted with the cover's colours, the song, the progress line, the controls */}
             <Glass blur radius={28} style={styles.player} fill="rgba(30, 29, 29, 0.18)">
               <LinearGradient
                 colors={[withAlpha(palette?.glow ?? 'rgb(120, 110, 130)', 0.42), withAlpha(palette?.deep ?? 'rgb(40, 36, 44)', 0.55)]}
@@ -225,11 +230,11 @@ export default function OnAirScreen() {
               </View>
               {phase === 'onair' ? (
                 <>
-                  <SeekBar
+                  <ProgressLine
                     progress={progress}
                     durationMs={current.track.durationMs}
-                    seed={current.track.id}
                     onSeek={r.seek}
+                    skin={skin}
                     disabled={speaking} // while the hosts talk, the song isn't on yet
                   />
                   <View style={styles.controls}>
@@ -268,21 +273,13 @@ export default function OnAirScreen() {
               <Tap icon="ellipsis-horizontal" label="More" onPress={more} small />
             </View>
 
-            {/* what the hosts said before this song (the pill folds it) */}
+            {/* the booth: who's on the mic, the ON AIR light, the talk as a teleprompter (the pill folds it) */}
             {talkOpen && onMic.talk.length > 0 && (
-              // glass tinted with the cover's colour (the lyrics card's shade), dark enough for white text
-              <Glass radius={22} style={styles.talk} fill={alpha(coverTones(palette).bg, 0.62)}>
-                <Text style={styles.talkHead}>
-                  {onMic.label === 'News' ? '📰 NEWS' : onMic.label === 'Commercial' ? '📢 COMMERCIAL BREAK' : onMic.label === 'Goodbye' ? '👋 GOODBYE' : '🎙️ ON THE MIC'}
-                </Text>
-                {onMic.talk.map((l, k) => (
-                  <Text key={k} style={[styles.line, speaking && { color: colors.text }]}>
-                    {show.station.sidekick && <Text style={styles.who}>{l.speaker}: </Text>}
-                    {l.text.replace(/<[^>]+>/g, '').trim()}
-                  </Text>
-                ))}
-              </Glass>
+              <Booth skin={skin} talk={onMic.talk} label={onMic.label} speaking={speaking} talkAt={r.talkAt} showNames={!!show.station.sidekick || !!show.guest || !!show.regular} />
             )}
+
+            {/* the whole show as a cassette strip: tap a song to play it, a talk marker to hear it again */}
+            <ShowTape skin={skin} show={show} index={r.index} progress={progress} speaking={speaking} onJump={phase === 'onair' ? r.jumpTo : undefined} />
 
             {/* live lyrics: the line being sung, tap one to jump there */}
             {phase === 'onair' && (
@@ -292,6 +289,7 @@ export default function OnAirScreen() {
                 running={!paused && !speaking}
                 paused={paused}
                 palette={palette}
+                skin={skin}
                 onSeek={r.seek}
                 onTogglePause={r.togglePause}
               />
@@ -382,10 +380,6 @@ const styles = StyleSheet.create({
   pill: { flex: 1, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.10)' },
   pillText: { fontFamily: fonts.sansRegular, fontSize: 13, color: 'rgba(255,255,255,0.75)' },
   done: { fontFamily: fonts.sansRegular, fontSize: 15, lineHeight: 22, color: colors.muted, marginTop: 10 },
-  talk: { padding: 18, marginTop: 18 },
-  talkHead: { fontFamily: fonts.sans, fontSize: 11, letterSpacing: 1.2, color: colors.muted, marginBottom: 4 },
-  line: { fontFamily: fonts.serifItalic, fontSize: 16, lineHeight: 24, color: colors.muted, marginTop: 8 },
-  who: { fontFamily: fonts.serifBold, fontStyle: 'normal' },
   reviewTitle: { fontFamily: fonts.display, fontSize: 26, color: colors.text, marginBottom: 6 },
   reviewHint: { fontFamily: fonts.sansRegular, fontSize: 14, lineHeight: 20, color: colors.muted, marginBottom: 14 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 10, paddingHorizontal: 10, borderRadius: radius.sm },

@@ -377,7 +377,8 @@ export function wav(pcm: Uint8Array, rate: number): Uint8Array {
   return out;
 }
 
-export type Talking = { done: Promise<boolean>; stop: () => void }; // done: true if it finished, false if stopped
+/** done: true if it finished, false if stopped. at: how far into the clip (0…1), for the booth's teleprompter. */
+export type Talking = { done: Promise<boolean>; stop: () => void; at?: () => number };
 
 /**
  * Plays a voice clip and reports when it's over. Three ways to notice the end, because on
@@ -445,6 +446,15 @@ export function playClip(uri: string, duck = false, volume = 1): Talking {
         player.pause();
       } catch {}
       end(false);
+    },
+    at: () => {
+      if (over) return 1;
+      if (!started) return 0;
+      try {
+        return Math.min(1, player.currentTime / (player.duration > 0 ? player.duration : seconds));
+      } catch {
+        return Math.min(1, (Date.now() - startedAt) / (seconds * 1000));
+      }
     },
   };
 }

@@ -8,7 +8,8 @@ import { lyricsOf, type Lrc } from '../lib/songFacts';
 import { lineAt, parseLrc, type LyricLine } from '../lib/songText';
 import type { Track } from '../lib/spotify';
 import { colors, fonts } from '../lib/theme';
-import { SeekBar } from './expressive';
+import type { Skin } from '../lib/skins';
+import { ProgressLine } from './ProgressLine';
 import Ionicons from './Icon';
 import { PressScale } from './motion';
 
@@ -58,11 +59,12 @@ type Props = {
   running: boolean; // the song is playing (not paused, no talk before it)
   paused: boolean;
   palette: Palette | null;
+  skin: Skin; // the station's look, for the full screen's progress line
   onSeek: (frac: number) => void;
   onTogglePause: () => void;
 };
 
-export function LyricsCard({ track, progress, running, paused, palette, onSeek, onTogglePause }: Props) {
+export function LyricsCard({ track, progress, running, paused, palette, skin, onSeek, onTogglePause }: Props) {
   const [lrc, setLrc] = useState<Lrc | null | undefined>(undefined); // undefined: still looking
   const [full, setFull] = useState(false);
   useEffect(() => {
@@ -117,6 +119,7 @@ export function LyricsCard({ track, progress, running, paused, palette, onSeek, 
           tones={t}
           progress={progress}
           paused={paused}
+          skin={skin}
           onSeek={onSeek}
           onLine={seekTo}
           onTogglePause={onTogglePause}
@@ -198,6 +201,7 @@ function FullLyrics({
   tones: t,
   progress,
   paused,
+  skin,
   onSeek,
   onLine,
   onTogglePause,
@@ -209,6 +213,7 @@ function FullLyrics({
   tones: ReturnType<typeof tones>;
   progress: number;
   paused: boolean;
+  skin: Skin;
   onSeek: (frac: number) => void;
   onLine: (l: LyricLine) => void;
   onTogglePause: () => void;
@@ -238,7 +243,7 @@ function FullLyrics({
       </View>
       <View style={[styles.fullFoot, { paddingBottom: insets.bottom + 16 }]}>
         <View style={{ alignSelf: 'stretch' }}>
-          <SeekBar progress={progress} durationMs={track.durationMs} seed={track.id} onSeek={onSeek} />
+          <ProgressLine progress={progress} durationMs={track.durationMs} skin={skin} onSeek={onSeek} />
         </View>
         <PressScale onPress={onTogglePause} scaleTo={0.9} style={styles.play} accessibilityLabel={paused ? 'Play' : 'Pause'}>
           <Ionicons name={paused ? 'play' : 'pause'} size={30} color="#111" />

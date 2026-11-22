@@ -674,12 +674,15 @@ function useRadioEngine() {
     live.current.speaking = false;
     live.current.paused = false;
     if (!withTalk) live.current.talked = i;
+    else if (live.current.talked === i) live.current.talked = i - 1; // the tape's mic marker: hear that talk again
     setPaused(false);
     setOnAirPlaying(true);
     playSlot(i);
   };
 
   const skip = () => jumpTo(live.current.index + 1);
+  /** How far into the talk on the mic now (0…1), or null when nobody's talking: the booth's teleprompter asks. */
+  const talkAt = () => talking.current?.at?.() ?? null;
 
   /**
    * 🎵 A live request: it plays right after the current song, with the hosts announcing it, and the talk
@@ -950,7 +953,7 @@ function useRadioEngine() {
     [],
   );
 
-  return { seek, draft, reviewFirst, setReviewFirst, moveDraft, reorderDraft, dropDraft, addDraft, requestSong, requesting, writeDraft, cancelDraft, replay, steps, history, loadHistory, playPast, forgetShow, keepShow, liveKept, keepLive, banned, ban, miniCollapsed, setMiniCollapsed, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
+  return { seek, talkAt, draft, reviewFirst, setReviewFirst, moveDraft, reorderDraft, dropDraft, addDraft, requestSong, requesting, writeDraft, cancelDraft, replay, steps, history, loadHistory, playPast, forgetShow, keepShow, liveKept, keepLive, banned, ban, miniCollapsed, setMiniCollapsed, length, setLength, hearts, toggleHeart, jumpTo, previous, phase, setPhase, stationKey, setStationKey, trying, station, chooseLang, chooseVoice, wish, setWish, voice, show, index, speaking, paused, status, progress, palette, start, togglePause, skip, toggleVoice, save, close, stop, current };
 }
 
 export type RadioEngine = ReturnType<typeof useRadioEngine>;
