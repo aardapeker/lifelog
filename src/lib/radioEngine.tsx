@@ -22,6 +22,7 @@ import {
   resumePlayback,
   sameTrack,
   savePlaylist,
+  isPlayable,
   seekTo,
   spotifyReport,
   wakeSpotify,
@@ -395,6 +396,7 @@ function useRadioEngine() {
    */
   const endTimer = useRef<{ at: number; timer: ReturnType<typeof setTimeout> } | null>(null); // the precise stop at a song's end
   const ended = useRef(-1); // the last song whose end was handled
+  const skipTo = useRef<((i: number) => void) | null>(null);
   const startSong = useCallback(async (i: number) => {
     const s = live.current.show;
     if (!s) return;
@@ -424,6 +426,11 @@ function useRadioEngine() {
       throw new Error(`Spotify didn't start the song. ${await spotifyReport()}`);
     } catch (e) {
       if (live.current.index !== i) return;
+      // Spotify works, it just won't play THIS song here (not available in your country): skip it, the show goes on
+      if (i + 1 < s.slots.length && (await isPlayable(s.slots[i].track.id)) === false) {
+        setStatus({ kind: 'err', msg: `"${s.slots[i].track.name}" can't be played on Spotify in your country, so it's skipped.` });
+        return skipTo.current?.(i + 1);
+      }
       live.current.paused = true;
       live.current.startedAt = 0; // ▶ will start this song again
       setPaused(true);
@@ -697,6 +704,7 @@ function useRadioEngine() {
     playSlot(i);
   };
 
+  skipTo.current = jumpTo; // for startSong (made once), which skips a song Spotify won't play
   const skip = () => jumpTo(live.current.index + 1);
   /** How far into the talk on the mic now (0…1), or null when nobody's talking: the booth's teleprompter asks. */
   const talkAt = () => talking.current?.at?.() ?? null;
