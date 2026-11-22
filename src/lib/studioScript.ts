@@ -43,3 +43,32 @@ export function spokenMinutes(md: string): { words: number; minutes: number } {
   return { words, minutes: Math.round((words / WORDS_PER_MINUTE) * 10) / 10 };
 }
 
+
+/* ── fact check ── */
+
+/** One doubtful claim: wrong (a source says otherwise) or unsure (nothing confirms it, or sources disagree). */
+export type CheckItem = { scene: number; chapter: string; verdict: 'wrong' | 'unsure'; claim: string; note: string };
+
+/**
+ * The checker's reply for one scene, one claim per line ("WRONG: claim => what's true", "UNSURE: claim => why")
+ * or "ALL GOOD". Lines in other shapes (the model chatting) are ignored.
+ */
+export function parseCheck(reply: string, scene: { n: number; chapter: string }): CheckItem[] {
+  const items: CheckItem[] = [];
+  for (const raw of reply.split('\n')) {
+    const line = raw.replace(/^[\s*\-•\d.)]+/, '').replace(/\*\*/g, '').trim();
+    const m = line.match(/^(WRONG|UNSURE)\s*:\s*(.+?)\s*(?:=>|→|->)\s*(.+)$/i);
+    if (!m) continue;
+    items.push({ scene: scene.n, chapter: scene.chapter, verdict: m[1].toUpperCase() === 'WRONG' ? 'wrong' : 'unsure', claim: m[2].trim(), note: m[3].trim() });
+  }
+  return items;
+}
+
+/** The editor's note that hands the problems to the rewrite. */
+export function fixNote(items: CheckItem[]): string {
+  return (
+    'Fix these fact-check findings and change nothing else. For a WRONG claim, use what is true. For an UNSURE ' +
+    'claim, soften it ("reportedly", "about") or drop it.\n' +
+    items.map((c) => `- Scene ${c.scene}: ${c.verdict.toUpperCase()}: ${c.claim} => ${c.note}`).join('\n')
+  );
+}

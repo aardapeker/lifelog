@@ -21,7 +21,9 @@ import { getKey } from './keys';
 
 export type Status = 'new' | 'researching' | 'researched' | 'writing' | 'ready' | 'error';
 export type Note = { heading: string; text: string };
-export type Research = { notes: Note[]; sources: Source[]; queries: string[] };
+/** The last fact check: what looked wrong or unconfirmed, and the pages it read. */
+export type Check = { at: number; scenes: number; failed: number; items: CheckItem[]; sources: Source[] };
+export type Research = { notes: Note[]; sources: Source[]; queries: string[]; check?: Check };
 export type Short = { title: string; script: string };
 export type Kit = { titles: string[]; description: string; tags: string[]; thumbnail: string[]; shorts: Short[] };
 export type Project = {
@@ -91,8 +93,8 @@ async function update(db: SQLiteDatabase, id: number, fields: Partial<Record<'st
 /** Your edits to the script (from the editor). */
 export const saveScript = (db: SQLiteDatabase, id: number, script: string) => update(db, id, { script });
 
-export { scenesOf, sceneMarkdown, spokenMinutes, WORDS_PER_MINUTE, type Scene } from './studioScript';
-import { scenesOf, sceneMarkdown, WORDS_PER_MINUTE } from './studioScript';
+export { fixNote, scenesOf, sceneMarkdown, spokenMinutes, WORDS_PER_MINUTE, type CheckItem, type Scene } from './studioScript';
+import { fixNote, parseCheck, scenesOf, sceneMarkdown, WORDS_PER_MINUTE, type CheckItem } from './studioScript';
 
 // ---------------------------------------------------------------- the AI work
 
@@ -262,6 +264,59 @@ export function reviseScript(db: SQLiteDatabase, id: number, note: string): Prom
     await update(db, id, { status: 'ready', step: null, script });
   });
 }
+
+/**
+ * Fact check: every scene (narration and visual note) goes to Gemini with Google Search, which lists the
+ * claims that are wrong or that nothing confirms. Confirmed claims aren't listed. Kept with the research;
+ * "Fix these" hands the list to the rewrite. A scene whose check fails is counted, not fatal (a failed job
+ * would mark the whole project as broken).
+ */
+export function factCheck(db: SQLiteDatabase, id: number): Promise<void> {
+  return job(db, id, async () => {
+    const p = await getProject(db, id);
+    if (!p?.script) return;
+    const geminiKey = await getKey('gemini');
+    if (!geminiKey) throw new Error('The fact check needs a Gemini key (for Google Search).');
+    const scenes = scenesOf(p.script);
+    const items: CheckItem[] = [];
+    let sources: Source[] = [];
+    let failed = 0;
+    for (const sc of scenes) {
+      await update(db, id, { step: `Fact-checking scene ${sc.n}/${scenes.length}: ${sc.chapter}`, error: null });
+      const found = await groundedSearch(
+        geminiKey,
+        PROVIDERS.gemini.defaultModel,
+        `Fact-check this scene of a documentary script about "${p.topic}" with Google Search. Check every specific ` +
+          'claim: names, dates, numbers, quotes, events, products, in the narration and in the visual note. Reply ' +
+          'with one line per claim that is WRONG or that you can NOT confirm, exactly like this:\n' +
+          'WRONG: <the claim, short> => <what is true, short>\n' +
+          'UNSURE: <the claim, short> => <why: no source found, or sources disagree>\n' +
+          'Leave out the claims you confirmed. If everything checks out, reply exactly: ALL GOOD\n\n' +
+          `Scene ${sc.n}. ${sc.chapter}\nVisual note: ${sc.visual || '(none)'}\nNarration: ${sc.narration}`,
+        'studio',
+      ).catch(() => null);
+      if (!found) {
+        failed++;
+        continue;
+      }
+      items.push(...parseCheck(found.text, sc));
+      sources = sources.concat(found.sources);
+    }
+    const seen = new Set<string>();
+    const check: Check = {
+      at: Date.now(),
+      scenes: scenes.length,
+      failed,
+      items,
+      sources: sources.filter((s) => (seen.has(s.uri) ? false : (seen.add(s.uri), true))).slice(0, 20),
+    };
+    const research: Research = { ...(p.research ?? { notes: [], sources: [], queries: [] }), check };
+    await update(db, id, { step: null, research: JSON.stringify(research) });
+  });
+}
+
+/** "Fix these": the rewrite gets the fact check's findings as its editor's note. */
+export const fixChecked = (db: SQLiteDatabase, id: number, items: CheckItem[]) => reviseScript(db, id, fixNote(items));
 
 // ---------------------------------------------------------------- ideas
 

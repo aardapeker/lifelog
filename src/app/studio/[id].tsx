@@ -14,6 +14,8 @@ import { showAlert } from '../../lib/dialog';
 import { useFirstFrame } from '../../lib/perf';
 import {
   deleteProject,
+  factCheck,
+  fixChecked,
   getProject,
   isRunning,
   research,
@@ -22,6 +24,7 @@ import {
   scenesOf,
   spokenMinutes,
   writeScript,
+  type Check,
   type Project,
 } from '../../lib/studio';
 import { colors, fonts, frost, inputColors, radius } from '../../lib/theme';
@@ -198,6 +201,12 @@ export default function StudioProjectScreen() {
                       <PillButton label="New script" ghost disabled={busy} onPress={rewriteAll} />
                     </View>
                   </Glass>
+                  <FactCheck
+                    check={p.research?.check}
+                    busy={busy}
+                    onCheck={() => run(factCheck(db, pid))}
+                    onFix={(items) => run(fixChecked(db, pid, items))}
+                  />
                   <Glass radius={radius.lg} style={styles.editorCard} fill={frost.backgroundColor}>
                     <MarkdownInput editor={editor} style={[styles.editor, busy && { opacity: 0.5 }]} placeholder="The script…" />
                   </Glass>
@@ -276,6 +285,51 @@ function KitCard({ title, items }: { title: string; items: string[] }) {
   );
 }
 
+/**
+ * The fact check: what looked wrong (red) or couldn't be confirmed (amber), per scene, with the pages
+ * Google found. "Fix these" asks the AI to correct or soften exactly those lines.
+ */
+function FactCheck({ check, busy, onCheck, onFix }: { check?: Check; busy: boolean; onCheck: () => void; onFix: (items: Check['items']) => void }) {
+  const wrong = check?.items.filter((c) => c.verdict === 'wrong').length ?? 0;
+  const unsure = (check?.items.length ?? 0) - wrong;
+  const when = check ? new Date(check.at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+  return (
+    <Glass radius={radius.lg} style={styles.card} fill={frost.backgroundColor}>
+      <Text style={styles.noteHead}>Fact check</Text>
+      {!check ? (
+        <Text style={styles.hint}>Every date, number, name and quote, in the narration and the visual notes, checked with Google Search.</Text>
+      ) : (
+        <Text style={styles.cardText}>
+          {check.items.length
+            ? `${wrong ? `${wrong} wrong` : ''}${wrong && unsure ? ', ' : ''}${unsure ? `${unsure} not confirmed` : ''}`
+            : `All ${check.scenes - check.failed} scenes check out ✓`}
+          <Text style={styles.hint}>
+            {'  '}· {when}
+            {check.failed ? ` · ${check.failed} scene${check.failed > 1 ? 's' : ''} couldn't be checked (offline?)` : ''}
+          </Text>
+        </Text>
+      )}
+      {check?.items.map((c, i) => (
+        <View key={i} style={styles.checkRow}>
+          <View style={[styles.checkDot, { backgroundColor: c.verdict === 'wrong' ? colors.danger : '#E3A43B' }]} />
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={styles.hint}>
+              Scene {c.scene} · {c.chapter} · {c.verdict === 'wrong' ? 'WRONG' : 'NOT CONFIRMED'}
+            </Text>
+            <Text style={styles.cardText}>{c.claim}</Text>
+            <Text style={[styles.cardText, { color: colors.muted }]}>→ {c.note}</Text>
+          </View>
+        </View>
+      ))}
+      {!!check?.sources.length && <SourceList sources={check.sources.slice(0, 8)} />}
+      <View style={styles.row}>
+        {!!check?.items.length && <PillButton label="Fix these with AI" disabled={busy} onPress={() => onFix(check.items)} />}
+        <PillButton label={check ? 'Check again' : 'Fact check'} ghost={!!check?.items.length} disabled={busy} onPress={onCheck} />
+      </View>
+    </Glass>
+  );
+}
+
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 6 },
@@ -296,6 +350,8 @@ const styles = StyleSheet.create({
   editorCard: { padding: 16 },
   editor: { fontFamily: fonts.serif, fontSize: 17, lineHeight: 27, color: colors.text, minHeight: 300 },
   hint: { fontFamily: fonts.sansRegular, fontSize: 12, color: colors.muted },
+  checkRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  checkDot: { width: 8, height: 8, borderRadius: 4, marginTop: 6 },
   noteHead: { fontFamily: fonts.sansBold, fontSize: 16, color: colors.text },
   noteText: { fontFamily: fonts.serif, fontSize: 15, lineHeight: 24, color: colors.text },
   copyRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 4 },
