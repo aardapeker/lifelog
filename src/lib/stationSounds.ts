@@ -2,7 +2,7 @@ import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { Directory, File, Paths } from 'expo-file-system';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getSetting, setSetting } from './db';
-import type { DzTrack } from './deezer';
+import { searchDeezer, type DzTrack } from './deezer';
 import { lyricsOf } from './songFacts';
 
 /*
@@ -72,8 +72,42 @@ export async function addBedPick(db: SQLiteDatabase, station: string, t: DzTrack
   const picks = (await bedPicks(db, station)).filter((p) => p.id !== t.id);
   picks.push({ id: t.id, title: t.title, artist: t.artist, cover: t.album?.cover ?? null });
   await setSetting(db, picksKey(station), JSON.stringify(picks));
+  return (await hasLyrics(t)) ? 'Heads-up: LRCLIB has lyrics for this one, so someone may sing under the hosts.' : null;
+}
+
+/** Does LRCLIB know lyrics for it? (someone sings in it) */
+async function hasLyrics(t: DzTrack): Promise<boolean> {
   const lrc = await lyricsOf({ id: `dz${t.id}`, uri: '', name: t.title, artist: t.artist, image: null, durationMs: t.seconds * 1000 }).catch(() => null);
-  return lrc && !lrc.instrumental && (lrc.syncedLyrics || lrc.plainLyrics) ? 'Heads-up: LRCLIB has lyrics for this one, so someone may sing under the hosts.' : null;
+  return !!lrc && !lrc.instrumental && !!(lrc.syncedLyrics || lrc.plainLyrics);
+}
+
+const DEFAULTS = 3;
+const defaultedKey = (station: string) => `radio.beds.${station}.defaulted`;
+const defaulting = new Map<string, Promise<void>>();
+/**
+ * A station without picks gets 3 to start with, once: the top results of its first search idea that LRCLIB
+ * has no lyrics for. Removing them all later doesn't bring them back (you chose silence).
+ */
+export function ensureDefaultBeds(db: SQLiteDatabase, station: string): Promise<void> {
+  const running = defaulting.get(station);
+  if (running) return running;
+  const job = (async () => {
+    if ((await getSetting(db, defaultedKey(station), '')) || (await bedPicks(db, station)).length) return;
+    const idea = BED_IDEAS[station]?.[0];
+    if (!idea) return;
+    let added = 0;
+    for (const t of await searchDeezer(idea, 12)) {
+      if (added >= DEFAULTS) break;
+      if (t.seconds < 60 || (await hasLyrics(t))) continue; // full tracks only, and nobody singing
+      try {
+        await addBedPick(db, station, t);
+        added++;
+      } catch {}
+    }
+    if (added) await setSetting(db, defaultedKey(station), '1');
+  })().finally(() => defaulting.delete(station));
+  defaulting.set(station, job);
+  return job;
 }
 
 export async function removeBedPick(db: SQLiteDatabase, station: string, id: number): Promise<void> {
@@ -110,6 +144,7 @@ export async function loadStationSoundsSetting(db: SQLiteDatabase): Promise<bool
 export async function prepareStationSounds(db: SQLiteDatabase, station: string): Promise<void> {
   dropLyriaFiles();
   await loadStationSoundsSetting(db);
+  await ensureDefaultBeds(db, station).catch(() => {});
   await chooseShowBed(db, station);
 }
 export async function setStationSoundsOn(db: SQLiteDatabase, on: boolean): Promise<void> {
@@ -159,14 +194,14 @@ function fade(player: AudioPlayer, to: number, ms: number): Promise<void> {
   });
 }
 
-/** The music bed fades in under the hosts (if one is picked and it's on). */
+/** The music bed fades in under the hosts (if one is picked and it's on). It plays once, 30 s, no loop. */
 export async function bedIn(station: string): Promise<void> {
   const uri = bedUri(station);
   if (!enabled || !uri) return;
   stopBed();
   const player = createAudioPlayer(uri);
   bed = player;
-  quietly(() => (player.loop = true));
+  quietly(() => (player.loop = false)); // once: a 30-second preview starting over broke the mood
   quietly(() => (player.volume = 0));
   quietly(() => player.play());
   await fade(player, BED_VOLUME, 700);

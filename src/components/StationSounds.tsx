@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePreview } from '../radar/components/Preview';
 import { RemoteImage } from '../radar/components/RemoteImage';
 import { searchDeezer, trackTime, type DzTrack } from '../lib/deezer';
-import { addBedPick, BED_IDEAS, bedPickUri, bedPicks, loadStationSoundsSetting, removeBedPick, setStationSoundsOn, type BedPick } from '../lib/stationSounds';
+import { addBedPick, BED_IDEAS, bedPickUri, bedPicks, ensureDefaultBeds, loadStationSoundsSetting, removeBedPick, setStationSoundsOn, type BedPick } from '../lib/stationSounds';
 import type { Station } from '../lib/stations';
 import { colors, fonts, inputColors, radius } from '../lib/theme';
 import Ionicons from './Icon';
@@ -29,7 +29,8 @@ export function StationSounds({ station }: { station: Station }) {
   useEffect(() => {
     reload();
     loadStationSoundsSetting(db).then(setOn).catch(() => {});
-  }, [db, reload]);
+    ensureDefaultBeds(db, station.key).then(reload).catch(() => {}); // the first time: 3 to start with
+  }, [db, reload, station.key]);
 
   return (
     <View>
