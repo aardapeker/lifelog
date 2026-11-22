@@ -207,12 +207,31 @@ export function research(db: SQLiteDatabase, id: number): Promise<void> {
   });
 }
 
+/**
+ * How the narration sounds. Plain, spoken English (Arda's ask, Nov 2026: the first scripts read like a
+ * dictionary (C2: "utterly", "gripped", "took the helm", "brittle", "retrofitting") and were boring. He reads C1
+ * easily, so: C1, natural and spoken, the way a friend would explain it, with the facts doing the work.
+ */
+const PLAIN =
+  'Language: natural spoken English at about C1 level: smart and precise, but never literary. A confident ' +
+  'non-native speaker should follow it without a dictionary, like a smart friend explaining it over tea. Normal ' +
+  'educated words are fine (strategy, acquisition, collapse, market share); rare, literary or showy ones are not. ' +
+  'Prefer the common word: "very" not "utterly", "took over" ' +
+  'not "gripped", "became CEO" not "took the helm", "sold everywhere" not "swept the globe", "add" not "retrofit". ' +
+  'No idioms, no fancy verbs, no movie-trailer adjectives; never use: utterly, gripped, choked, titan, massive, ' +
+  'quietly, landmark, pivotal, testament, tapestry, delve, brittle, helm, swept, plummeted, catastrophic, ' +
+  'unprecedented, juggernaut, behemoth. No clichés like "Then came…", "But here\'s the twist", "Little did they ' +
+  'know". Use contractions (didn\'t, wasn\'t, it\'s). No em dashes. Mix short and longer sentences; ask the ' +
+  'viewer a question now and then; one small joke or honest opinion per scene is welcome. Let surprising facts ' +
+  'and numbers carry the drama, not the adjectives. Write numbers and years as digits.';
+
 const STYLE =
-  'Style: a calm, gripping documentary narrator (think a good YouTube video essay): clear, vivid, a little dry ' +
-  'humour, short sentences that are easy to read aloud, no hype words, no "in this video" filler. The first scene ' +
+  'Style: a calm, interesting documentary narrator (think a good YouTube video essay): clear, a little dry ' +
+  'humour, sentences that are easy to read aloud, no "in this video" filler. The first scene ' +
   'is a hook that makes people stay (a surprising fact or a question) in under 15 seconds of narration. Facts ONLY ' +
   'from the research notes; never invent dates, numbers or quotes. Visual notes say what to show: an archive photo ' +
-  'of whom or what, a map, a diagram, stock footage of what, on-screen text.';
+  'of whom or what, a map, a diagram, stock footage of what, on-screen text.\n' +
+  PLAIN;
 
 /** The script, in scenes, plus the publish kit. Uses the research; overwrites an earlier script. */
 export function writeScript(db: SQLiteDatabase, id: number): Promise<void> {
@@ -349,6 +368,16 @@ export function factCheck(db: SQLiteDatabase, id: number): Promise<void> {
     await update(db, id, { step: null, research: JSON.stringify(research) });
   });
 }
+
+/** "Simpler words": the same script, every fact kept, in plain spoken English (a new version, so it can be compared). */
+export const simplify = (db: SQLiteDatabase, id: number) =>
+  reviseScript(
+    db,
+    id,
+    'Rewrite the WORDING of every scene in natural spoken English at about C1 level (see the language rules). Keep every ' +
+      'fact, number, name, the scene order, chapters and visual notes exactly; change only how the narration is said.',
+    'AI: simpler words',
+  );
 
 /** "Fix these": the rewrite gets the fact check's findings as its editor's note. */
 export const fixChecked = (db: SQLiteDatabase, id: number, items: CheckItem[]) =>

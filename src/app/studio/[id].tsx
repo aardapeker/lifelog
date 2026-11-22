@@ -22,6 +22,7 @@ import {
   isRunning,
   listVersions,
   restoreVersion,
+  simplify,
   research,
   reviseScript,
   saveScript,
@@ -205,6 +206,7 @@ export default function StudioProjectScreen() {
                           setNote('');
                         }}
                       />
+                      <PillButton label="Simpler words" ghost disabled={busy} onPress={() => run(simplify(db, pid))} />
                       <PillButton label="New script" ghost disabled={busy} onPress={rewriteAll} />
                     </View>
                   </Glass>
