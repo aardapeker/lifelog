@@ -23,7 +23,9 @@ export type Status = 'new' | 'researching' | 'researched' | 'writing' | 'ready' 
 export type Note = { heading: string; text: string };
 /** The last fact check: what looked wrong or unconfirmed, and the pages it read. */
 export type Check = { at: number; scenes: number; failed: number; items: CheckItem[]; sources: Source[] };
-export type Research = { notes: Note[]; sources: Source[]; queries: string[]; check?: Check };
+/** One question you asked the checker ("did Nokia really make hunting ammunition?") and its answer. */
+export type Ask = { at: number; question: string; verdict: 'true' | 'false' | 'unclear'; answer: string; sources: Source[] };
+export type Research = { notes: Note[]; sources: Source[]; queries: string[]; check?: Check; asks?: Ask[] };
 export type Short = { title: string; script: string };
 export type Kit = { titles: string[]; description: string; tags: string[]; thumbnail: string[]; shorts: Short[] };
 export type Project = {
@@ -368,6 +370,51 @@ export function factCheck(db: SQLiteDatabase, id: number): Promise<void> {
     await update(db, id, { step: null, research: JSON.stringify(research) });
   });
 }
+
+/**
+ * Ask the checker: you type what looks suspicious ("hunting ammunition?", "was it really 40 million lines?"),
+ * Gemini looks it up with Google Search and answers TRUE / FALSE / UNCLEAR with a short why and its sources.
+ * The last 10 answers are kept with the research. Not a project job: it doesn't lock the script.
+ */
+export async function askChecker(db: SQLiteDatabase, id: number, question: string): Promise<Ask> {
+  const p = await getProject(db, id);
+  if (!p) throw new Error('This documentary is gone.');
+  const geminiKey = await getKey('gemini');
+  if (!geminiKey) throw new Error('The checker needs a Gemini key (for Google Search).');
+  const found = await groundedSearch(
+    geminiKey,
+    PROVIDERS.gemini.defaultModel,
+    `I'm making a documentary about "${p.topic}" and I'm not sure about this: ${question.trim()}\n` +
+      'Check it with Google Search against reliable sources. Start your reply with exactly one line: ' +
+      '"VERDICT: TRUE", "VERDICT: FALSE" or "VERDICT: UNCLEAR" (unclear = no reliable source, or sources disagree). ' +
+      'Then 2 to 4 short sentences in plain English: what is actually true, with the specific name, date or number, ' +
+      'and where it comes from. If it is false, say what to write instead.',
+    'studio',
+  );
+  const m = found.text.match(/VERDICT:\s*(TRUE|FALSE|UNCLEAR)/i);
+  const ask: Ask = {
+    at: Date.now(),
+    question: question.trim(),
+    verdict: (m?.[1].toLowerCase() as Ask['verdict']) ?? 'unclear',
+    answer: found.text.replace(/^[\s\S]*?VERDICT:\s*\w+\s*/i, '').trim() || found.text.trim(),
+    sources: found.sources.slice(0, 6),
+  };
+  const fresh = await getProject(db, id); // the script may have changed while it searched
+  const research: Research = { ...(fresh?.research ?? { notes: [], sources: [], queries: [] }) };
+  research.asks = [ask, ...(research.asks ?? [])].slice(0, 10);
+  await update(db, id, { research: JSON.stringify(research) });
+  return ask;
+}
+
+/** "Fix it in the script": the checker's answer goes to the rewrite as the editor's note. */
+export const fixAsked = (db: SQLiteDatabase, id: number, ask: Ask) =>
+  reviseScript(
+    db,
+    id,
+    `Fact check: "${ask.question}" is ${ask.verdict === 'false' ? 'WRONG' : 'NOT CONFIRMED'}. What is known: ${ask.answer}\n` +
+      'Correct this in the script (use what is true; if unconfirmed, soften it or drop it) and change nothing else.',
+    `AI: fix "${ask.question.slice(0, 50)}"`,
+  );
 
 /** "Simpler words": the same script, every fact kept, in plain spoken English (a new version, so it can be compared). */
 export const simplify = (db: SQLiteDatabase, id: number) =>

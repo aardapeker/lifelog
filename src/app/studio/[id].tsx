@@ -16,8 +16,10 @@ import {
   deleteProject,
   factCheck,
   fixChecked,
+  askChecker,
   diffStats,
   diffWords,
+  fixAsked,
   getProject,
   isRunning,
   listVersions,
@@ -29,6 +31,7 @@ import {
   scenesOf,
   spokenMinutes,
   writeScript,
+  type Ask,
   type Check,
   type DiffPart,
   type Project,
@@ -210,6 +213,7 @@ export default function StudioProjectScreen() {
                       <PillButton label="New script" ghost disabled={busy} onPress={rewriteAll} />
                     </View>
                   </Glass>
+                  <AskChecker pid={pid} asks={p.research?.asks ?? []} busy={busy} onAsked={load} onFix={(a) => run(fixAsked(db, pid, a))} />
                   <FactCheck
                     check={p.research?.check}
                     busy={busy}
@@ -313,6 +317,70 @@ function KitCard({ title, items }: { title: string; items: string[] }) {
           <Ionicons name={copied === i ? 'checkmark' : 'copy-outline'} size={18} color={copied === i ? colors.ok : colors.muted} />
         </Pressable>
       ))}
+    </Glass>
+  );
+}
+
+/**
+ * "Not sure about something?": type a suspicious claim, the checker looks it up (Google Search) and answers
+ * true / false / unclear with sources. Wrong or unclear ones can go straight to the rewrite.
+ */
+function AskChecker({ pid, asks, busy, onAsked, onFix }: { pid: number; asks: Ask[]; busy: boolean; onAsked: () => void; onFix: (a: Ask) => void }) {
+  const db = useSQLiteContext();
+  const [q, setQ] = useState('');
+  const [asking, setAsking] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [all, setAll] = useState(false);
+  const ask = async () => {
+    if (!q.trim() || asking) return;
+    setAsking(true);
+    setErr(null);
+    try {
+      await askChecker(db, pid, q);
+      setQ('');
+      onAsked();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setAsking(false);
+    }
+  };
+  const VERDICT = { true: { label: 'TRUE', color: '#5BE0A0' }, false: { label: 'FALSE', color: colors.danger }, unclear: { label: 'UNCLEAR', color: '#E3A43B' } } as const;
+  return (
+    <Glass radius={radius.lg} style={styles.card} fill={frost.backgroundColor}>
+      <Text style={styles.noteHead}>Not sure about something?</Text>
+      <TextInput
+        value={q}
+        onChangeText={setQ}
+        placeholder='"Did Nokia really make hunting ammunition?"'
+        placeholderTextColor={colors.muted}
+        style={styles.input}
+        multiline
+        editable={!asking}
+        {...inputColors}
+      />
+      <View style={styles.row}>
+        <PillButton label={asking ? 'Looking it up…' : 'Check this'} disabled={!q.trim() || asking} onPress={ask} />
+      </View>
+      {asking && <ActivityIndicator color={colors.text} />}
+      {err && <Text style={styles.err}>{err}</Text>}
+      {(all ? asks : asks.slice(0, 3)).map((a) => (
+        <View key={a.at} style={styles.checkRow}>
+          <View style={[styles.checkDot, { backgroundColor: VERDICT[a.verdict].color }]} />
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={styles.hint}>{VERDICT[a.verdict].label}</Text>
+            <Text style={styles.cardText}>{a.question}</Text>
+            <Text style={[styles.cardText, { color: colors.muted }]}>{a.answer}</Text>
+            {!!a.sources.length && <SourceList sources={a.sources} />}
+            {a.verdict !== 'true' && <PillButton label="Fix it in the script" ghost disabled={busy} onPress={() => onFix(a)} style={{ alignSelf: 'flex-start' }} />}
+          </View>
+        </View>
+      ))}
+      {asks.length > 3 && (
+        <Pressable onPress={() => setAll(!all)} hitSlop={8}>
+          <Text style={styles.hint}>{all ? 'Show fewer' : `Show all ${asks.length}`}</Text>
+        </Pressable>
+      )}
     </Glass>
   );
 }
