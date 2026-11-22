@@ -38,20 +38,21 @@ export function Panel({ skin, style, children }: { skin: Skin; style?: StyleProp
   );
 }
 
-/** A CRT's scan lines: one gradient with hard stops, not dozens of views. */
-const SCAN_STOPS = 90;
-const scan = (() => {
+/** A CRT's scan lines: one gradient with hard stops, not dozens of views. `lines`: how many dark lines. */
+const scanOf = (n: number) => {
   const colors: string[] = [];
   const locations: number[] = [];
-  for (let k = 0; k < SCAN_STOPS; k++) {
+  for (let k = 0; k < n * 2; k++) {
     const c = k % 2 ? 'rgba(0,0,0,0.28)' : 'rgba(0,0,0,0)';
     colors.push(c, c);
-    locations.push(k / SCAN_STOPS, (k + 1) / SCAN_STOPS);
+    locations.push(k / (n * 2), (k + 1) / (n * 2));
   }
   return { colors: colors as [string, string, ...string[]], locations: locations as [number, number, ...number[]] };
-})();
-function ScanLines() {
-  return <LinearGradient pointerEvents="none" colors={scan.colors} locations={scan.locations} style={StyleSheet.absoluteFill} />;
+};
+const SCANS: Record<number, ReturnType<typeof scanOf>> = {};
+export function ScanLines({ lines = 45 }: { lines?: number }) {
+  const g = (SCANS[lines] ??= scanOf(lines));
+  return <LinearGradient pointerEvents="none" colors={g.colors} locations={g.locations} style={StyleSheet.absoluteFill} />;
 }
 
 /** Capitals for the skins that shout. English rules: the labels are English (Turkish rules made "SİDE A"). */
@@ -297,46 +298,4 @@ const styles = StyleSheet.create({
   strip: { height: 22, marginTop: 10 },
   block: { position: 'absolute', top: 1, height: 20, overflow: 'hidden' },
   mark: { position: 'absolute', top: -1, width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
-});
-
-/*
- * A station's backdrop, behind the whole player and still (nothing moves, so the top bar's blur over it
- * stays cheap). Neon FM: the synthwave sun, cut by dark stripes that thicken towards its foot, over a
- * glowing grid floor running to the horizon.
- */
-const SUN = 390; // wider than the cover, so the sun rises around its edges
-const CUTS = [0.56, 0.64, 0.71, 0.78, 0.84, 0.9, 0.95]; // where the stripes start, down the sun (0…1)
-const FLOOR_ROWS = 7;
-const FLOOR_COLS = 13;
-
-export function StationBackdrop({ skin, top }: { skin: Skin; top: number }) {
-  if (skin.backdrop !== 'sunset') return null;
-  return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <View style={[bg.sun, { top }]}>
-        <LinearGradient colors={['#FFD23F', '#FF5FA2', '#7B2FF7']} locations={[0, 0.55, 1]} style={StyleSheet.absoluteFill} />
-        {CUTS.map((y, i) => (
-          <View key={i} style={{ position: 'absolute', left: 0, right: 0, top: y * SUN, height: 3 + i * 1.6, backgroundColor: '#0B0420' }} />
-        ))}
-      </View>
-      <View style={[bg.floor, { top: top + SUN * 0.86 }]}>
-        <View style={bg.floorPlane}>
-          {Array.from({ length: FLOOR_ROWS }, (_, i) => (
-            <View key={`r${i}`} style={[bg.gridLine, { top: `${(i / (FLOOR_ROWS - 1)) * 100}%`, left: 0, right: 0, height: 1.5 }]} />
-          ))}
-          {Array.from({ length: FLOOR_COLS }, (_, i) => (
-            <View key={`c${i}`} style={[bg.gridLine, { left: `${(i / (FLOOR_COLS - 1)) * 100}%`, top: 0, bottom: 0, width: 1.5 }]} />
-          ))}
-        </View>
-        <LinearGradient colors={['rgba(11,4,32,0)', '#0B0420']} style={StyleSheet.absoluteFill} />
-      </View>
-    </View>
-  );
-}
-
-const bg = StyleSheet.create({
-  sun: { position: 'absolute', alignSelf: 'center', width: SUN, height: SUN, borderRadius: SUN / 2, overflow: 'hidden', opacity: 0.6 },
-  floor: { position: 'absolute', left: 0, right: 0, height: 300, overflow: 'hidden' },
-  floorPlane: { position: 'absolute', left: '-60%', right: '-60%', top: 0, height: 420, opacity: 0.5, transformOrigin: 'top', transform: [{ perspective: 300 }, { rotateX: '60deg' }] },
-  gridLine: { position: 'absolute', backgroundColor: '#FF2FD0', boxShadow: '0 0 6px #FF2FD0' },
 });

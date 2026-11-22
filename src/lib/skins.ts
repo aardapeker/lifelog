@@ -9,6 +9,9 @@ import type { SpokenLine } from './tts';
  */
 
 /** The little shape that marks a talk on the tape (and the progress line's thumb). */
+/** Each station page's background: Neon's sunset, Arabesk's gold frame, Rock's hazard tape, the CRT, paws, a sunrise. */
+export type Backdrop = 'sunrise' | 'ornate' | 'sunset' | 'crt' | 'hazard' | 'paws';
+
 export type Marker = 'dot' | 'diamond' | 'bar' | 'square' | 'paw' | 'cursor';
 
 export type Skin = {
@@ -41,8 +44,8 @@ export type Skin = {
   hard?: boolean;
   /** night shift: a CRT's scan lines over the panels */
   scan?: boolean;
-  /** something behind the whole player (Neon FM: the synthwave sun over a grid floor) */
-  backdrop?: 'sunset';
+  /** the station page's background, behind the show's options (components/StationBackdrop) */
+  backdrop: Backdrop;
   marker: Marker;
   /** the tape's song blocks: played, still to come */
   played: string;
@@ -76,6 +79,7 @@ const FRIEND: Skin = {
   lineHeight: 4,
   round: true,
   tape: "Today's show",
+  backdrop: 'sunrise',
 };
 
 export const SKINS: Record<string, Skin> = {
@@ -102,6 +106,7 @@ export const SKINS: Record<string, Skin> = {
     lineHeight: 2,
     round: true,
     tape: "Tonight's tape · side A",
+    backdrop: 'ornate',
   },
   neon: {
     accent: '#FF2FD0',
@@ -120,13 +125,13 @@ export const SKINS: Record<string, Skin> = {
     promptSize: 14,
     radius: 10,
     glow: '#FF2FD0',
-    backdrop: 'sunset',
     marker: 'bar',
     played: '#7B5CFF',
     todo: 'rgba(123, 92, 255, 0.32)',
     lineHeight: 4,
     round: true,
     tape: 'Tape · side A · C60',
+    backdrop: 'sunset',
   },
   nightshift: {
     accent: '#39FF88',
@@ -152,6 +157,7 @@ export const SKINS: Record<string, Skin> = {
     lineHeight: 6,
     round: false,
     tape: '> shift_log',
+    backdrop: 'crt',
   },
   rock: {
     accent: '#F2C230',
@@ -176,6 +182,7 @@ export const SKINS: Record<string, Skin> = {
     lineHeight: 6,
     round: false,
     tape: 'Set list',
+    backdrop: 'hazard',
   },
   chill: {
     accent: '#C96A4A',
@@ -199,6 +206,7 @@ export const SKINS: Record<string, Skin> = {
     lineHeight: 6,
     round: true,
     tape: "Today's show",
+    backdrop: 'paws',
   },
 };
 

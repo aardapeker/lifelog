@@ -5,6 +5,7 @@ import { Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View, typ
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FadeIn } from '../../components/motion';
 import { StationArt } from '../../components/StationArt';
+import { StationBackdrop } from '../../components/StationBackdrop';
 import { Chip, IconButton, PillButton, StatusLine } from '../../components/ui';
 import { getSetting, setSetting } from '../../lib/db';
 import { SHOW_LENGTHS, songLangOf, songLangsFor, type SongLang } from '../../lib/radio';
@@ -12,6 +13,7 @@ import { useRadio } from '../../lib/radioEngine';
 import { FRIEND_VOICES, LANGS, STATIONS, voicesFor } from '../../lib/stations';
 import { colors, fonts, inputColors, radius } from '../../lib/theme';
 import { useFirstFrame } from '../../lib/perf';
+import { skinOf } from '../../lib/skins';
 
 /** One station: its artwork and hosts, the show's options, and Go on air. */
 export default function StationScreen() {
@@ -59,6 +61,8 @@ export default function StationScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+      {/* the station's own background (Neon's sunset, Arabesk's gold frame…), behind everything */}
+      <StationBackdrop skin={skinOf(station.key)} />
       <View style={styles.bar}>
         <IconButton icon="arrow-back" label="Back" onPress={() => router.back()} />
         <Text style={styles.barTitle}>
