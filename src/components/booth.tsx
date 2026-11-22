@@ -54,7 +54,8 @@ function ScanLines() {
   return <LinearGradient pointerEvents="none" colors={scan.colors} locations={scan.locations} style={StyleSheet.absoluteFill} />;
 }
 
-const titled = (skin: Skin, t: string) => (skin.titleCase === 'upper' ? t.toLocaleUpperCase('tr') : t);
+/** Capitals for the skins that shout. English rules: the labels are English (Turkish rules made "SİDE A"). */
+const titled = (skin: Skin, t: string) => (skin.titleCase === 'upper' ? t.toLocaleUpperCase('en') : t);
 
 /** The studio's ON AIR light: lit while the hosts are on the mic, dark while the music plays. */
 export function OnAirLight({ skin, lit }: { skin: Skin; lit: boolean }) {
