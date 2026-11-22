@@ -57,7 +57,7 @@ function Ornate() {
 /** Neon FM: the striped sun setting on the horizon, a glowing grid floor running to it. */
 const SUN = 320;
 const CUTS = [0.5, 0.6, 0.68, 0.76, 0.83, 0.9]; // the stripes, down the sun (0…1), thicker towards its foot
-const HORIZON = 230; // px from the bottom
+const HORIZON = 150; // px from the bottom: the sun sets behind "Go on air", not behind the options
 function Sunset() {
   return (
     <>
@@ -143,9 +143,9 @@ const s = StyleSheet.create({
   disc: { position: 'absolute', borderRadius: 999 },
   frame: { position: 'absolute', borderWidth: 1.5, borderRadius: 26 },
   diamond: { position: 'absolute', alignSelf: 'center', width: 14, height: 14, transform: [{ rotate: '45deg' }], borderWidth: 1.5, borderColor: '#C9A24A', backgroundColor: '#3D070D' },
-  sun: { position: 'absolute', alignSelf: 'center', width: SUN, height: SUN, borderRadius: SUN / 2, overflow: 'hidden', opacity: 0.5 },
+  sun: { position: 'absolute', alignSelf: 'center', width: SUN, height: SUN, borderRadius: SUN / 2, overflow: 'hidden', opacity: 0.28 },
   floor: { position: 'absolute', left: 0, right: 0, bottom: 0, overflow: 'hidden', backgroundColor: colors.bg },
-  plane: { position: 'absolute', left: '-60%', right: '-60%', top: 0, height: 360, opacity: 0.45, transformOrigin: 'top', transform: [{ perspective: 300 }, { rotateX: '60deg' }] },
+  plane: { position: 'absolute', left: '-60%', right: '-60%', top: 0, height: 360, opacity: 0.22, transformOrigin: 'top', transform: [{ perspective: 300 }, { rotateX: '60deg' }] },
   grid: { position: 'absolute', backgroundColor: '#FF2FD0', boxShadow: '0 0 6px #FF2FD0' },
   tape: { position: 'absolute', height: 14, overflow: 'hidden', backgroundColor: '#1B1A18' },
   stripe: { position: 'absolute', top: -10, width: 14, height: 34, backgroundColor: '#F2C230', transform: [{ rotate: '45deg' }] },
