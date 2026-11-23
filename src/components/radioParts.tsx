@@ -46,6 +46,8 @@ export const withAlpha = (rgb: string, a: number) => rgb.replace('rgb(', 'rgba('
  * like a lamp (a real blurred shadow, not a hard edge). While on air it breathes slowly (a little
  * faster while the hosts talk); paused, it rests.
  */
+const GLOW = 110; // the glow's reach: 70 px blur + 18 px spread, and some air
+
 export function GlowingCover({ uri, glow, live, talking }: { uri: string; glow: string | null; live: boolean; talking: boolean }) {
   const breath = useRef(new Animated.Value(0.75)).current;
   useEffect(() => {
@@ -69,17 +71,16 @@ export function GlowingCover({ uri, glow, live, talking }: { uri: string; glow: 
   return (
     <View style={styles.coverWrap}>
       {/* drawn once into a texture: the breathing only fades and scales that picture. Without it the big soft
-          shadow was blurred again on every frame, the whole time a show was on screen */}
+          shadow was blurred again on every frame, the whole time a show was on screen. The texture is only as big
+          as its view, so the view reaches GLOW px past the cover: the whole glow fits in it. (Clipped at the cover's
+          edge, only the glow's corners were left: a square peeking out behind the round cover.) */}
       <Animated.View
         pointerEvents="none"
         renderToHardwareTextureAndroid
-        style={[
-          StyleSheet.absoluteFill,
-          styles.halo,
-          { backgroundColor: glow ?? 'rgb(255, 255, 255)', boxShadow: `0 0 70px 18px ${withAlpha(glow ?? 'rgb(255, 255, 255)', 0.75)}` },
-          { opacity: breath, transform: [{ scale }] },
-        ]}
-      />
+        style={[styles.haloRoom, { opacity: breath, transform: [{ scale }] }]}
+      >
+        <View style={[styles.halo, { backgroundColor: glow ?? 'rgb(255, 255, 255)', boxShadow: `0 0 70px 18px ${withAlpha(glow ?? 'rgb(255, 255, 255)', 0.75)}` }]} />
+      </Animated.View>
       <Image source={{ uri }} style={styles.cover} />
     </View>
   );
@@ -123,7 +124,8 @@ export const duration = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math
 const styles = StyleSheet.create({
   cover: { width: '100%', aspectRatio: 1, borderRadius: radius.lg, backgroundColor: colors.raised },
   coverWrap: { marginBottom: 0 },
-  halo: { borderRadius: radius.lg },
+  haloRoom: { position: 'absolute', top: -GLOW, left: -GLOW, right: -GLOW, bottom: -GLOW },
+  halo: { position: 'absolute', top: GLOW, left: GLOW, right: GLOW, bottom: GLOW, borderRadius: radius.lg },
 });
 
 /** "just now", "25 min ago", "3 h ago". */
