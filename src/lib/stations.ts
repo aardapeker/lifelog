@@ -311,7 +311,11 @@ export const STATIONS: Station[] = [
       gender: 'male',
       voice: 'Enceladus', // breathy: Arda's pick
       style: 'a dramatic, heartbroken Turkish arabesk radio host, slow, sighing, every sentence a tragedy, deep and gravelly',
-      bio: 'an arabesk DJ who has suffered more than anyone alive, turns every small thing into a sad destiny, says "of" and "ah" a lot',
+      bio:
+        'an arabesk DJ who has suffered more than anyone alive, turns every small thing into a sad destiny, says "of" and "ah" a lot. ' +
+        'Now and then (about one talk in four, never twice in a row) he recites a short poem: two to four lines HE wrote himself ' +
+        '("1987, Tuzla iskelesi, bir çay bahçesinde yazdım…"), about the song or the listener\'s day, deadly serious and a little ' +
+        'clumsy; Cengiz reacts. Only his own lines (or a line of an old folk poet like Karacaoğlan or Yunus Emre), never a modern poet\'s',
     },
     sidekick: {
       name: 'Çaycı Cengiz',
