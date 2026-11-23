@@ -25,8 +25,10 @@ export default function RadioHome() {
   const blur = useBlurSource(); // for the tab bar's frosted glass
   useTabBlurSource(blur);
   const [tab, setTab] = useState<'stations' | 'recent' | 'saved'>('stations');
-  const { history, loadHistory, playPast, forgetShow, keepShow, phase, show, current, paused } = useRadio();
+  const { history, loadHistory, playPast, forgetShow, keepShow, phase, show, current, paused, togglePause, skip } = useRadio();
   const saved = history.filter((h) => h.kept); // 🔖 kept for good
+  // each station's last show, for the line under its tile ("Last show 2 h ago")
+  const lastOf = (key: string) => history.filter((h) => h.show.station.key === key).reduce<number | null>((a, h) => Math.max(a ?? 0, h.savedAt), null);
   useFocusEffect(useCallback(() => { loadHistory(); }, [loadHistory])); // Settings may have changed how long shows are kept
 
   const live = phase === 'building' || phase === 'review' || phase === 'onair';
@@ -84,7 +86,19 @@ export default function RadioHome() {
                       </Text>
                     )}
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color={colors.muted} />
+                  {phase === 'onair' ? (
+                    // the show's own controls, without opening the player
+                    <View style={styles.nowControls}>
+                      <Pressable onPress={togglePause} hitSlop={8} style={styles.nowPlay} accessibilityLabel={paused ? 'Play' : 'Pause'}>
+                        <Ionicons name={paused ? 'play' : 'pause'} size={20} color={colors.bg} />
+                      </Pressable>
+                      <Pressable onPress={skip} hitSlop={8} accessibilityLabel="Next song">
+                        <Ionicons name="play-forward" size={22} color={colors.text} />
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <Ionicons name="chevron-forward" size={20} color={colors.muted} />
+                  )}
                 </PressScale>
               </FadeIn>
             )}
@@ -100,7 +114,14 @@ export default function RadioHome() {
                 {STATIONS.map((st, i) => (
                   <FadeIn key={st.key} delay={stagger(i, 50)} style={styles.cell}>
                     <PressScale scaleTo={0.96} onPress={() => router.push(`/station/${st.key}`)} accessibilityLabel={`${st.name} ${st.freq}`}>
-                      <StationArt station={st} size={30} style={styles.tile} />
+                      <StationArt station={st} size={30} label="freq" style={styles.tile} />
+                      <Text style={styles.tileName} numberOfLines={1}>
+                        {st.name}
+                      </Text>
+                      <Text style={styles.tileLine} numberOfLines={2}>
+                        {st.tagline}
+                      </Text>
+                      {lastOf(st.key) != null && <Text style={styles.tileLast}>Last show {ago(lastOf(st.key)!)}</Text>}
                     </PressScale>
                   </FadeIn>
                 ))}
@@ -176,9 +197,14 @@ const styles = StyleSheet.create({
   content: { padding: 20 },
   title: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 40, lineHeight: 46, color: colors.text, marginBottom: 18, marginLeft: 4 },
   tabs: { flexDirection: 'row', gap: 8, marginBottom: 16 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 14 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 22 },
   cell: { width: '48.2%' },
   tile: { aspectRatio: 1.45 },
+  tileName: { fontFamily: fonts.sans, fontSize: 15, color: colors.text, marginTop: 10, marginLeft: 2 },
+  tileLine: { fontFamily: fonts.sansRegular, fontSize: 12, lineHeight: 16, color: colors.muted, marginTop: 2, marginLeft: 2 },
+  tileLast: { fontFamily: fonts.mono, fontSize: 10, letterSpacing: 0.3, color: 'rgba(255,255,255,0.45)', marginTop: 5, marginLeft: 2 },
+  nowControls: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  nowPlay: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.text, alignItems: 'center', justifyContent: 'center' },
   empty: { fontFamily: fonts.sansRegular, fontSize: 15, lineHeight: 22, color: colors.muted, marginTop: 8 },
   now: {
     flexDirection: 'row',

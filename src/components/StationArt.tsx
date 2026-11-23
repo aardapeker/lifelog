@@ -152,7 +152,8 @@ export const stationColors = (key: string) => lookOf(key).colors;
 
 /**
  * The artwork. `size` is the logo's font size: about 30 for a grid tile, 54 for the station page.
- * `label` puts the station's name and frequency small in the top-left corner (like "Pop" on a genre tile).
+ * `label` puts the station's name and frequency small in the top-left corner (like "Pop" on a genre tile);
+ * "freq" only the frequency, as a little dial pill (the grid, where the name is written under the tile).
  */
 export function StationArt({
   station,
@@ -162,7 +163,7 @@ export function StationArt({
 }: {
   station: Station;
   size?: number;
-  label?: boolean;
+  label?: boolean | 'freq';
   style?: StyleProp<ViewStyle>;
 }) {
   useLateFonts(); // its logo/code fonts load after the start: redraw once they're in
@@ -183,7 +184,11 @@ export function StationArt({
           <Decor k={station.key} w={box.w} h={box.h} />
         </View>
       )}
-      {label && (
+      {label === 'freq' ? (
+        <View style={styles.pill}>
+          <Text style={styles.pillText}>{station.freq}</Text>
+        </View>
+      ) : label && (
         <Text style={[styles.label, { fontSize: Math.max(13, size * 0.45) }]} numberOfLines={1}>
           {station.name} <Text style={styles.freq}>{station.freq}</Text>
         </Text>
@@ -212,5 +217,7 @@ const styles = StyleSheet.create({
   card: { borderRadius: 20, overflow: 'hidden', padding: 14, justifyContent: 'space-between' },
   label: { fontFamily: 'Inter_700Bold', color: '#FFFFFF', textShadowColor: 'rgba(0,0,0,0.4)', textShadowRadius: 3, textShadowOffset: { width: 0, height: 1 } },
   freq: { fontFamily: 'Inter_500Medium', color: 'rgba(255,255,255,0.75)' },
+  pill: { alignSelf: 'flex-start', paddingHorizontal: 9, paddingVertical: 3, borderRadius: 99, backgroundColor: 'rgba(0,0,0,0.28)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)' },
+  pillText: { fontFamily: 'JetBrainsMono_700Bold', fontSize: 11, letterSpacing: 0.5, color: '#FFFFFF' },
   logo: { alignItems: 'flex-end', alignSelf: 'stretch' },
 });
