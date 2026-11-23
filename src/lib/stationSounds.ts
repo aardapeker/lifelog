@@ -2,6 +2,7 @@ import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { Directory, File, Paths } from 'expo-file-system';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getSetting, setSetting } from './db';
+import { onBeat } from './heartbeat';
 import { searchDeezer, type DzTrack } from './deezer';
 import { getPlannerSettings } from './planner';
 import { lyricsOf } from './songFacts';
@@ -322,21 +323,24 @@ function fade(player: AudioPlayer, to: number, ms: number): Promise<void> {
       return to;
     }
   })();
-  const steps = Math.max(1, Math.round(ms / 50));
+  // by the clock, not by counting steps: Android freezes JS timers when the screen is off, and a fade that
+  // waited on 18 frozen timer steps held the next song back for a minute or two after the talk. The radio's
+  // heartbeat (native, keeps beating in the background) finishes it within about a second.
+  const begun = Date.now();
   return new Promise((done) => {
-    let k = 0;
-    const t = setInterval(() => {
-      k++;
-      if (fades.get(player) !== id) {
-        clearInterval(t);
-        return done();
-      }
-      quietly(() => (player.volume = from + ((to - from) * k) / steps));
-      if (k >= steps) {
-        clearInterval(t);
-        done();
-      }
-    }, 50);
+    const step = () => {
+      if (fades.get(player) !== id) return finish();
+      const f = Math.min(1, (Date.now() - begun) / Math.max(1, ms));
+      quietly(() => (player.volume = from + (to - from) * f));
+      if (f >= 1) finish();
+    };
+    const t = setInterval(step, 50);
+    const off = onBeat(step);
+    const finish = () => {
+      clearInterval(t);
+      off();
+      done();
+    };
   });
 }
 
