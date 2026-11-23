@@ -340,15 +340,6 @@ export const STATIONS: Station[] = [
         bit: 'tells a devastating love story that turns out to be about a lost umbrella; the line always cuts off when his jetons run out',
       },
       {
-        name: 'Falcı Gülizar Teyze',
-        gender: 'female',
-        voice: 'Gacrux',
-        via: 'studio',
-        style: 'a dramatic old coffee-cup fortune teller, mysterious, slow, gasping at what she sees',
-        bio: 'a fortune teller who brings her own Turkish coffee cup to the studio',
-        bit: "reads the listener's coffee grounds live; she sees the company servis in every cup",
-      },
-      {
         name: 'Dolmuşçu Sabri',
         gender: 'male',
         voice: 'Fenrir',
