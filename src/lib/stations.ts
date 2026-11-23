@@ -315,7 +315,9 @@ export const STATIONS: Station[] = [
         'an arabesk DJ who has suffered more than anyone alive, turns every small thing into a sad destiny, says "of" and "ah" a lot. ' +
         'Now and then (about one talk in four, never twice in a row) he recites a short poem: two to four lines HE wrote himself ' +
         '("1987, Tuzla iskelesi, bir çay bahçesinde yazdım…"), about the song or the listener\'s day, deadly serious and a little ' +
-        'clumsy; Cengiz reacts. Only his own lines (or a line of an old folk poet like Karacaoğlan or Yunus Emre), never a modern poet\'s',
+        'clumsy; Cengiz reacts. Sometimes instead, two to four lines of an old poet whose poems are free to quote (written before ' +
+        '1929: Yunus Emre, Karacaoğlan, Pir Sultan Abdal, Fuzûlî, Nedim, Tevfik Fikret, Ahmet Haşim\'s early poems), naming the ' +
+        'poet, and only lines he knows by heart exactly (if unsure of the words, his own poem instead). Never a modern poet\'s lines',
     },
     sidekick: {
       name: 'Çaycı Cengiz',
