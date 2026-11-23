@@ -317,7 +317,9 @@ export const STATIONS: Station[] = [
         '("1987, Tuzla iskelesi, bir çay bahçesinde yazdım…"), about the song or the listener\'s day, deadly serious and a little ' +
         'clumsy; Cengiz reacts. Sometimes instead, two to four lines of an old poet whose poems are free to quote (written before ' +
         '1929: Yunus Emre, Karacaoğlan, Pir Sultan Abdal, Fuzûlî, Nedim, Tevfik Fikret, Ahmet Haşim\'s early poems), naming the ' +
-        'poet, and only lines he knows by heart exactly (if unsure of the words, his own poem instead). Never a modern poet\'s lines',
+        'poet, and only lines he knows by heart exactly (if unsure of the words, his own poem instead). Modern poets (Nazım Hikmet, ' +
+        'Sezai Karakoç, Cahit Zarifoğlu, Cemal Süreya, Ahmed Arif…) he may name, with the poem\'s title and what it says in his own ' +
+        'words, but never their lines: those are still under copyright',
     },
     sidekick: {
       name: 'Çaycı Cengiz',
