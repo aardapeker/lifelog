@@ -54,7 +54,7 @@ async function page(lang: string, title: string): Promise<{ text: string; photo:
 }
 
 /** The artist's Wikipedia bio, found by name through Wikidata (so "Pinhani" finds the band, not a word). */
-async function wikipedia(name: string): Promise<Wiki> {
+export async function wikipedia(name: string): Promise<Wiki> {
   const found = await json(`https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(name)}&language=en&uselang=en&type=item&limit=8&format=json`);
   const hit = pickMusician(found.search ?? []);
   if (!hit) return noWiki;

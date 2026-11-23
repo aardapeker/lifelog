@@ -46,6 +46,9 @@ export type SongFacts = {
   tailSec: number | null; // seconds of music after the last line has been sung
   instrumental: boolean;
   fame?: 'big hit' | 'well known' | 'deep cut' | null; // from Deezer's popularity rank
+  album?: string | null; // Deezer: the album it's on
+  year?: number | null; // Deezer: when that came out
+  artistAbout?: string | null; // Wikipedia: the artist's page, its first sentences (real trivia for the hosts)
 };
 export const noFacts: SongFacts = { bpm: null, gain: null, introSec: null, tailSec: null, instrumental: false, fame: null };
 
@@ -85,6 +88,8 @@ export function factsLine(f: SongFacts): string {
   if (f.instrumental) parts.push('instrumental');
   if (f.introSec != null) parts.push(f.introSec >= 10 ? `${f.introSec} s instrumental intro before the singing` : 'the singing starts right away');
   if (f.tailSec != null) parts.push(f.tailSec >= 6 ? `${f.tailSec} s of music after the last sung line` : 'ends right on the vocal');
+  if (f.album || f.year) parts.push(`from ${f.album ? `the album "${f.album}"` : 'a release'}${f.year ? ` (${f.year})` : ''}`);
+  if (f.artistAbout) parts.push(`about the artist: ${f.artistAbout}`);
   return parts.join(' · ');
 }
 
@@ -129,4 +134,18 @@ export function lineAt(lines: LyricLine[], ms: number): number {
     } else hi = mid - 1;
   }
   return found;
+}
+
+/**
+ * The interesting part of a Wikipedia lead for the hosts: its first sentence is the obvious one ("Sezen Aksu is a
+ * Turkish singer"), so it's left out when there's more; then up to `n` sentences (and 500 characters).
+ */
+export function wikiTrivia(text: string | null | undefined, n = 4): string | null {
+  const t = (text ?? '').replace(/\s*\([^)]*\)/g, '').replace(/\s+/g, ' ').trim(); // "(born 1954)", pronunciations: out
+  if (!t) return null;
+  const sentences = (t.match(/[^.!?]+[.!?]+(\s|$)/g) ?? [t]).map((x) => x.trim());
+  const rest = sentences.length > 1 ? sentences.slice(1) : sentences;
+  let out = rest.slice(0, n).join(' ').trim();
+  if (out.length > 500) out = out.slice(0, 497).replace(/\s+\S*$/, '') + '…';
+  return out || null;
 }

@@ -1,5 +1,6 @@
 import { fame, findSong } from './deezer';
-import { noFacts, lyricTimes, timing, type SongFacts } from './songText';
+import { wikiTrivia, noFacts, lyricTimes, timing, type SongFacts } from './songText';
+import { wikipedia } from './songInfo';
 import { isrcOf, type Track } from './spotify';
 
 /*
@@ -54,21 +55,42 @@ export function lyricsOf(t: Track): Promise<Lrc | null> {
 
 const memo = new Map<string, Promise<SongFacts>>();
 
+/** The artist's Wikipedia opening, once per artist (a show often plays one artist twice). */
+const aboutMemo = new Map<string, Promise<string | null>>();
+function artistAbout(artist: string): Promise<string | null> {
+  const name = artist.split(',')[0].trim();
+  if (!aboutMemo.has(name)) {
+    const p = wikipedia(name).then((w) => wikiTrivia(w.bio));
+    aboutMemo.set(name, p);
+    p.catch(() => aboutMemo.delete(name));
+    if (aboutMemo.size > 200) aboutMemo.delete(aboutMemo.keys().next().value!);
+  }
+  return aboutMemo.get(name)!;
+}
+
 export function songFacts(t: Track): Promise<SongFacts> {
   if (!memo.has(t.id)) {
     const p = (async (): Promise<SongFacts> => {
       const title = t.name.replace(/\s+-\s+.*(remaster|version|edit|mix|mono|stereo).*$/i, '').trim();
-      const [dz, lrc] = await Promise.all([
+      const [dz, lrc, about] = await Promise.all([
         isrcOf(t.id)
           .then((isrc) => findSong(t.artist, title, isrc))
           .catch(() => null),
         lyricsOf(t).catch(() => null),
+        // trivia is a bonus: never let a slow Wikipedia hold back the timings the show needs
+        Promise.race([artistAbout(t.artist).catch(() => null), new Promise<null>((r) => setTimeout(() => r(null), 4000))]),
       ]);
+      // a best-of or a remaster's date isn't when the song came out: no year from those
+      const reissue = /best of|greatest|hits|remaster|collection|deluxe|anniversary|anthology|essential|en iyileri|seçmeler|toplama/i.test(dz?.album?.title ?? '');
+      const year = reissue ? 0 : Number((dz?.date ?? '').slice(0, 4));
       return {
         ...noFacts,
         bpm: dz?.bpm && dz.bpm > 40 ? Math.round(dz.bpm) : null,
         gain: dz?.gain ?? null,
         fame: fame(dz?.rank),
+        album: dz?.album?.title ?? null,
+        year: year > 1900 ? year : null,
+        artistAbout: about,
         instrumental: !!lrc?.instrumental,
         ...(lrc?.syncedLyrics ? timing(lyricTimes(lrc.syncedLyrics), t.durationMs / 1000) : {}),
       };

@@ -445,6 +445,12 @@ export async function buildShow(
       'FACTS: when the hosts name a song or artist, it must be exactly the one in the playlist (the song just ' +
       'played is the previous one). Never invent facts about artists (who sang what, years, gossip); if unsure, ' +
       "joke about the listener's life instead. " +
+      'TRIVIA: the playlist notes may say which album a song is from and its year (Deezer) and give a line about the ' +
+      'artist (Wikipedia). Those are real: in a few talks (not every one, about one in three), share ONE of them like a DJ ' +
+      'who knows music ("bu şarkı 1997\'de çıkan … albümünden", how they started, a turning point, an odd detail), in your ' +
+      'own words, with a joke or a feeling. Pick the SURPRISING detail, never the obvious one (that a famous Turkish artist ' +
+      'is Turkish, that a singer sings, a genre everyone knows); if the notes have nothing surprising, skip the trivia. ' +
+      'Only from the notes, never anything else about the artist. ' +
       'The first talk opens the show with a station ID. Make it about THIS listener: callbacks to what they wrote, ' +
       'their shift, their cat, their plans. Teasing is welcome, cruelty is not. ' +
       'The first talk ends with "this show is brought to you by…" and a FAKE SPONSOR made from one small, real thing in ' +
