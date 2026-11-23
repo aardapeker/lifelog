@@ -1,7 +1,7 @@
 /*
  * What the earthquake page needs besides the feed item: where it was (from the item's geo link),
  * what the magnitude means in plain words, and the map as a small Leaflet page for a WebView
- * (OpenStreetMap data, CARTO's dark tiles: free, no key). No React Native in here.
+ * (OpenStreetMap data, Esri's dark gray tiles: no key; CARTO started asking for one in 2026). No React Native in here.
  */
 
 export type Spot = { lat: number; lon: number; depth: number | null };
@@ -42,8 +42,9 @@ html,body,#map{margin:0;height:100%;background:#1b1a1a}
 </style></head><body><div id="map"></div><script>
 var q=${json(q)},others=${json(others.map((o) => ({ ...o, label: esc(o.label) })))},home=${json({ ...home, label: esc(home.label) })};
 var map=L.map('map',{zoomControl:false,attributionControl:true});
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:18,subdomains:'abcd',
- attribution:'&copy; OpenStreetMap contributors &copy; CARTO'}).addTo(map);
+var esri='https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_';
+L.tileLayer(esri+'Base/MapServer/tile/{z}/{y}/{x}',{maxZoom:16,attribution:'Esri, HERE, Garmin, &copy; OpenStreetMap contributors'}).addTo(map);
+L.tileLayer(esri+'Reference/MapServer/tile/{z}/{y}/{x}',{maxZoom:16}).addTo(map);
 others.forEach(function(o){L.circleMarker([o.lat,o.lon],{radius:3+o.mag*1.6,color:'#ffb347',weight:1,fillOpacity:.35}).bindPopup(o.label).addTo(map)});
 L.circle([q.lat,q.lon],{radius:Math.pow(10,0.43*q.mag)*1000/4,color:'#ff5a4e',weight:1,fillOpacity:.08}).addTo(map);
 L.marker([q.lat,q.lon],{icon:L.divIcon({className:'',html:'<div class="pulse"></div>',iconSize:[22,22],iconAnchor:[11,11]})}).addTo(map);

@@ -108,7 +108,7 @@ export function QuakePage({ item, save }: { item: FeedItem; save: { saved: boole
           ))
         )}
       </Glass>
-      <Text style={styles.credit}>Data: AFAD (USGS as backup). Map: © OpenStreetMap contributors, © CARTO.</Text>
+      <Text style={styles.credit}>Data: AFAD (USGS as backup). Map: Esri, HERE, Garmin, © OpenStreetMap contributors.</Text>
     </View>
   );
 }
