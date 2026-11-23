@@ -213,15 +213,6 @@ export const STATIONS: Station[] = [
     },
     regulars: [
       {
-        name: 'Metal Murat',
-        gender: 'male',
-        voice: 'Algenib',
-        via: 'studio',
-        style: 'a loud, bitter old metalhead, gravelly, offended by everything',
-        bio: "Riff's old bandmate from the 90s, who storms into the studio",
-        bit: 'claims the song that just played stole his riff from a 1994 demo tape that nobody has ever heard',
-      },
-      {
         name: 'Hüsnü',
         gender: 'male',
         voice: 'Fenrir',
