@@ -425,6 +425,12 @@ export async function pausePlayback(): Promise<void> {
   await api('/me/player/pause', { method: 'PUT' });
 }
 
+/** Repeat off: the radio decides what comes after a song. With repeat on, a song whose end the radio missed
+ * (screen off) played again from the start. */
+export async function repeatOff(): Promise<void> {
+  await api('/me/player/repeat?state=off', { method: 'PUT' });
+}
+
 export async function resumePlayback(): Promise<void> {
   if (await remoteReady(false)) return void (await SpotifyRemote!.resume());
   await api('/me/player/play', { method: 'PUT' });

@@ -19,6 +19,7 @@ import {
   playbackState,
   playTracks,
   remoteReady,
+  repeatOff,
   resumePlayback,
   sameTrack,
   savePlaylist,
@@ -402,7 +403,7 @@ function useRadioEngine() {
    * Starts slot i's song on Spotify and checks it really plays. Spotify on the phone sometimes
    * ignores the first command (asleep, or another device was active): one retry, then a clear message.
    */
-  const endTimer = useRef<{ at: number; timer: ReturnType<typeof setTimeout> } | null>(null); // the precise stop at a song's end
+  const endTimer = useRef<{ at: number; due: number; timer: ReturnType<typeof setTimeout> } | null>(null); // the precise stop at a song's end
   const ended = useRef(-1); // the last song whose end was handled
   const skipTo = useRef<((i: number) => void) | null>(null);
   const timing = useRef({ checkedAt: 0, endsAt: 0 }); // go easy on Spotify's API: look often only near the end
@@ -433,6 +434,7 @@ function useRadioEngine() {
     timing.current = { checkedAt: 0, endsAt: 0 }; // the last song's end is no clock for this one: look at once
     try {
       await playTracks(rest);
+      repeatOff().catch(() => {}); // the radio decides what comes next, not Spotify's repeat
       if (await playing()) return setStatus({ kind: 'idle' });
       await nudgeSpotify(); // second try: move playback to the phone first
       await playTracks(rest);
@@ -478,6 +480,14 @@ function useRadioEngine() {
     if (ticking.current || !l.show || l.paused || Date.now() - l.startedAt < 4000) return;
     if (l.speaking && !l.overlapping) return;
     const now = Date.now();
+    // the song's end, on time even with the screen off: Android froze the timer, the heartbeat doesn't freeze
+    const due = endTimer.current;
+    if (due && now >= due.due) {
+      clearTimeout(due.timer);
+      endTimer.current = null;
+      if (l.index === due.at && !l.speaking) endSong(due.at);
+      return;
+    }
     // between looks, the progress bar counts on by itself (every 2 s), from the song's end Spotify reported
     const dur = l.show.slots[l.index]?.track.durationMs;
     if (!l.overlapping && dur && timing.current.endsAt && now - shownAt.current >= 2000) {
@@ -522,6 +532,7 @@ function useRadioEngine() {
       return;
     }
     const slot = l.show.slots[l.index];
+    const wasEnding = timing.current.endsAt > 0 && timing.current.endsAt - Date.now() < 5000; // the last look saw the end coming
     timing.current = { checkedAt: Date.now(), endsAt: p?.track ? Date.now() + p.track.durationMs - p.progressMs : 0 };
     if (!p?.track) return;
     if (!sameTrack(p.track, slot.track)) {
@@ -537,6 +548,8 @@ function useRadioEngine() {
       }
       return;
     }
+    // the end was missed (screen off) and Spotify started the same song over (repeat): that song is over
+    if (wasEnding && p.progressMs < 10_000 && Date.now() - l.startedAt > 20_000) return endSong(l.index);
     setProgress(p.progressMs / Math.max(1, p.track.durationMs));
     const remaining = p.track.durationMs - p.progressMs;
     const next = l.show.slots[l.index + 1];
@@ -552,6 +565,7 @@ function useRadioEngine() {
       if (endTimer.current) clearTimeout(endTimer.current.timer);
       endTimer.current = {
         at,
+        due: Date.now() + remaining - STOP_BEFORE_END_MS, // the heartbeat fires it if the timer is frozen (screen off)
         timer: setTimeout(() => {
           const now = live.current;
           if (endTimer.current?.at !== at) return;
