@@ -1,85 +1,131 @@
 # Lifelog
 
-A personal journal that remembers everything you write, plus an AI friend that has read all of it.
-Android only. No server, no account. Everything lives on the phone.
+An everything app for one person: a journal that remembers everything you write, an AI friend that has
+read all of it, a radio station that hosts a show just for you, a news feed of the topics you follow,
+and a studio that writes YouTube documentaries.
 
-## What it does
+**Android only. No server, no account.** Everything lives on your phone, and the AI is called with your
+own API keys.
 
-- **Journal**: write, talk (voice notes → text), add photos (the AI captions them so they're searchable)
-- **Search**: by keyword (FTS5) and by meaning (Gemini embeddings), merged with reciprocal rank fusion
-- **Chat**: a friend who has read your journal. Sees the last 14 days, your profile and what it has learned;
-  calls a `search_notes` tool for anything older. Claude or Gemini, streaming.
-- **What I've learned**: facts pulled out of every entry (people, goals, plans…), editable in Settings
-- **Your week, in a letter**: a recap written every Sunday
-- **On this day**: entries from 1 month, 6 months and 1 year ago
-- **Check-ins**: messages at break time, following the Morning → Night → Evening shift rotation.
-  Written ahead of time and scheduled as local notifications, so no server is needed
-- **Privacy**: fingerprint lock; API keys in the Android keystore; encrypted backups
-  (AES-256-GCM, scrypt passphrase) saved to Drive through the share sheet, with restore
+---
 
-- **Insights tab**: a mood map (and mood per shift week), goals that link entries on their own,
-  people & pet pages, and a video idea inbox filled from your entries
-- **Home screen widget** with Talk and Write buttons (plus an in-app "Add widget" button for Xiaomi)
-- **Share into Lifelog** from any app: text, links and images become a new entry
-- **Grammar fixer**: one tap in the editor, or automatically on save
-- **Export** everything as JSON, for moving to a home server later
-- **Day planner for days off**: weather (Open-Meteo, no key), real events found with Gemini's Google Search,
-  your goals, mood and people you haven't seen, turned into a checklist; adjustable "social push";
-  reminder the evening before; ticked items become a journal entry draft
-- **On its own**: Android wakes the app every few hours (no server). The friend looks up things you
-  wrote about (daily cap, "never look up" list), searches for things to do nearby, and sends at most one
-  message a day (notification + chat, with links). Results also listed under Insights → Looked Into
-- **Chat sessions**: New chat, History (auto titles, hold to delete); quiet chats become memory too
-- **Never ghosts you**: one message every day (what it found, or just checking in), plus check-ins at break time,
-  all written a week ahead as local notifications, so they arrive even when HyperOS keeps the app asleep.
-  Notices when you've gone quiet. Settings → On Its Own has Autostart / Battery saver shortcuts for Xiaomi
-- **Spotify (Premium)**: the friend suggests songs with ▶ Play buttons in the chat, every new entry remembers the
-  song you were listening to, and **Lifelog Radio** hosts a show for you: a set picked from your week and taste,
-  with the hosts talking before each song in natural Gemini voices. Stations in the spirit of old open-world
-  game radio: Neon FM (80s pop), Night Shift FM (synthwave), Gebze Rock 104, Şemistan Chill (the cat co-hosts),
-  each with a host + comedian duo, fake commercials and news bulletins about your life. Your own Spotify app's Client ID, PKCE login, no server
-- **Reads**: after a chat goes quiet, the friend researches its topic from three angles with Google Search
-  and writes a short magazine-style article just for you, with sources (at most one a day)
+## 📲 Try it
 
-Everything lives on the phone. One Gemini key is enough for all of it.
+### Option 1: the APK (anyone)
 
-## Run it
+1. On your phone, open **[github.com/aardapeker/lifelog/releases/latest](https://github.com/aardapeker/lifelog/releases/latest)**.
+2. Download the `.apk` and open it. Android asks once to allow "install unknown apps": allow it.
+3. New versions install over the old one, and your data stays.
+
+Every push to `main` that asks for a build makes a new release, usually several a week.
+
+### Option 2: Google Play internal testing (invited testers)
+
+Lifelog is on Google Play's **internal testing** track only, not public. Want in? Open an
+[issue](https://github.com/aardapeker/lifelog/issues) saying so (don't post your email there), and
+Arda will get in touch. Once added, you install and update it from the Play Store like any app.
+
+---
+
+## 🔑 First-time setup
+
+Open **Settings** in the app. Only the first key is needed; the rest unlock more.
+
+| What | Needed for | Where to get it | Cost |
+|---|---|---|---|
+| **Gemini API key** | Almost everything: search by meaning, the friend, the hosts' voices, Google Search for research and fact checks | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | Free tier is enough to start (it has daily limits) |
+| **Claude API key** *(optional)* | The friend and the writing in Claude instead of Gemini | [console.anthropic.com](https://console.anthropic.com) | Pay per use |
+| **Spotify Premium + your own Spotify app** *(optional)* | Lifelog Radio, songs in chat, the song you were listening to on each entry | See below | Premium |
+| **TMDB key** *(optional)* | Movies and TV in the Radar feed | [themoviedb.org/settings/api](https://www.themoviedb.org/settings/api) | Free |
+
+Paste a key, tap **Save**, then **Test**. Keys stay in your phone's encrypted keystore and only go to
+the service they belong to.
+
+### Spotify (for the radio)
+
+Lifelog controls *your* Spotify app, so you make your own (free) Spotify developer app:
+
+1. Open [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) → **Create app** (any name).
+2. Under **Redirect URIs**, add `dev.arda.lifelog://spotify-auth`. Tick **Web API**, then save.
+3. Copy the app's **Client ID** into Lifelog → **Settings → Spotify** and log in.
+
+The Settings screen shows these same steps, with the redirect URI ready to copy.
+
+### HyperOS (and other battery-strict phones)
+
+Lifelog does things on its own (check-ins, the radio with the screen off). Phones that freeze apps
+aggressively need two switches: **Settings → On Its Own** has shortcuts to **Autostart** and
+**Battery saver → No restrictions**. Without them, messages can arrive late and the radio can stall.
+
+---
+
+## ✨ What's inside
+
+**📓 Journal** (Journal and Write tabs)
+- Write, or talk (voice notes become text), add photos (the AI captions them, so they're searchable)
+- Search by keyword and by meaning, merged into one list
+- A grammar fixer (one tap, with Undo), share into Lifelog from any app, and a home screen widget
+
+**🧑‍🤝‍🧑 The friend** (Friend tab)
+- An AI friend that has read your journal: the last 14 days up front, older entries searched when needed
+- Learns facts about you (people, goals, plans) that you can see and edit
+- Check-ins at break time, a weekly letter, "on this day", and one message a day with something it looked up
+- **Reads**: after a chat, it researches the topic with Google Search and writes you a short article with sources
+
+**📻 Lifelog Radio** (Radio tab, needs Spotify Premium)
+- A show built from your week and your taste: it picks the songs, writes the talks, and the hosts talk
+  between songs (and over a song's fading end) in natural AI voices
+- Stations in the spirit of old open-world game radio: Your Friend 88.0, Neon FM, Night Shift FM,
+  Gebze Rock, Şemistan Chill (the cat co-hosts) and Tuzla Arabesk FM, each with its own look and hosts
+- A music bed under the hosts (Deezer previews you pick, slowed if you like) and a weather ambience
+  (rain, wind, crickets… or the real weather where you are)
+- Lyrics, about the song and the artist, and it keeps going with the screen off
+
+**🛰️ Radar** (Life tab)
+- A feed of the topics you follow, not people: news, Hacker News, Mastodon, YouTube, GitHub releases,
+  arXiv, movies and TV, games, F1, earthquakes near Istanbul with a map, and more
+- AI summaries, a reader view without ads, and a morning digest
+
+**🎬 Studio** (Life tab)
+- Documentaries for YouTube: deep research with sources → a script in scenes → your edits
+- A **fact check** of every scene with Google Search, **Ask the checker** for anything that looks off,
+  and an **Editor's review** that lists fixes, doubts and ideas you apply with one tap
+- Every version kept, with a word-by-word diff, and a publish kit (titles, description, tags, thumbnail text)
+
+**🎮 And more** (Life tab): Bug Arena (a coding quiz game for breaks), a monthly Wrapped, a mood map,
+goals, people pages, a day planner for days off, groceries.
+
+---
+
+## 🔒 Privacy
+
+- Your journal never leaves the phone, except as a backup **you** save: encrypted (AES-256-GCM, with a
+  passphrase) and shared wherever you like (e.g. Google Drive)
+- Fingerprint lock, and keys in the Android keystore
+- No analytics, no account, no Lifelog server. What does leave the phone is what you'd expect: the text
+  you send to the AI you chose, and requests to the services above (Spotify, Deezer, news sources…)
+- Lifelog never logs into your personal social accounts
+
+---
+
+## 🛠️ For developers
+
+Expo SDK 58 (React Native, TypeScript, Expo Router), SQLite on the phone, built on GitHub Actions.
 
 ```bash
 npm install
-npx expo start          # scan the QR code with Expo Go on your phone
+npx expo start      # dev build; some parts (widgets, lock screen controls) need a real build
+npx tsc --noEmit    # type check
 ```
 
-Then in the app: **Settings → paste Claude key → Save → Test**, same for Gemini. Done.
-
-## 📲 Install (APK)
-
-Every push to `main` builds an APK on GitHub Actions.
-On your phone open **github.com/aardapeker/lifelog/releases/latest**, download the `.apk`,
-and install it (allow "install unknown apps" once). New builds install over the old one, so your data stays.
-
-## Where things are
-
 ```
-src/app/                 screens (Expo Router)
-  (tabs)/index.tsx       journal list + search
-  (tabs)/chat.tsx        chat with Claude
-  (tabs)/settings.tsx    API keys, About me, model, index status
-  note/[id].tsx          write / edit an entry
-src/lib/
-  db.ts                  schema + migrations (append, never edit old ones)
-  notes.ts               notes CRUD + chunking
-  embeddings.ts          Gemini embeddings + background indexer
-  search.ts              FTS5 + vector + RRF
-  context.ts             builds the system prompt (the friend's "brain")
-  claude.ts              streaming Messages API
-  keys.ts                secure key storage
+src/app/            screens (Expo Router): (tabs)/, settings/, radar/, studio/, station/, arena/ …
+src/lib/            the logic: db.ts (migrations: append, never edit), chat, search, radioEngine,
+                    stations, tts, spotify, studio, keys …
+src/radar/          the Radar sub-app (also its own repo; here it runs with the phone as its server)
+src/components/     shared UI
+patches/, plugins/  native tweaks (expo-audio's lock screen controls)
 ```
 
-## Next up
-
-1. Encrypted daily Google Drive backup (on app open if last backup > 24h)
-2. Photos (vision model writes a caption once, caption gets indexed)
-3. Facts table + weekly auto-updated profile
-4. `search_notes` as a Claude tool so it searches only when needed
-5. Proactive messages at break times
+Builds: an empty commit `Build: apk`, `Build: aab` or `Build: both` on `main` tells CI what to make. APKs
+go to GitHub Releases, AABs to Play internal testing.
