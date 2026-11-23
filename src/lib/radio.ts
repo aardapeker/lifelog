@@ -9,6 +9,7 @@ import { aboutUser, renderNotes } from './context';
 import { getSetting, setSetting } from './db';
 import { formatDate, olderNotes, recentNotes } from './notes';
 import { articleOf, listReads } from './reads';
+import { forecastFor } from './forecast';
 import { bannedSongs, FAVOURITES_PER_SHOW, getRadioPrefs, likedSongs, playedSongs, playsThisMonth, songLine } from './songMemory';
 import { findTrack, musicTaste, spotifyLikedSongs, type Track } from './spotify';
 import { freeVoice, STATIONS, type Persona, type Station } from './stations';
@@ -218,21 +219,27 @@ export async function buildShow(
   onStep('journal');
   const writer = await getRadioConfig(db); // Settings → AI: its own provider and model, or the chat's
   if (!writer.apiKey) throw new Error('Add an AI key in Settings first.');
-  const [about, recent, taste, shifts, city, played, liked] = await Promise.all([
+  const [about, recent, taste, shifts, place, played, liked] = await Promise.all([
     aboutUser(db),
     recentNotes(db, 7, 8),
     musicTaste(db),
     getCheckinSettings(db),
     getSetting(db, 'planner').then((p) => {
       try {
-        return (JSON.parse(p) as { city?: string }).city ?? '';
+        return JSON.parse(p) as { city?: string; lat?: number | null; lon?: number | null };
       } catch {
-        return '';
+        return {};
       }
     }),
     playedSongs(db),
     likedSongs(db),
   ]);
+  const city = place.city ?? '';
+  // the real weather where you are (Settings → Days Off's place), started now, needed only when the talks are written
+  const weather =
+    place.lat != null && place.lon != null
+      ? Promise.race([forecastFor(place.lat, place.lon).catch(() => null), new Promise<null>((r) => setTimeout(() => r(null), 8000))])
+      : Promise.resolve(null);
   const [prefs, banned, throwbacks] = await Promise.all([getRadioPrefs(db), bannedSongs(db), olderNotes(db, 14, 3).catch(() => [])]);
   // favourites take turns: one that played in the last few shows sits this one out
   const resting = new Set(played.slice(0, REST).map((p) => p.id));
@@ -455,6 +462,11 @@ export async function buildShow(
       'own words, with a joke or a feeling. Pick the SURPRISING detail, never the obvious one (that a famous Turkish artist ' +
       'is Turkish, that a singer sings, a genre everyone knows); if the notes have nothing surprising, skip the trivia. ' +
       'Only from the notes, never anything else about the artist. ' +
+      'WEATHER: if a forecast is given below, once early in the show (the second or third talk) a host gives a short, real ' +
+      'weather report in the station\'s own style: what it\'s like now and what\'s coming when the listener goes to or ' +
+      'comes back from the shift (their shift week says when: a morning shift leaves before dawn, an evening shift comes ' +
+      'home around midnight, a night shift goes out late at night), with one practical tip (umbrella, coat, gloves). ' +
+      'Numbers only from the forecast, rounded and said naturally; never invent weather. No forecast, no report. ' +
       'INSPIRATION: once in the show (in the middle, not the first or the last talk, not a commercial or the news), one ' +
       'host drops the act for a moment and gives a short, sincere, inspiring talk (3 to 5 lines) for THIS listener: about ' +
       'how far they have come with something from their notes (what they are learning or building, getting through the ' +
@@ -523,6 +535,7 @@ export async function buildShow(
       `The playlist:\n${tracks.map((t, k) => `${k + 1}. "${t.name}" by ${t.artist}${notesOf(k) ? ` (${notesOf(k)})` : ''}`).join('\n')}\n` +
       (welcome.length ? `Their favourites (greet these like old friends when they come): ${welcome.map(songLine).join('; ')}\n` : '') +
       (wish.trim() ? `The listener asked for: ${wish.trim()}\n` : '') +
+      ((await weather) ? `Forecast where the listener is (local times): ${await weather}\n` : '') +
       (article ? `An article the listener's friend researched and wrote for them lately: "${article.title}": ${article.hook} Why it matters to them: ${article.forYou}\n` : '') +
       `\n${notesText}` +
       (throwbacks.length

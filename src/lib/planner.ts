@@ -160,15 +160,8 @@ export async function upcomingDayOff(db: SQLiteDatabase): Promise<number | null>
 
 // ───────────── sources ─────────────
 
-const WMO: Record<number, string> = {
-  0: 'clear sky', 1: 'mostly clear', 2: 'partly cloudy', 3: 'overcast', 45: 'fog', 48: 'fog',
-  51: 'light drizzle', 53: 'drizzle', 55: 'heavy drizzle', 56: 'freezing drizzle', 57: 'freezing drizzle',
-  61: 'light rain', 63: 'rain', 65: 'heavy rain', 66: 'freezing rain', 67: 'freezing rain',
-  71: 'light snow', 73: 'snow', 75: 'heavy snow', 77: 'snow grains',
-  80: 'rain showers', 81: 'rain showers', 82: 'violent rain showers', 85: 'snow showers', 86: 'heavy snow showers',
-  95: 'thunderstorm', 96: 'thunderstorm with hail', 99: 'thunderstorm with hail',
-};
-export const weatherText = (code: number) => WMO[code] ?? 'mixed weather';
+export { weatherText } from './forecast';
+import { weatherText } from './forecast';
 
 export async function fetchWeather(lat: number, lon: number, day: number): Promise<Weather | null> {
   const res = await fetch(
