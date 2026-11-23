@@ -174,6 +174,15 @@ export function sameArtist(asked: string, found: string): boolean {
   return words(a).some((w) => words(f).includes(w));
 }
 
+/**
+ * Lyrics: like a real DJ ("Cengiz Kurtoğlu bu şarkıda ne güzel anlatmış…"), but in the host's own words. Never the
+ * lines themselves: they're the songwriter's (copyright), and the voice would read them out word for word.
+ */
+const LYRICS_RULE =
+  'Never sing or quote lyrics word for word. Now and then (at most twice a show) a host may say in their OWN words what ' +
+  'a song is about, like a DJ ("bu şarkıda ne güzel anlatmış: gidene arkasından bakılmazmış…"), but only for a song they ' +
+  'truly know; if unsure what it is about, say nothing about it. ';
+
 const persona = (p: Persona, role: string) => `- ${p.name} (${role}): ${p.bio}`;
 
 type RawLine = { who?: string; text?: string };
@@ -480,7 +489,8 @@ export async function buildShow(
       'like a DJ hyping a song in: set "intro":true only for a song that opens with a long instrumental intro ' +
       '(10 seconds or more before the singing starts: trust the song facts when they say so, never when they say the singing starts right away). That talk must be very short (one or two quick lines, under ' +
       '8 seconds spoken), hype the song that is starting, and have "overlap":0. Never the first talk, a commercial or the ' +
-      'news. When unsure about a song\'s intro, don\'t. Never sing or quote lyrics. ' +
+      'news. When unsure about a song\'s intro, don\'t. ' +
+      LYRICS_RULE +
       'Lines are SPOKEN aloud by a voice engine: no emojis, no markdown, no stage directions in brackets, natural speech, ' +
       'short sentences. You may put <laugh> or <short pause> inside a line. ' +
       LANGUAGE[station.lang] +
@@ -580,7 +590,9 @@ export async function requestTalks(db: SQLiteDatabase, show: Show, at: number, t
       '1. "intro": the hosts announce the request before it plays, like a real radio dedication, excited and a bit teasing ' +
       '(why would he pick this one right now?). 2 to 4 short lines.\n' +
       (after ? '2. "next": the talk after the request, leading into the next song: it may react to the request that just played. 1 to 3 lines.\n' : '') +
-      'Name songs and artists exactly as given; never invent facts about them; never quote lyrics. Lines are SPOKEN aloud: ' +
+      'Name songs and artists exactly as given; never invent facts about them. ' +
+      LYRICS_RULE +
+      'Lines are SPOKEN aloud: ' +
       'no emojis, no markdown, no stage directions, short natural sentences. ' +
       (show.lang.startsWith('tr') ? 'Speak Turkish (natural, warm Istanbul Turkish).' : 'Speak English.') +
       `\n\nReturn {"intro":[{"who":${names},"text":"…"}]${after ? `,"next":[{"who":${names},"text":"…"}]` : ''}}`,
