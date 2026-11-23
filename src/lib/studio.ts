@@ -25,7 +25,10 @@ export type Note = { heading: string; text: string };
 export type Check = { at: number; scenes: number; failed: number; items: CheckItem[]; sources: Source[] };
 /** One question you asked the checker ("did Nokia really make hunting ammunition?") and its answer. */
 export type Ask = { at: number; question: string; verdict: 'true' | 'false' | 'unclear'; answer: string; sources: Source[] };
-export type Research = { notes: Note[]; sources: Source[]; queries: string[]; check?: Check; asks?: Ask[] };
+/** One of the editor's notes: a fix to apply, a claim for the checker, or an idea for the story. `done` once used. */
+export type ReviewNote = { kind: 'fix' | 'check' | 'idea'; scene: number; title: string; why: string; edit?: string; question?: string; done?: boolean };
+export type Review = { at: number; summary: string; notes: ReviewNote[] };
+export type Research = { notes: Note[]; sources: Source[]; queries: string[]; check?: Check; asks?: Ask[]; review?: Review };
 export type Short = { title: string; script: string };
 export type Kit = { titles: string[]; description: string; tags: string[]; thumbnail: string[]; shorts: Short[] };
 export type Project = {
@@ -429,6 +432,82 @@ export const simplify = (db: SQLiteDatabase, id: number) =>
 /** "Fix these": the rewrite gets the fact check's findings as its editor's note. */
 export const fixChecked = (db: SQLiteDatabase, id: number, items: CheckItem[]) =>
   reviseScript(db, id, fixNote(items), `AI: fact-check fixes (${items.length})`);
+
+/**
+ * The editor's review: the AI reads the whole script like a picky editor (Claude's review of the Nokia script in
+ * chat, Nov 2026, made into a button). It lists what's wrong or misleading (each with the exact edit, so one tap
+ * applies it), what to ask the checker (one tap sends it), and ideas that would make the story better.
+ * `focus` steers it ("more about the 1100 and Snake").
+ */
+export function reviewScript(db: SQLiteDatabase, id: number, focus = ''): Promise<void> {
+  return job(db, id, async () => {
+    const p = await getProject(db, id);
+    if (!p?.script) return;
+    const w = await writer(db);
+    await update(db, id, { step: 'The editor is reading the script…', error: null });
+    const r = parseJsonReply<{ summary?: string; notes?: Partial<ReviewNote>[] }>(
+      await w.adapter.complete({
+        feature: 'studio',
+        apiKey: w.apiKey!,
+        model: w.model,
+        json: true,
+        maxTokens: 4000,
+        system:
+          'You are a sharp, honest editor of YouTube documentary scripts. Read the script and list what would make it ' +
+          'better, most important first, at most 8 notes. Look for: wrong or outdated facts, misleading comparisons, ' +
+          'timelines that read wrong, claims that imply a cause nobody proved, sensitive wording about real people, ' +
+          'facts repeated in two scenes, suspiciously exact numbers or quotes, and story ideas (a missing moment ' +
+          'viewers would love). Kinds: "fix" = you are sure, give the exact change; "check" = you are NOT sure, give ' +
+          'a short question for a fact checker with Google Search (never present a guess as a fix); "idea" = a story ' +
+          'improvement, give the change. Reply with JSON only: {"summary": "one or two honest sentences on the ' +
+          'script", "notes": [{"kind": "fix|check|idea", "scene": <scene number>, "title": "short", "why": "one ' +
+          'sentence", "edit": "for fix/idea: an editor\'s note telling a rewriter exactly what to change, quoting the ' +
+          'new text", "question": "for check: the question"}]}',
+        prompt:
+          `Topic: ${p.topic}${p.angle ? `\nAngle: ${p.angle}` : ''}${focus.trim() ? `\nThe author wants you to focus on: ${focus.trim()}` : ''}` +
+          `\n\nResearch notes:\n` +
+          (p.research?.notes.map((n) => `## ${n.heading}\n${n.text}`).join('\n\n') ?? '(none)') +
+          `\n\nThe script:\n\n${p.script}`,
+      }),
+    );
+    const kinds = ['fix', 'check', 'idea'];
+    const notes: ReviewNote[] = (r.notes ?? [])
+      .filter((n) => n?.title && kinds.includes(n.kind ?? '') && (n.kind === 'check' ? n.question : n.edit))
+      .slice(0, 8)
+      .map((n) => ({ kind: n.kind!, scene: Number(n.scene) || 0, title: unstar(n.title!), why: unstar(n.why ?? ''), edit: n.edit, question: n.question }));
+    if (!notes.length && !r.summary) throw new Error("The editor's review came back empty. Try again?");
+    const fresh = await getProject(db, id);
+    const research: Research = { ...(fresh?.research ?? { notes: [], sources: [], queries: [] }), review: { at: Date.now(), summary: unstar(r.summary ?? ''), notes } };
+    await update(db, id, { step: null, research: JSON.stringify(research) });
+  });
+}
+
+/** Marks review notes as used (applied, asked), so the card shows what's left. */
+async function reviewDone(db: SQLiteDatabase, id: number, picked: ReviewNote[]): Promise<void> {
+  const p = await getProject(db, id);
+  const review = p?.research?.review;
+  if (!p?.research || !review) return;
+  const keys = new Set(picked.map((n) => n.title));
+  const research: Research = { ...p.research, review: { ...review, notes: review.notes.map((n) => (keys.has(n.title) ? { ...n, done: true } : n)) } };
+  await update(db, id, { research: JSON.stringify(research) });
+}
+
+/** "Apply": the picked fixes and ideas go to the rewrite in one go (one new version, so Changes shows them together). */
+export async function applyReview(db: SQLiteDatabase, id: number, picked: ReviewNote[]): Promise<void> {
+  const edits = picked.filter((n) => n.kind !== 'check' && n.edit);
+  if (!edits.length) return;
+  const note = edits.map((n, i) => `${i + 1}. Scene ${n.scene || '?'}: ${n.edit}`).join('\n') + '\nMake these changes and nothing else.';
+  await reviseScript(db, id, note, edits.length === 1 ? `AI: ${edits[0].title.slice(0, 60)}` : `AI: editor's review (${edits.length})`);
+  const p = await getProject(db, id);
+  if (p?.status !== 'error') await reviewDone(db, id, edits);
+}
+
+/** "Ask the checker" from a review note: the answer lands with the other asks. */
+export async function askFromReview(db: SQLiteDatabase, id: number, n: ReviewNote): Promise<Ask> {
+  const ask = await askChecker(db, id, n.question ?? n.title);
+  await reviewDone(db, id, [n]);
+  return ask;
+}
 
 // ---------------------------------------------------------------- ideas
 

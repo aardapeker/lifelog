@@ -17,6 +17,9 @@ import {
   factCheck,
   fixChecked,
   askChecker,
+  applyReview,
+  askFromReview,
+  reviewScript,
   diffStats,
   diffWords,
   fixAsked,
@@ -35,6 +38,8 @@ import {
   type Check,
   type DiffPart,
   type Project,
+  type Review,
+  type ReviewNote,
   type Version,
 } from '../../lib/studio';
 import { colors, fonts, frost, inputColors, radius } from '../../lib/theme';
@@ -213,6 +218,14 @@ export default function StudioProjectScreen() {
                       <PillButton label="New script" ghost disabled={busy} onPress={rewriteAll} />
                     </View>
                   </Glass>
+                  <EditorReview
+                    pid={pid}
+                    review={p.research?.review}
+                    busy={busy}
+                    onReview={(focus) => run(reviewScript(db, pid, focus))}
+                    onApply={(notes) => run(applyReview(db, pid, notes))}
+                    onAsked={load}
+                  />
                   <AskChecker pid={pid} asks={p.research?.asks ?? []} busy={busy} onAsked={load} onFix={(a) => run(fixAsked(db, pid, a))} />
                   <FactCheck
                     check={p.research?.check}
@@ -470,6 +483,76 @@ function Diff({ parts }: { parts: DiffPart[] }) {
  * The fact check: what looked wrong (red) or couldn't be confirmed (amber), per scene, with the pages
  * Google found. "Fix these" asks the AI to correct or soften exactly those lines.
  */
+/**
+ * The editor's review: the AI reads the script like a picky editor. Fixes and ideas apply with one tap (alone or
+ * all at once, as one new version), "not sure" ones go to the checker with one tap.
+ */
+function EditorReview({ pid, review, busy, onReview, onApply, onAsked }: { pid: number; review?: Review; busy: boolean; onReview: (focus: string) => void; onApply: (notes: ReviewNote[]) => void; onAsked: () => void }) {
+  const db = useSQLiteContext();
+  const [focus, setFocus] = useState('');
+  const [asking, setAsking] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const open = review?.notes.filter((n) => !n.done) ?? [];
+  const edits = open.filter((n) => n.kind !== 'check');
+  const ask = async (n: ReviewNote) => {
+    setAsking(n.title);
+    setErr(null);
+    try {
+      await askFromReview(db, pid, n);
+      onAsked();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setAsking(null);
+    }
+  };
+  const KIND = { fix: { label: 'FIX', color: colors.danger }, check: { label: 'NOT SURE', color: '#E3A43B' }, idea: { label: 'IDEA', color: '#7FB2FF' } } as const;
+  return (
+    <Glass radius={radius.lg} style={styles.card} fill={frost.backgroundColor}>
+      <Text style={styles.noteHead}>Editor's review</Text>
+      {!review ? (
+        <Text style={styles.hint}>An AI editor reads the whole script: what's wrong or misleading, what to double-check, and what would make the story better. You pick what to apply.</Text>
+      ) : (
+        !!review.summary && <Text style={styles.cardText}>{review.summary}</Text>
+      )}
+      {review?.notes.map((n) => (
+        <View key={n.title} style={[styles.checkRow, n.done && { opacity: 0.45 }]}>
+          <View style={[styles.checkDot, { backgroundColor: KIND[n.kind].color }]} />
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={styles.hint}>
+              {n.scene ? `Scene ${n.scene} · ` : ''}
+              {KIND[n.kind].label}
+              {n.done ? ' · done ✓' : ''}
+            </Text>
+            <Text style={styles.cardText}>{n.title}</Text>
+            {!!n.why && <Text style={[styles.cardText, { color: colors.muted }]}>{n.why}</Text>}
+            {!n.done &&
+              (n.kind === 'check' ? (
+                <PillButton label={asking === n.title ? 'Looking it up…' : 'Ask the checker'} ghost disabled={!!asking} onPress={() => ask(n)} style={{ alignSelf: 'flex-start' }} />
+              ) : (
+                <PillButton label={n.kind === 'idea' ? 'Add it' : 'Apply'} ghost disabled={busy} onPress={() => onApply([n])} style={{ alignSelf: 'flex-start' }} />
+              ))}
+          </View>
+        </View>
+      ))}
+      {err && <Text style={styles.err}>{err}</Text>}
+      <TextInput
+        value={focus}
+        onChangeText={setFocus}
+        placeholder='Focus on… (optional): "the 1100 and Snake"'
+        placeholderTextColor={colors.muted}
+        style={styles.input}
+        editable={!busy}
+        {...inputColors}
+      />
+      <View style={styles.row}>
+        {edits.length > 1 && <PillButton label={`Apply all ${edits.length}`} disabled={busy} onPress={() => onApply(edits)} />}
+        <PillButton label={review ? 'Review again' : 'Review the script'} ghost={edits.length > 1} disabled={busy} onPress={() => onReview(focus)} />
+      </View>
+    </Glass>
+  );
+}
+
 function FactCheck({ check, busy, onCheck, onFix }: { check?: Check; busy: boolean; onCheck: () => void; onFix: (items: Check['items']) => void }) {
   const wrong = check?.items.filter((c) => c.verdict === 'wrong').length ?? 0;
   const unsure = (check?.items.length ?? 0) - wrong;
