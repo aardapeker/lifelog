@@ -126,7 +126,7 @@ export async function restoreVersion(db: SQLiteDatabase, id: number, version: Ve
 export const saveScript = (db: SQLiteDatabase, id: number, script: string) => update(db, id, { script });
 
 export { diffStats, diffWords, fixNote, scenesOf, sceneMarkdown, spokenMinutes, WORDS_PER_MINUTE, type CheckItem, type DiffPart, type Scene } from './studioScript';
-import { fixNote, parseCheck, scenesOf, sceneMarkdown, WORDS_PER_MINUTE, type CheckItem } from './studioScript';
+import { fixNote, parseCheck, scenesOf, sceneMarkdown, WORDS_PER_MINUTE, type CheckItem, unstar } from './studioScript';
 
 // ---------------------------------------------------------------- the AI work
 
@@ -396,7 +396,7 @@ export async function askChecker(db: SQLiteDatabase, id: number, question: strin
     at: Date.now(),
     question: question.trim(),
     verdict: (m?.[1].toLowerCase() as Ask['verdict']) ?? 'unclear',
-    answer: found.text.replace(/^[\s\S]*?VERDICT:\s*\w+\s*/i, '').trim() || found.text.trim(),
+    answer: unstar(found.text.replace(/^[\s\S]*?VERDICT:\s*\w+\s*/i, '').trim() || found.text.trim()),
     sources: found.sources.slice(0, 6),
   };
   const fresh = await getProject(db, id); // the script may have changed while it searched

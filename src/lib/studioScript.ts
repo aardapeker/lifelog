@@ -141,3 +141,6 @@ export function diffStats(parts: DiffPart[]): { added: number; removed: number }
     removed: parts.filter((p) => p.op === 'del').reduce((s, p) => s + words(p.text), 0),
   };
 }
+
+/** The answer shows as plain text: Markdown's *italics* and **bold** lose their stars. */
+export const unstar = (t: string) => t.replace(/(\*{1,2}|_{2})(?=\S)([^*\n]+?)(?<=\S)\1/g, '$2');
