@@ -8,6 +8,7 @@ import { getCheckinSettings, shiftFor } from './checkins';
 import { aboutUser, renderNotes } from './context';
 import { getSetting, setSetting } from './db';
 import { formatDate, olderNotes, recentNotes } from './notes';
+import { articleOf, listReads } from './reads';
 import { bannedSongs, FAVOURITES_PER_SHOW, getRadioPrefs, likedSongs, playedSongs, playsThisMonth, songLine } from './songMemory';
 import { findTrack, musicTaste, spotifyLikedSongs, type Track } from './spotify';
 import { freeVoice, STATIONS, type Persona, type Station } from './stations';
@@ -420,6 +421,9 @@ export async function buildShow(
     songHistories(db, tracks.map((t) => t.id)).catch(() => new Map()),
     historySummary(db).catch(() => ({ plays: 0, since: null })),
   ]);
+  // the inspiring moment's material: the newest article the friend researched and wrote for them (last 10 days)
+  const read = (await listReads(db, 3).catch(() => [])).find((r) => r.status === 'done' && (r.done_at ?? 0) > Date.now() - 10 * 86_400_000);
+  const article = read ? articleOf(read) : null;
   /** the playlist line's notes: song facts, then what the listener's own history says about it */
   const notesOf = (k: number) => [factsLine(facts[k]), historyLine(histories.get(tracks[k].id), history.since)].filter(Boolean).join(' · ');
 
@@ -451,6 +455,11 @@ export async function buildShow(
       'own words, with a joke or a feeling. Pick the SURPRISING detail, never the obvious one (that a famous Turkish artist ' +
       'is Turkish, that a singer sings, a genre everyone knows); if the notes have nothing surprising, skip the trivia. ' +
       'Only from the notes, never anything else about the artist. ' +
+      'INSPIRATION: once in the show (in the middle, not the first or the last talk, not a commercial or the news), one ' +
+      'host drops the act for a moment and gives a short, sincere, inspiring talk (3 to 5 lines) for THIS listener: about ' +
+      'how far they have come with something from their notes (what they are learning or building, getting through the ' +
+      'shifts, a goal), or the idea of the article written for them (if given below), in your own words. Warm and specific, ' +
+      'not cheesy, no clichés, no made-up quotes from famous people. The comedian may land one soft line after it. ' +
       'The first talk opens the show with a station ID. Make it about THIS listener: callbacks to what they wrote, ' +
       'their shift, their cat, their plans. Teasing is welcome, cruelty is not. ' +
       'The first talk ends with "this show is brought to you by…" and a FAKE SPONSOR made from one small, real thing in ' +
@@ -514,6 +523,7 @@ export async function buildShow(
       `The playlist:\n${tracks.map((t, k) => `${k + 1}. "${t.name}" by ${t.artist}${notesOf(k) ? ` (${notesOf(k)})` : ''}`).join('\n')}\n` +
       (welcome.length ? `Their favourites (greet these like old friends when they come): ${welcome.map(songLine).join('; ')}\n` : '') +
       (wish.trim() ? `The listener asked for: ${wish.trim()}\n` : '') +
+      (article ? `An article the listener's friend researched and wrote for them lately: "${article.title}": ${article.hook} Why it matters to them: ${article.forYou}\n` : '') +
       `\n${notesText}` +
       (throwbacks.length
         ? `\n\nThrowbacks: a few random OLDER entries. Use one or two for a callback ("remember that day in September when…"), ` +
