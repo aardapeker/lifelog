@@ -10,6 +10,7 @@ import { getSetting, setSetting } from './db';
 import { formatDate, olderNotes, recentNotes } from './notes';
 import { articleOf, listReads } from './reads';
 import { forecastFor } from './forecast';
+import { eightiesToday } from './timeMachine';
 import { bannedSongs, FAVOURITES_PER_SHOW, getRadioPrefs, likedSongs, playedSongs, playsThisMonth, songLine } from './songMemory';
 import { findTrack, musicTaste, spotifyLikedSongs, type Track } from './spotify';
 import { freeVoice, STATIONS, type Persona, type Station } from './stations';
@@ -236,6 +237,11 @@ export async function buildShow(
     likedSongs(db),
   ]);
   const city = place.city ?? '';
+  // Neon FM's Time Machine: real events from this day in the 80s, fetched now, needed when the talks are written
+  const timeMachine =
+    station.key === 'neon'
+      ? Promise.race([eightiesToday().catch(() => []), new Promise<string[]>((r) => setTimeout(() => r([]), 8000))])
+      : Promise.resolve<string[]>([]);
   // the real weather where you are (Settings → Days Off's place), started now, needed only when the talks are written
   const weather =
     place.lat != null && place.lon != null
@@ -476,6 +482,9 @@ export async function buildShow(
       'FRESH: if the last shows\' talks are listed below, those details and jokes were JUST used (often the same few ' +
       'journal lines on every station). Don\'t build talks on them again: dig into OTHER things in the notes, the ' +
       'throwbacks, the songs and the regulars; at most one quick callback to an old joke in the whole show. ' +
+      'TIME MACHINE: if "On this day in the 80s" events are given below, once in the show (not the first talk) the host ' +
+      'opens the Time Machine: a short, excited segment about ONE of those real events, said like it just happened ' +
+      '("Today in 1985…"), only what the event says, no invented details; the sidekick overreacts in 80s style. ' +
       'INSPIRATION: once in the show (in the middle, not the first or the last talk, not a commercial or the news), one ' +
       'host drops the act for a moment and gives a short, sincere, inspiring talk (3 to 5 lines) for THIS listener: about ' +
       'how far they have come with something from their notes (what they are learning or building, getting through the ' +
@@ -558,6 +567,7 @@ export async function buildShow(
       (welcome.length ? `Their favourites (greet these like old friends when they come): ${welcome.map(songLine).join('; ')}\n` : '') +
       (wish.trim() ? `The listener asked for: ${wish.trim()}\n` : '') +
       ((await weather) ? `Forecast where the listener is (local times): ${await weather}\n` : '') +
+      ((await timeMachine).length ? `On this day in the 80s (Wikipedia):\n${(await timeMachine).map((e) => `- ${e}`).join('\n')}\n` : '') +
       (said.length ? `What the last shows already said (don't lean on the same details):\n${said.map((t) => `- ${t}`).join('\n')}\n` : '') +
       (moments.length ? `Earlier inspiring moments (don't repeat them):\n${moments.map((m) => `- ${m}`).join('\n')}\n` : '') +
       (article ? `An article the listener's friend researched and wrote for them lately: "${article.title}": ${article.hook} Why it matters to them: ${article.forYou}\n` : '') +
