@@ -3,7 +3,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BlurSource, Glass, GlassArea, useBlurSource, useTabBlurSource } from '../../components/Glass';
+import { BlurSource, GlassArea, useBlurSource, useTabBlurSource } from '../../components/Glass';
 import { FadeIn, Pulse, PressScale, stagger } from '../../components/motion';
 import { ago, showName, ShowWash } from '../../components/radioParts';
 import { StationArt } from '../../components/StationArt';
@@ -11,7 +11,7 @@ import { Chip } from '../../components/ui';
 import { useRadio } from '../../lib/radioEngine';
 import { STATIONS } from '../../lib/stations';
 import { colors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
-import { Avatar, Bell } from '../../components/TopBar';
+import { TopBar } from '../../components/TopBar';
 import { showAlert } from '../../lib/dialog';
 import { useFirstFrame } from '../../lib/perf';
 
@@ -51,15 +51,9 @@ export default function RadioHome() {
       <ShowWash />
       <BlurSource target={blur}>
       <GlassArea style={{ paddingTop: insets.top + 8 }}>
-        <View style={styles.bar}>
-          <Avatar size={44} />
-          <Text style={styles.barTitle}>Radio</Text>
-          <Bell />
-        </View>
-
-        <Glass radius={28} style={styles.sheet} fill="rgba(18, 18, 18, 0.55)">
-          <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 40 + TAB_BAR_SPACE + insets.bottom }]}>
-            <Text style={styles.title}>Tune In</Text>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.content, { paddingBottom: 40 + TAB_BAR_SPACE + insets.bottom }]}>
+            {/* the same bar as the other tabs (Arda: the small "Radio", a glass panel and a big "Tune In" were too much) */}
+            <TopBar kicker="Tune in" title="Radio" />
 
             {/* the show in progress, one tap away */}
             {live && (
@@ -182,7 +176,6 @@ export default function RadioHome() {
               })
             )}
           </ScrollView>
-        </Glass>
       </GlassArea>
       </BlurSource>
     </View>
@@ -191,11 +184,7 @@ export default function RadioHome() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 14 },
-  barTitle: { fontFamily: fonts.serif, fontSize: 18, color: colors.text },
-  sheet: { flex: 1, marginBottom: -40 },
-  content: { padding: 20 },
-  title: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 40, lineHeight: 46, color: colors.text, marginBottom: 18, marginLeft: 4 },
+  content: { paddingHorizontal: 20, paddingTop: 4 },
   tabs: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 22 },
   cell: { width: '48.2%' },
