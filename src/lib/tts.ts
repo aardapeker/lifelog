@@ -3,7 +3,8 @@ import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { Directory, File, Paths } from 'expo-file-system';
 import { jsonHeaders } from './gemini';
 import { onBeat, waitMs } from './heartbeat';
-import { busyTone, phoneFilter, splitBeeps } from './phoneLine';
+import { phoneFilter } from './phoneLine';
+import { sfxPcm, splitSfx, type Sfx } from './sfx';
 import { getKey } from './keys';
 import { recordUsage, textTokens } from './usage';
 
@@ -336,17 +337,15 @@ export async function synthesize(lines: SpokenLine[], cast: Cast): Promise<strin
     if (last && last.speaker === l.speaker) last.text = `${last.text} ${l.text}`;
     else turns.push({ ...l });
   }
-  // a line that ends in "düt düt düt" (a caller's jeton running out): the words are voiced, then a real busy
-  // tone plays instead of someone saying the beeps
-  const beepsAfter = new Set<number>();
+  // sound effects ("<sfx:ring>", a caller's "düt düt düt"): taken out of the words, made on the phone and
+  // played before or after the line, so nobody has to SAY "düt düt"
+  const effects = new Map<number, { before: Sfx[]; after: Sfx[] }>();
   turns.forEach((t, k) => {
-    const split = splitBeeps(t.text);
-    if (split.beeps) {
-      beepsAfter.add(k);
-      t.text = split.text;
-    }
+    const split = splitSfx(t.text);
+    if (split.before.length || split.after.length) effects.set(k, split);
+    t.text = split.text;
   });
-  if (beepsAfter.size) return finish(await lineByLine(apiKey, turns, voiceFor, beepsAfter));
+  if (effects.size) return finish(await lineByLine(apiKey, turns, voiceFor, effects));
   const parts: Uint8Array[] = [];
   // a two-person talk goes as ONE request (both voices at once): a talk used to cost a request per
   // line, so a 16-song show ate most of the 100-a-day voice quota. If the audio comes back much too
@@ -358,24 +357,32 @@ export async function synthesize(lines: SpokenLine[], cast: Cast): Promise<strin
     if (both && wavSeconds(both) >= expectedSeconds(turns) * 0.5) parts.push(both);
     else if (both) duoMisses++; // came back too short: someone was dropped
   }
-  if (!parts.length) parts.push(...(await lineByLine(apiKey, turns, voiceFor, new Set())));
+  if (!parts.length) parts.push(...(await lineByLine(apiKey, turns, voiceFor, new Map())));
   return finish(parts);
 }
 
-/** Each turn voiced on its own (a caller through the phone sound), with the busy tone after the ones in `beepsAfter`. */
-async function lineByLine(apiKey: string, turns: SpokenLine[], voiceFor: (name: string) => Cast[number], beepsAfter: Set<number>): Promise<Uint8Array[]> {
+/** Each turn voiced on its own (a caller through the phone sound), with its sound effects before and after. */
+async function lineByLine(
+  apiKey: string,
+  turns: SpokenLine[],
+  voiceFor: (name: string) => Cast[number],
+  effects: Map<number, { before: Sfx[]; after: Sfx[] }>,
+): Promise<Uint8Array[]> {
   const parts: Uint8Array[] = [];
+  const rateNow = () => (parts.length ? pcmOf(parts[parts.length - 1]).rate : 24000);
+  // the dead line is the caller's (through their phone); the rest happen in the studio
+  const sound = (kind: Sfx, phone: boolean, rate: number) => {
+    const raw = sfxPcm(kind, rate);
+    return wav(kind === 'busy' && phone ? phoneFilter(raw, rate) : raw, rate);
+  };
   for (const [k, t] of turns.entries()) {
     const phone = !!voiceFor(t.speaker).phone;
-    if (t.text.trim()) {
-      const bytes = await voiceBytes(apiKey, [t], [voiceFor(t.speaker)]);
-      parts.push(phone ? onPhone(bytes) : bytes);
-    }
-    if (beepsAfter.has(k)) {
-      const rate = parts.length ? pcmOf(parts[parts.length - 1]).rate : 24000;
-      const tone = busyTone(rate);
-      parts.push(wav(phone ? phoneFilter(tone, rate) : tone, rate));
-    }
+    const fx = effects.get(k);
+    const voiced = t.text.trim() ? await voiceBytes(apiKey, [t], [voiceFor(t.speaker)]) : null;
+    const rate = voiced ? pcmOf(voiced).rate : rateNow();
+    for (const kind of fx?.before ?? []) parts.push(sound(kind, phone, rate));
+    if (voiced) parts.push(phone ? onPhone(voiced) : voiced);
+    for (const kind of fx?.after ?? []) parts.push(sound(kind, phone, rate));
   }
   return parts;
 }

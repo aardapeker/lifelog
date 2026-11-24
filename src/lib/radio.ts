@@ -579,6 +579,11 @@ export async function buildShow(
       LYRICS_RULE +
       'Lines are SPOKEN aloud by a voice engine: no emojis, no markdown, no stage directions in brackets, natural speech, ' +
       'short sentences. You may put <laugh> or <short pause> inside a line. ' +
+      'SOUND EFFECTS: the studio has real ones, played where you put their tag at the START or the END of a line: ' +
+      '<sfx:ring> (the studio phone rings, before a caller), <sfx:buzz> (a phone vibrating), <sfx:doorbell> (someone at ' +
+      'the studio door), <sfx:knock> (a knock on the door), <sfx:ceiling> (a broom banging on the ceiling from below), ' +
+      '<sfx:busy> (a caller\'s line goes dead: the busy tone). Use them for comedy and to set up a moment, two or three ' +
+      'in the whole show, and react to them in the words ("Telefon çalıyor!"). Never write the sound as words ("düt düt"). ' +
       LANGUAGE[station.lang] +
       '\n\n' +
       `Return {"title":"show name","talks":[{"song":1,"label":null or "Commercial" or "News","overlap":0,"intro":false,"moment":false,` +
