@@ -4,7 +4,7 @@ import { isrcOf } from '../lib/spotify';
 import { stopPreview, usePreview } from '../radar/components/Preview';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Image, Modal, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { searchTracks, spotifyLikedSongs, type Track } from '../lib/spotify';
 import { colors, fonts, frost, inputColors, radius } from '../lib/theme';
@@ -42,6 +42,7 @@ export function SongPicker({
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();
   const keyboard = useKeyboardHeight(); // the sheet sits on top of the keyboard, not under it
+  const { height: screen } = useWindowDimensions();
   const [tab, setTab] = useState<Tab>('search');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Track[]>([]);
@@ -97,7 +98,7 @@ export function SongPicker({
   return (
     <Modal visible={visible} transparent animationType="slide" statusBarTranslucent navigationBarTranslucent onRequestClose={close}>
       <Pressable style={styles.backdrop} onPress={close} accessibilityLabel="Close">
-        <Pressable style={[styles.sheet, keyboard ? { marginBottom: keyboard, paddingBottom: 12, maxHeight: '70%' } : { paddingBottom: insets.bottom + 12 }]} onPress={() => {}}>
+        <Pressable style={[styles.sheet, keyboard ? { marginBottom: keyboard, paddingBottom: 12, maxHeight: screen - keyboard - insets.top - 12 } : { paddingBottom: insets.bottom + 12 }]} onPress={() => {}}>
           <View style={styles.handle} />
           <View style={styles.titleRow}>
             <Text style={[styles.title, multi && { flex: 1, textAlign: 'left' }]}>{title}</Text>
