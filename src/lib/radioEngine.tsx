@@ -233,8 +233,10 @@ function useRadioEngine() {
     const s = live.current.show;
     if (!s || i > s.slots.length || clips.current.has(i)) return;
     // index slots.length is the goodbye after the last song
-    const lines = i === s.slots.length ? s.outro : s.slots[i].talk;
-    if (!lines.length) return;
+    const said = i === s.slots.length ? s.outro : s.slots[i].talk;
+    if (!said.length) return;
+    // a commercial opens with the ad break's jingle, like on real radio
+    const lines = s.slots[i]?.label === 'Commercial' && !/<sfx:jingle>/.test(said[0].text) ? [{ ...said[0], text: `<sfx:jingle> ${said[0].text}` }, ...said.slice(1)] : said;
     // the newest shows keep their voices: a talk already made is played from the phone, for free
     const id = liveId.current;
     const saved = id ? showVoiceFile(id, i) : null;

@@ -345,7 +345,14 @@ export async function synthesize(lines: SpokenLine[], cast: Cast): Promise<strin
     if (split.before.length || split.after.length) effects.set(k, split);
     t.text = split.text;
   });
-  if (effects.size) return finish(await lineByLine(apiKey, turns, voiceFor, effects));
+  // a sound only at the very start or the very end (a commercial's jingle, a phone ringing first) doesn't
+  // need the talk voiced line by line: the two voices still go as one request, the sound is put around it
+  const last = turns.length - 1;
+  const onlyEdges = [...effects.entries()].every(([k, e]) => (k === 0 || !e.before.length) && (k === last || !e.after.length));
+  const lead = onlyEdges ? effects.get(0)?.before ?? [] : [];
+  const tail = onlyEdges ? effects.get(last)?.after ?? [] : [];
+  const phoneAt = (k: number) => !!voiceFor(turns[k]?.speaker ?? '').phone;
+  if (effects.size && !onlyEdges) return finish(await lineByLine(apiKey, turns, voiceFor, effects));
   const parts: Uint8Array[] = [];
   // a two-person talk goes as ONE request (both voices at once): a talk used to cost a request per
   // line, so a 16-song show ate most of the 100-a-day voice quota. If the audio comes back much too
@@ -358,7 +365,14 @@ export async function synthesize(lines: SpokenLine[], cast: Cast): Promise<strin
     else if (both) duoMisses++; // came back too short: someone was dropped
   }
   if (!parts.length) parts.push(...(await lineByLine(apiKey, turns, voiceFor, new Map())));
-  return finish(parts);
+  const rate = parts.length ? pcmOf(parts[0]).rate : 24000;
+  return finish([...lead.map((k) => sfxWav(k, phoneAt(0), rate)), ...parts, ...tail.map((k) => sfxWav(k, phoneAt(last), rate))]);
+}
+
+/** A sound effect as a WAV clip; a dead line (busy) through the phone sound when it's the caller's. */
+function sfxWav(kind: Sfx, phone: boolean, rate: number): Uint8Array {
+  const raw = sfxPcm(kind, rate);
+  return wav(kind === 'busy' && phone ? phoneFilter(raw, rate) : raw, rate);
 }
 
 /** Each turn voiced on its own (a caller through the phone sound), with its sound effects before and after. */
@@ -370,19 +384,14 @@ async function lineByLine(
 ): Promise<Uint8Array[]> {
   const parts: Uint8Array[] = [];
   const rateNow = () => (parts.length ? pcmOf(parts[parts.length - 1]).rate : 24000);
-  // the dead line is the caller's (through their phone); the rest happen in the studio
-  const sound = (kind: Sfx, phone: boolean, rate: number) => {
-    const raw = sfxPcm(kind, rate);
-    return wav(kind === 'busy' && phone ? phoneFilter(raw, rate) : raw, rate);
-  };
   for (const [k, t] of turns.entries()) {
     const phone = !!voiceFor(t.speaker).phone;
     const fx = effects.get(k);
     const voiced = t.text.trim() ? await voiceBytes(apiKey, [t], [voiceFor(t.speaker)]) : null;
     const rate = voiced ? pcmOf(voiced).rate : rateNow();
-    for (const kind of fx?.before ?? []) parts.push(sound(kind, phone, rate));
+    for (const kind of fx?.before ?? []) parts.push(sfxWav(kind, phone, rate));
     if (voiced) parts.push(phone ? onPhone(voiced) : voiced);
-    for (const kind of fx?.after ?? []) parts.push(sound(kind, phone, rate));
+    for (const kind of fx?.after ?? []) parts.push(sfxWav(kind, phone, rate));
   }
   return parts;
 }

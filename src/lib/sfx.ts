@@ -3,13 +3,13 @@ import { busyTone, splitBeeps } from './phoneLine';
 /*
  * The radio's sound effects, made on the phone (no files, no downloads): the studio phone ringing, a phone
  * buzzing, the doorbell, a knock, Downstairs Teyze's broom on her ceiling, a dead phone line, a spoon in a tea glass, a tesbih, a
- * lighter and a cigarette, a guitar riff. The writer puts
+ * lighter and a cigarette, a guitar riff, the ad break's jingle. The writer puts
  * a tag in a line ("<sfx:ring>"); the tag never reaches the voice: the sound plays before the line (a tag in
  * its first half) or after it (in its second half). 16-bit mono PCM; pure, so it's tested.
  */
 
-export type Sfx = 'ring' | 'buzz' | 'doorbell' | 'knock' | 'ceiling' | 'busy' | 'tea' | 'tesbih' | 'cigarette' | 'riff';
-export const SFX: Sfx[] = ['ring', 'buzz', 'doorbell', 'knock', 'ceiling', 'busy', 'tea', 'tesbih', 'cigarette', 'riff'];
+export type Sfx = 'ring' | 'buzz' | 'doorbell' | 'knock' | 'ceiling' | 'busy' | 'tea' | 'tesbih' | 'cigarette' | 'riff' | 'jingle';
+export const SFX: Sfx[] = ['ring', 'buzz', 'doorbell', 'knock', 'ceiling', 'busy', 'tea', 'tesbih', 'cigarette', 'riff', 'jingle'];
 
 function pcm(rate: number, seconds: number, sample: (t: number, i: number) => number): Uint8Array {
   const n = Math.round(rate * seconds);
@@ -206,6 +206,28 @@ function riff(rate: number): Uint8Array {
   });
 }
 
+/**
+ * The ad break's jingle: a bright little run up a major chord on a bell-like electric piano (C, E, G, C) and a
+ * held chord to land on, the "and now a word from our sponsors" sting. Original, under two seconds.
+ */
+function jingle(rate: number): Uint8Array {
+  const C5 = 523.25;
+  const notes: [number, number, number][] = [
+    // [when, frequency, how long it rings]
+    [0.0, C5, 0.5], [0.14, C5 * 1.26, 0.5], [0.28, C5 * 1.498, 0.5], [0.42, C5 * 2, 0.6],
+    [0.7, C5, 1.1], [0.7, C5 * 1.26, 1.1], [0.7, C5 * 1.498, 1.1], [0.7, C5 * 2, 1.1],
+  ];
+  // an electric piano's bell: the note, a bright overtone that fades fast, and a little shimmer
+  const tine = (t: number, f: number, len: number) =>
+    (Math.sin(2 * Math.PI * f * t) + 0.45 * Math.sin(2 * Math.PI * f * 3.5 * t) * Math.exp(-t * 9) + 0.18 * Math.sin(2 * Math.PI * f * 2 * t)) *
+    Math.exp(-t * (3.2 / len)) * envelope(t, len, 0.004);
+  return pcm(rate, 1.9, (t) => {
+    let v = 0;
+    for (const [at, f, len] of notes) if (t >= at && t < at + len) v += tine(t - at, f, len);
+    return v * 0.14;
+  });
+}
+
 /** The sound, as 16-bit mono PCM at `rate`. */
 export function sfxPcm(kind: Sfx, rate: number): Uint8Array {
   switch (kind) {
@@ -229,6 +251,8 @@ export function sfxPcm(kind: Sfx, rate: number): Uint8Array {
       return cigarette(rate);
     case 'riff':
       return riff(rate);
+    case 'jingle':
+      return jingle(rate);
   }
 }
 
