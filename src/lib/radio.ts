@@ -429,7 +429,7 @@ export async function buildShow(
     songHistories(db, tracks.map((t) => t.id)).catch(() => new Map()),
     historySummary(db).catch(() => ({ plays: 0, since: null })),
   ]);
-  const moments = await recentMoments(db);
+  const [moments, visits] = await Promise.all([recentMoments(db), regular ? recentVisits(db, regular.name) : Promise.resolve([])]);
   // the inspiring moment's material: the newest article the friend researched and wrote for them (last 10 days)
   const read = (await listReads(db, 3).catch(() => [])).find((r) => r.status === 'done' && (r.done_at ?? 0) > Date.now() - 10 * 86_400_000);
   const article = read ? articleOf(read) : null;
@@ -505,7 +505,11 @@ export async function buildShow(
           `then hang up or leave. The hosts treat them like an old, exhausting acquaintance. They have their OWN life: they ` +
           `may talk ABOUT the listener (gossip, advice), but never take the listener's job, places or days as theirs ` +
           `(a caller who "just got back from the warehouse" when that's the listener's warehouse is wrong). ` +
-          `Their lines use "who":"${regular.name}". `
+          `Their lines use "who":"${regular.name}". ` +
+          (visits.length
+            ? `What they said on their last visits (their twist must be NEW: another story, another object or place, ` +
+              `not the same details): ${visits.map((v) => `"${v}"`).join(' / ')}. `
+            : '')
         : '') +
       'LISTENING HISTORY: the playlist may say what the listener\'s real Spotify plays say about a song (played it 9 ' +
       'times this week, hasn\'t played it for a month, never heard it). Once or twice per show, the hosts can tease or ' +
@@ -597,11 +601,23 @@ export async function buildShow(
  * Friend and again on Gebze Rock. Read from Recent shows (radio.history); shows from before `moment` have none.
  */
 export async function recentMoments(db: SQLiteDatabase, max = 6): Promise<string[]> {
+  return recentTalks(db, (s) => !!s.moment, max);
+}
+
+/**
+ * What a regular said on their last visits: their gag needs a new twist each time (Jetonlu Ferhat's love story
+ * was about an umbrella 7 or 8 times running, once the listener's journal mentioned one).
+ */
+export const recentVisits = (db: SQLiteDatabase, name: string, max = 3) =>
+  recentTalks(db, (s) => s.talk.some((l) => l.speaker === name), max, name);
+
+/** Talks from Recent shows (radio.history), newest first, cut to 400 characters; only `who`'s lines when given. */
+async function recentTalks(db: SQLiteDatabase, keep: (s: Slot) => boolean, max: number, who?: string): Promise<string[]> {
   try {
     const all = JSON.parse(await getSetting(db, 'radio.history', '[]')) as { savedAt: number; show: { slots: Slot[] } }[];
     return all
       .sort((a, b) => b.savedAt - a.savedAt)
-      .flatMap((h) => h.show.slots.filter((s) => s.moment).map((s) => s.talk.map((l) => l.text).join(' ')))
+      .flatMap((h) => h.show.slots.filter(keep).map((s) => s.talk.filter((l) => !who || l.speaker === who).map((l) => l.text).join(' ')))
       .slice(0, max)
       .map((t) => (t.length > 400 ? `${t.slice(0, 397)}…` : t));
   } catch {

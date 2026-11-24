@@ -351,7 +351,10 @@ export const STATIONS: Station[] = [
         via: 'phone',
         style: 'a heartbroken man calling from an old token pay phone, sobbing, dramatic, running out of coins',
         bio: 'a listener who calls from a pay phone with his tragic love story',
-        bit: 'tells a devastating love story that turns out to be about a lost umbrella; the line always cuts off when his jetons run out',
+        bit:
+          'tells a devastating love story that turns out to be about a lost OBJECT, a different one every call (a lighter, ' +
+          'a thermos, a cassette, a scarf, a çay bardağı, a lottery ticket…), never the same object twice in a row; the line ' +
+          'always cuts off when his jetons run out',
       },
       {
         name: 'Dolmuşçu Sabri',
