@@ -500,7 +500,8 @@ export async function buildShow(
           `${regular.bio}. Their running gag, the same every time they appear: ${regular.bit}. Somewhere in the middle ` +
           `of the show (never the first or the last talk, and not in a commercial or the news), ${regular.name} ` +
           `${ENTRANCE[regular.via ?? 'studio']}. They get ONE or TWO talks, a little longer than usual, stay completely ` +
-          `in character, deliver their gag with a fresh twist about THIS listener's life, give the hosts a hard time, ` +
+          `in character, deliver their gag with a fresh twist (their OWN new story: they may nod to the listener's week or ` +
+          `give them advice, but the story happens to them, in their places), give the hosts a hard time, ` +
           `then hang up or leave. The hosts treat them like an old, exhausting acquaintance. They have their OWN life: they ` +
           `may talk ABOUT the listener (gossip, advice), but never take the listener's job, places or days as theirs ` +
           `(a caller who "just got back from the warehouse" when that's the listener's warehouse is wrong). ` +
