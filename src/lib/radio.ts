@@ -498,7 +498,10 @@ export async function buildShow(
           `of the show (never the first or the last talk, and not in a commercial or the news), ${regular.name} ` +
           `${ENTRANCE[regular.via ?? 'studio']}. They get ONE or TWO talks, a little longer than usual, stay completely ` +
           `in character, deliver their gag with a fresh twist about THIS listener's life, give the hosts a hard time, ` +
-          `then hang up or leave. The hosts treat them like an old, exhausting acquaintance. Their lines use "who":"${regular.name}". `
+          `then hang up or leave. The hosts treat them like an old, exhausting acquaintance. They have their OWN life: they ` +
+          `may talk ABOUT the listener (gossip, advice), but never take the listener's job, places or days as theirs ` +
+          `(a caller who "just got back from the warehouse" when that's the listener's warehouse is wrong). ` +
+          `Their lines use "who":"${regular.name}". `
         : '') +
       'LISTENING HISTORY: the playlist may say what the listener\'s real Spotify plays say about a song (played it 9 ' +
       'times this week, hasn\'t played it for a month, never heard it). Once or twice per show, the hosts can tease or ' +
