@@ -342,7 +342,7 @@ export const STATIONS: Station[] = [
       gender: 'male',
       voice: 'Orus', // firm: Arda's pick
       style: 'a cheerful, chatty Istanbul tea seller, fast, friendly, totally unbothered, a bit of street humour',
-      bio: 'brings Kemal tea, never understands why everyone is so sad, has a practical (and funny) answer for every tragedy',
+      bio: 'brings Kemal tea, never understands why everyone is so sad, has a practical (and funny) answer for every tragedy; now and then you hear him stirring a tea glass (<sfx:tea>) before he talks',
     },
     regulars: [
       {

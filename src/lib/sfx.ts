@@ -2,13 +2,13 @@ import { busyTone, splitBeeps } from './phoneLine';
 
 /*
  * The radio's sound effects, made on the phone (no files, no downloads): the studio phone ringing, a phone
- * buzzing, the doorbell, a knock, Downstairs Teyze's broom on her ceiling, a dead phone line. The writer puts
+ * buzzing, the doorbell, a knock, Downstairs Teyze's broom on her ceiling, a dead phone line, a spoon in a tea glass. The writer puts
  * a tag in a line ("<sfx:ring>"); the tag never reaches the voice: the sound plays before the line (a tag in
  * its first half) or after it (in its second half). 16-bit mono PCM; pure, so it's tested.
  */
 
-export type Sfx = 'ring' | 'buzz' | 'doorbell' | 'knock' | 'ceiling' | 'busy';
-export const SFX: Sfx[] = ['ring', 'buzz', 'doorbell', 'knock', 'ceiling', 'busy'];
+export type Sfx = 'ring' | 'buzz' | 'doorbell' | 'knock' | 'ceiling' | 'busy' | 'tea';
+export const SFX: Sfx[] = ['ring', 'buzz', 'doorbell', 'knock', 'ceiling', 'busy', 'tea'];
 
 function pcm(rate: number, seconds: number, sample: (t: number, i: number) => number): Uint8Array {
   const n = Math.round(rate * seconds);
@@ -66,6 +66,30 @@ function thumps(rate: number, deep: boolean): Uint8Array {
   });
 }
 
+/**
+ * A teaspoon stirring sugar in a tulip tea glass: quick little clinks of thin glass (a few high, slightly
+ * out-of-tune partials that ring for a moment), a bit uneven, the way a hand stirs. Çaycı Cengiz's sound.
+ */
+function tea(rate: number): Uint8Array {
+  // when each clink lands, and how hard (a fixed pattern: the same stir every time, no randomness in the timing)
+  const clinks: [number, number][] = [
+    [0.0, 0.9], [0.17, 0.6], [0.31, 0.85], [0.46, 0.55], [0.6, 0.8], [0.75, 0.5], [0.88, 0.75], [1.03, 0.45], [1.15, 0.7], [1.42, 1],
+  ];
+  const partials: [number, number][] = [[2950, 1], [4420, 0.55], [6180, 0.3], [7900, 0.15]];
+  return pcm(rate, 1.9, (t) => {
+    let v = 0;
+    for (const [at, hard] of clinks) {
+      const local = t - at;
+      if (local < 0 || local > 0.35) continue;
+      const ring = Math.exp(-local * 26) * Math.min(1, local / 0.0008);
+      // each clink a hair higher or lower, like a spoon hitting a slightly different spot
+      const tune = 1 + (at * 7.3 % 1 - 0.5) * 0.03;
+      for (const [f, a] of partials) v += Math.sin(2 * Math.PI * f * tune * local) * a * ring * hard;
+    }
+    return v * 0.16;
+  });
+}
+
 /** The sound, as 16-bit mono PCM at `rate`. */
 export function sfxPcm(kind: Sfx, rate: number): Uint8Array {
   switch (kind) {
@@ -81,6 +105,8 @@ export function sfxPcm(kind: Sfx, rate: number): Uint8Array {
       return thumps(rate, true);
     case 'busy':
       return busyTone(rate);
+    case 'tea':
+      return tea(rate);
   }
 }
 
