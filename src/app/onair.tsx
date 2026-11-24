@@ -84,7 +84,7 @@ export default function OnAirScreen() {
         title={picking === 'request' ? '🎵 Request a song' : '＋ Add a song to the show'}
         onPick={(t) => (picking === 'request' ? r.requestSong(t) : r.addDraft(t))}
         onClose={() => setPicking(null)}
-        multi={picking === 'add'}
+        multi // requests too: pick several, they play one after another
         chosen={picking === 'add' && draft ? new Set(draft.map((t) => t.id)) : undefined}
       />
 
@@ -269,7 +269,7 @@ export default function OnAirScreen() {
                 <Tap
                   icon={r.requesting ? 'hourglass-outline' : 'musical-note-outline'}
                   label={r.requesting ? 'The hosts are getting your request ready' : 'Request a song'}
-                  onPress={() => !r.requesting && setPicking('request')}
+                  onPress={() => setPicking('request')} // more requests can join the line while one is being made
                   small
                 />
               )}

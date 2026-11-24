@@ -775,20 +775,49 @@ function useRadioEngine() {
    * ahead, and the saved ones) are made again when needed.
    */
   const [requesting, setRequesting] = useState(false);
-  const requestSong = async (picked: Track) => {
-    const s0 = live.current.show;
-    if (!s0 || requesting) return;
-    const t = { ...picked, requested: true };
+  /**
+   * Requests wait in line: pick several in one go (the picker stays open) and they play one after another,
+   * in the order picked, each with its own dedication. A request goes after the one before it, or next.
+   */
+  const requestQueue = useRef<Track[]>([]);
+  const lastRequestAt = useRef(-1);
+  const requestSong = (picked: Track) => {
+    requestQueue.current.push(picked);
+    if (requestQueue.current.length === 1 && !requesting) void drainRequests();
+  };
+  const drainRequests = async () => {
     setRequesting(true);
-    breadcrumb(`radio: request ${t.name}`);
     try {
-      const at0 = live.current.index + 1;
+      while (requestQueue.current.length) {
+        await requestOne(requestQueue.current[0]);
+        requestQueue.current.shift();
+      }
+    } finally {
+      setRequesting(false);
+    }
+  };
+  /** Where the next request goes: after the last request if it's still to come, else right after this song. */
+  const requestSpot = () => {
+    const l = live.current;
+    const last = lastRequestAt.current;
+    // only a request of THIS show that hasn't played yet counts (a new show starts the line over)
+    const pending = last > l.index && !!l.show?.slots[last]?.track.requested;
+    return pending ? last + 1 : l.index + 1;
+  };
+  const requestOne = async (picked: Track) => {
+    const s0 = live.current.show;
+    if (!s0) return;
+    const t = { ...picked, requested: true };
+    breadcrumb(`radio: request ${t.name}`);
+    {
+      const at0 = Math.min(requestSpot(), s0.slots.length);
       // no AI (no key, offline): the request still plays, just without a dedication
       const talks = await requestTalks(db, s0, at0, t).catch(() => ({ intro: [], next: null }));
       const s = live.current.show;
       if (!s) return;
       // the show may have moved on while the hosts wrote it: the request goes after whatever plays now
-      const at = Math.min(live.current.index + 1, s.slots.length);
+      const at = Math.min(requestSpot(), s.slots.length);
+      lastRequestAt.current = at;
       const slots = [...s.slots];
       if (talks.next && slots[at] && slots[at].track.id === s0.slots[at0]?.track.id) {
         slots[at] = { ...slots[at], talk: talks.next, label: null, overlap: 0 };
@@ -812,9 +841,8 @@ function useRadioEngine() {
       prepare(at);
       prepare(at + 1);
       if (!hearts.has(t.id)) toggleHeart(t).catch(() => {}); // a request is a song you love: future shows learn it
-      setStatus({ kind: 'ok', msg: `🎵 Your request plays next: ${t.name}` });
-    } finally {
-      setRequesting(false);
+      const waiting = requestQueue.current.length - 1;
+      setStatus({ kind: 'ok', msg: at === live.current.index + 1 ? `🎵 Your request plays next: ${t.name}` : `🎵 Your request is lined up: ${t.name}${waiting ? ` (${waiting} more on the way)` : ''}` });
     }
   };
 
