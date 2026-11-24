@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Image, PanResponder, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BuildProgress } from '../components/BuildProgress';
 import { BlurSource, FrostedGlass, Glass, useBlurSource } from '../components/Glass';
@@ -57,6 +57,28 @@ export default function OnAirScreen() {
   const [scrolled, setScrolled] = useState(false);
   const [dragging, setDragging] = useState(false); // a playlist row is held: the page stops scrolling
   const more = () => setMenu(true);
+  // swipe down to close, like a music app's player: a downward drag at the top of the page pulls the
+  // whole screen down; far or fast enough, it closes, otherwise it springs back
+  const { height: screenH } = useWindowDimensions();
+  const scrollY = useRef(0);
+  const holding = useRef(false);
+  holding.current = dragging;
+  const pull = useRef(new Animated.Value(0)).current;
+  const swipe = useMemo(
+    () =>
+      PanResponder.create({
+        // only a clearly downward drag, with the page at its top and no playlist row held
+        onMoveShouldSetPanResponderCapture: (_e, g) => !holding.current && scrollY.current <= 0 && g.dy > 14 && g.dy > Math.abs(g.dx) * 2,
+        onPanResponderMove: (_e, g) => pull.setValue(Math.max(0, g.dy)),
+        onPanResponderRelease: (_e, g) => {
+          if (g.dy > 140 || g.vy > 1) Animated.timing(pull, { toValue: screenH, duration: 180, useNativeDriver: true }).start(() => close());
+          else Animated.spring(pull, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start();
+        },
+        onPanResponderTerminate: () => Animated.spring(pull, { toValue: 0, useNativeDriver: true }).start(),
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [screenH],
+  );
   // the song picker: "add" on the review list, "request" during the show
   const [picking, setPicking] = useState<'add' | 'request' | null>(null);
   const actions: SheetAction[] = [
@@ -68,7 +90,7 @@ export default function OnAirScreen() {
   ];
 
   return (
-    <View style={styles.screen}>
+    <Animated.View style={[styles.screen, { transform: [{ translateY: pull }] }]} {...swipe.panHandlers}>
       {/* the page is what the top bar blurs once you scroll (the bar sits outside it, never inside) */}
       <BlurSource target={blur}>
       {/* the same background as the playlist: the song's colour at the top, fading into black */}
@@ -91,7 +113,10 @@ export default function OnAirScreen() {
       <ScrollView
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 74, paddingBottom: insets.bottom + 40 }]}
         scrollEnabled={!dragging}
-        onScroll={(e) => setScrolled(e.nativeEvent.contentOffset.y > 12)}
+        onScroll={(e) => {
+          scrollY.current = e.nativeEvent.contentOffset.y;
+          setScrolled(e.nativeEvent.contentOffset.y > 12);
+        }}
         scrollEventThrottle={32}
       >
         {phase === 'building' && <BuildProgress steps={steps} station={station} />}
@@ -337,7 +362,7 @@ export default function OnAirScreen() {
           <View style={{ width: 44 }} />
         )}
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
