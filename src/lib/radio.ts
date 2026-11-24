@@ -1,5 +1,5 @@
 import { buildCrate, crateText, draw } from './crate';
-import { historyLine, historySummary, songHistories, syncListens } from './listening';
+import { artistStats, historyLine, historySummary, songHistories, syncListens } from './listening';
 import { factsFor } from './songFacts';
 import { factsLine, fitOverlap, introFits, type SongFacts } from './songText';
 import type { SQLiteDatabase } from 'expo-sqlite';
@@ -11,6 +11,8 @@ import { formatDate, olderNotes, recentNotes } from './notes';
 import { articleOf, listReads } from './reads';
 import { forecastFor } from './forecast';
 import { eightiesToday } from './timeMachine';
+import { ratesLine, todaysRates } from './rates';
+import { todaysDays } from './specialDays';
 import { bannedSongs, FAVOURITES_PER_SHOW, getRadioPrefs, likedSongs, playedSongs, playsThisMonth, songLine } from './songMemory';
 import { findTrack, musicTaste, spotifyLikedSongs, type Track } from './spotify';
 import { freeVoice, STATIONS, type Persona, type Station } from './stations';
@@ -242,6 +244,10 @@ export async function buildShow(
     station.key === 'neon'
       ? Promise.race([eightiesToday().catch(() => []), new Promise<string[]>((r) => setTimeout(() => r([]), 8000))])
       : Promise.resolve<string[]>([]);
+  // real data, fetched now and needed when the talks are written (each gives up quietly: no data, no segment)
+  const within = <T,>(p: Promise<T>, fallback: T) => Promise.race([p.catch(() => fallback), new Promise<T>((r) => setTimeout(() => r(fallback), 8000))]);
+  const rates = station.key === 'arabesk' ? within(todaysRates(), []) : Promise.resolve([]); // Tuzla's "piyasalar"
+  const days = within(todaysDays(), []);
   // the real weather where you are (Settings → Days Off's place), started now, needed only when the talks are written
   const weather =
     place.lat != null && place.lon != null
@@ -430,11 +436,17 @@ export async function buildShow(
   // ── 3. what the hosts should know about each song: tempo, loudness, intro and ending lengths ──
   onStep('checking');
   await syncListens(db).catch(() => 0); // the newest plays, so "this week" is right
-  const [facts, histories, history] = await Promise.all([
+  const [facts, histories, history, artists] = await Promise.all([
     factsFor(tracks, (n) => onStep('checking', `${n}/${tracks.length}`)),
     songHistories(db, tracks.map((t) => t.id)).catch(() => new Map()),
     historySummary(db).catch(() => ({ plays: 0, since: null })),
+    artistStats(db, tracks.map((t) => t.artist)).catch(() => []),
   ]);
+  /** "the listener's #3 artist, 412 plays on Spotify" for this song's artist (the radio's milestones) */
+  const milestoneOf = (k: number) => {
+    const a = artists.find((x) => x.artist.toLowerCase() === tracks[k].artist.split(',')[0].trim().toLowerCase());
+    return a ? `the listener's #${a.rank} artist, ${a.plays} plays on Spotify` : '';
+  };
   const [moments, visits, said] = await Promise.all([
     recentMoments(db),
     regular ? recentVisits(db, regular.name) : Promise.resolve([]),
@@ -444,7 +456,8 @@ export async function buildShow(
   const read = (await listReads(db, 3).catch(() => [])).find((r) => r.status === 'done' && (r.done_at ?? 0) > Date.now() - 10 * 86_400_000);
   const article = read ? articleOf(read) : null;
   /** the playlist line's notes: song facts, then what the listener's own history says about it */
-  const notesOf = (k: number) => [factsLine(facts[k]), historyLine(histories.get(tracks[k].id), history.since)].filter(Boolean).join(' · ');
+  const notesOf = (k: number) =>
+    [factsLine(facts[k]), historyLine(histories.get(tracks[k].id), history.since), milestoneOf(k)].filter(Boolean).join(' · ');
 
   // ── 4. the script, for the playlist that will really play ──
   onStep('writing');
@@ -485,6 +498,15 @@ export async function buildShow(
       'TIME MACHINE: if "On this day in the 80s" events are given below, once in the show (not the first talk) the host ' +
       'opens the Time Machine: a short, excited segment about ONE of those real events, said like it just happened ' +
       '("Today in 1985…"), only what the event says, no invented details; the sidekick overreacts in 80s style. ' +
+      'TODAY: if the notes below say what today is (a holiday, a special day), the first talk greets it in a line, ' +
+      'in the station\'s style; a SOLEMN day (a remembrance) gets a short, sincere, respectful line and no jokes about it ' +
+      'anywhere in the show. ' +
+      'MARKETS: if today\'s dollar, euro and gram gold are given below, once in the show a host reads them like a ' +
+      'market report in the station\'s style (numbers rounded and said naturally, only these numbers; up or down since ' +
+      'yesterday is the drama). No advice about buying or selling. ' +
+      'MILESTONES: the playlist may say how many times the listener played an artist on Spotify and where that artist ' +
+      'ranks for them (real numbers). Once or twice a show, celebrate one like a radio milestone ("Sezen Aksu, your number ' +
+      '3 artist, 412 plays!"), with the exact numbers given. ' +
       'INSPIRATION: once in the show (in the middle, not the first or the last talk, not a commercial or the news), one ' +
       'host drops the act for a moment and gives a short, sincere, inspiring talk (3 to 5 lines) for THIS listener: about ' +
       'how far they have come with something from their notes (what they are learning or building, getting through the ' +
@@ -567,6 +589,8 @@ export async function buildShow(
       (welcome.length ? `Their favourites (greet these like old friends when they come): ${welcome.map(songLine).join('; ')}\n` : '') +
       (wish.trim() ? `The listener asked for: ${wish.trim()}\n` : '') +
       ((await weather) ? `Forecast where the listener is (local times): ${await weather}\n` : '') +
+      ((await days).length ? `Today is: ${(await days).map((d) => `${d.name}${d.solemn ? ' (SOLEMN)' : ''}`).join('; ')}\n` : '') +
+      ((await rates).length ? `Today's markets: ${ratesLine(await rates)}\n` : '') +
       ((await timeMachine).length ? `On this day in the 80s (Wikipedia):\n${(await timeMachine).map((e) => `- ${e}`).join('\n')}\n` : '') +
       (said.length ? `What the last shows already said (don't lean on the same details):\n${said.map((t) => `- ${t}`).join('\n')}\n` : '') +
       (moments.length ? `Earlier inspiring moments (don't repeat them):\n${moments.map((m) => `- ${m}`).join('\n')}\n` : '') +

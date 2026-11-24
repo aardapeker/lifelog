@@ -105,3 +105,22 @@ export async function songHistories(db: SQLiteDatabase, trackIds: string[], now 
   for (const r of rows) out.set(r.track_id, { plays: r.plays, week: r.week ?? 0, lastAt: r.last_at });
   return out;
 }
+
+/**
+ * The listener's numbers for these artists, from their real Spotify plays: how many times, and where the artist
+ * ranks among everyone they listen to ("Sezen Aksu, your 3rd most played, 412 plays"). The radio's milestones.
+ */
+export async function artistStats(db: SQLiteDatabase, artists: string[]): Promise<{ artist: string; plays: number; rank: number }[]> {
+  const rows = await db.getAllAsync<{ a: string; n: number }>(
+    // the first credited artist ("Ezhel, Ufo361" counts for Ezhel)
+    `SELECT lower(trim(CASE WHEN instr(artist, ',') > 0 THEN substr(artist, 1, instr(artist, ',') - 1) ELSE artist END)) AS a,
+            COUNT(*) AS n FROM listens GROUP BY a ORDER BY n DESC`,
+  );
+  const want = [...new Set(artists.map((x) => x.split(',')[0].trim()))];
+  return want
+    .map((artist) => {
+      const i = rows.findIndex((r) => r.a === artist.toLowerCase());
+      return i < 0 ? null : { artist, plays: rows[i].n, rank: i + 1 };
+    })
+    .filter((x): x is { artist: string; plays: number; rank: number } => !!x && x.plays >= 5);
+}
