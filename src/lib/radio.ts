@@ -474,8 +474,11 @@ export async function buildShow(
       'how far they have come with something from their notes (what they are learning or building, getting through the ' +
       'shifts, a goal), or the idea of the article written for them (if given below), in your own words. Warm and specific, ' +
       'not cheesy, no clichés, no made-up quotes from famous people. The comedian may land one soft line after it. ' +
-      'If earlier moments are listed below, yours must be NEW: another subject, other images and metaphors, never their ' +
-      'lines, and never the same journal line quoted again. ' +
+      'If earlier moments are listed below, yours must be NEW: not just other words, another MESSAGE (if they said "you\'re ' +
+      'not just carrying boxes, you\'re building something", don\'t say that again in any form), another subject, other ' +
+      'images and metaphors, never their lines, never the same journal line quoted again. Find a fresh angle in the ' +
+      'notes: patience, a friend, a small win of this week, the city at night, the cat, a song that stayed with them, ' +
+      'how they treat people at work… ' +
       'The first talk opens the show with a station ID. Make it about THIS listener: callbacks to what they wrote, ' +
       'their shift, their cat, their plans. Teasing is welcome, cruelty is not. ' +
       'The first talk ends with "this show is brought to you by…" and a FAKE SPONSOR made from one small, real thing in ' +
