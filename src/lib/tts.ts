@@ -3,7 +3,7 @@ import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { Directory, File, Paths } from 'expo-file-system';
 import { jsonHeaders } from './gemini';
 import { onBeat, waitMs } from './heartbeat';
-import { phoneFilter } from './phoneLine';
+import { busyTone, phoneFilter, splitBeeps } from './phoneLine';
 import { getKey } from './keys';
 import { recordUsage, textTokens } from './usage';
 
@@ -336,6 +336,17 @@ export async function synthesize(lines: SpokenLine[], cast: Cast): Promise<strin
     if (last && last.speaker === l.speaker) last.text = `${last.text} ${l.text}`;
     else turns.push({ ...l });
   }
+  // a line that ends in "düt düt düt" (a caller's jeton running out): the words are voiced, then a real busy
+  // tone plays instead of someone saying the beeps
+  const beepsAfter = new Set<number>();
+  turns.forEach((t, k) => {
+    const split = splitBeeps(t.text);
+    if (split.beeps) {
+      beepsAfter.add(k);
+      t.text = split.text;
+    }
+  });
+  if (beepsAfter.size) return finish(await lineByLine(apiKey, turns, voiceFor, beepsAfter));
   const parts: Uint8Array[] = [];
   // a two-person talk goes as ONE request (both voices at once): a talk used to cost a request per
   // line, so a 16-song show ate most of the 100-a-day voice quota. If the audio comes back much too
@@ -347,11 +358,30 @@ export async function synthesize(lines: SpokenLine[], cast: Cast): Promise<strin
     if (both && wavSeconds(both) >= expectedSeconds(turns) * 0.5) parts.push(both);
     else if (both) duoMisses++; // came back too short: someone was dropped
   }
-  if (!parts.length)
-    for (const t of turns) {
+  if (!parts.length) parts.push(...(await lineByLine(apiKey, turns, voiceFor, new Set())));
+  return finish(parts);
+}
+
+/** Each turn voiced on its own (a caller through the phone sound), with the busy tone after the ones in `beepsAfter`. */
+async function lineByLine(apiKey: string, turns: SpokenLine[], voiceFor: (name: string) => Cast[number], beepsAfter: Set<number>): Promise<Uint8Array[]> {
+  const parts: Uint8Array[] = [];
+  for (const [k, t] of turns.entries()) {
+    const phone = !!voiceFor(t.speaker).phone;
+    if (t.text.trim()) {
       const bytes = await voiceBytes(apiKey, [t], [voiceFor(t.speaker)]);
-      parts.push(voiceFor(t.speaker).phone ? onPhone(bytes) : bytes);
+      parts.push(phone ? onPhone(bytes) : bytes);
     }
+    if (beepsAfter.has(k)) {
+      const rate = parts.length ? pcmOf(parts[parts.length - 1]).rate : 24000;
+      const tone = busyTone(rate);
+      parts.push(wav(phone ? phoneFilter(tone, rate) : tone, rate));
+    }
+  }
+  return parts;
+}
+
+/** The talk's parts joined with short pauses, written to a .wav in the cache. */
+async function finish(parts: Uint8Array[]): Promise<string> {
   const file = new File(Paths.cache, `voice-${Date.now()}-${Math.round(Math.random() * 1e6)}.wav`);
   file.create();
   await file.write(joinWavs(parts, 0.35));

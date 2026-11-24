@@ -53,3 +53,31 @@ export function phoneFilter(pcm: Uint8Array, rate: number): Uint8Array {
   }
   return out;
 }
+
+/**
+ * The beeps when a caller's line goes dead ("düt düt düt"): Turkey's busy tone, 425 Hz, half a second on and
+ * half off, `beeps` times. 16-bit mono PCM at `rate`, soft edges so it doesn't click. The hosts used to SAY
+ * "düt düt düt" in their own voices; now the line really cuts.
+ */
+export function busyTone(rate: number, beeps = 3): Uint8Array {
+  const on = Math.round(rate * 0.5);
+  const total = on * 2 * beeps;
+  const out = new Uint8Array(total * 2);
+  const view = new DataView(out.buffer);
+  const fade = Math.round(rate * 0.01);
+  for (let i = 0; i < total; i++) {
+    const inBeep = i % (on * 2);
+    if (inBeep >= on) continue; // the silent half
+    const edge = Math.min(1, inBeep / fade, (on - inBeep) / fade);
+    const v = Math.sin((2 * Math.PI * 425 * i) / rate) * 0.32 * edge;
+    view.setInt16(i * 2, Math.round(v * 32767), true);
+  }
+  return out;
+}
+
+/** "Jetonum bi… düt düt düt…" → { text: "Jetonum bi…", beeps: true }: the beeps leave the words, the tone plays instead. */
+export function splitBeeps(text: string): { text: string; beeps: boolean } {
+  const beep = '(?:d[üuıi]+t|bip|beep|tu+t)';
+  const m = text.match(new RegExp(`(?:^|\\s)${beep}(?:[\\s,.…!?-]+${beep})+[\\s.,!?…-]*$`, 'iu'));
+  return m ? { text: text.slice(0, m.index).trim(), beeps: true } : { text, beeps: false };
+}
