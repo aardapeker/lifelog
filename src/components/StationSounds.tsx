@@ -1,6 +1,7 @@
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Animated, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSwipeToClose } from '../lib/useSwipeToClose';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { stopPreview, usePreview } from '../radar/components/Preview';
 import { RemoteImage } from '../radar/components/RemoteImage';
@@ -125,7 +126,8 @@ export function StationSounds({ station }: { station: Station }) {
       <Text style={styles.hint}>A quiet sound under the hosts, with the music. "Real weather" follows the sky where you are (the place set in Plan my day).</Text>
       <StatusLine status={status} />
 
-      <Modal visible={picking} animationType="slide" onRequestClose={() => setPicking(false)} statusBarTranslucent>
+      {/* transparent: swiped down, the station page shows behind it */}
+      <Modal visible={picking} animationType="slide" onRequestClose={() => setPicking(false)} statusBarTranslucent transparent>
         <BedPicker
           station={station}
           picked={new Set(picks.map((p) => p.id))}
@@ -184,8 +186,10 @@ function BedPicker({ station, picked, onAdded, onClose }: { station: Station; pi
     }
   };
 
+  const swipe = useSwipeToClose(onClose); // swipe down to close, like the player
+
   return (
-    <View style={[styles.sheet, { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 10 }]}>
+    <Animated.View style={[styles.sheet, { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 10 }, swipe.style]} {...swipe.panHandlers}>
       <View style={styles.sheetHead}>
         <IconButton icon="chevron-down" label="Close" onPress={onClose} />
         <Text style={styles.sheetTitle} numberOfLines={1}>
@@ -212,7 +216,7 @@ function BedPicker({ station, picked, onAdded, onClose }: { station: Station; pi
       <Text style={styles.hint}>Pick tracks without singing: the hosts talk over them. Tap one to hear 30 seconds.</Text>
       {err && <Text style={styles.err}>{err}</Text>}
       {busy && <ActivityIndicator color={colors.text} style={{ marginTop: 16 }} />}
-      <ScrollView contentContainerStyle={{ gap: 4, paddingBottom: 24 }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={{ gap: 4, paddingBottom: 24 }} keyboardShouldPersistTaps="handled" onScroll={swipe.onScroll} scrollEventThrottle={32}>
         {results?.map((t) => {
           const playing = pv.is(String(t.id));
           const has = added.has(t.id);
@@ -242,7 +246,7 @@ function BedPicker({ station, picked, onAdded, onClose }: { station: Station; pi
         })}
         {results && !results.length && !busy && <Text style={styles.hint}>Nothing found. Try other words.</Text>}
       </ScrollView>
-    </View>
+    </Animated.View>
   );
 }
 

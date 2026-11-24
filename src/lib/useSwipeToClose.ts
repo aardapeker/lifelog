@@ -7,7 +7,8 @@ import { Animated, PanResponder, useWindowDimensions, type NativeScrollEvent, ty
  * springs back. It only takes over when the page is scrolled to its top, the drag is mostly vertical and
  * `blocked()` is false (a playlist row being held), so scrolling, seeking and reordering still work.
  *
- * Put `style` on the screen's Animated.View with `panHandlers`, and `onScroll` on its ScrollView.
+ * Put `style` on the screen's Animated.View with `panHandlers`, and `onScroll` on its ScrollView. A sheet
+ * that stays mounted (a Modal) calls `reset` when it opens again, or it would still be pulled down.
  */
 export function useSwipeToClose(close: () => void, blocked: () => boolean = () => false) {
   const { height } = useWindowDimensions();
@@ -33,6 +34,10 @@ export function useSwipeToClose(close: () => void, blocked: () => boolean = () =
     style: { transform: [{ translateY: pull }] },
     onScroll: (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       scrollY.current = e.nativeEvent.contentOffset.y;
+    },
+    reset: () => {
+      pull.setValue(0);
+      scrollY.current = 0;
     },
   };
 }

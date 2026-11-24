@@ -1,7 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FadeIn } from '../components/motion';
 import { UNREAD } from '../components/TopBar';
@@ -10,6 +10,7 @@ import { IconTile } from '../components/IconTile';
 import { clearInbox, inboxItems, KIND_LOOK, markAllRead, markRead, openNotification, type InboxItem } from '../lib/notify';
 import { colors, fonts, radius, frost } from '../lib/theme';
 import { ShowWash } from '../components/radioParts';
+import { useSwipeToClose } from '../lib/useSwipeToClose';
 
 const ago = (at: number) => {
   const m = Math.round((Date.now() - at) / 60_000);
@@ -43,11 +44,15 @@ export default function InboxScreen() {
 
   const unread = items?.filter((i) => !i.read).length ?? 0;
 
+  // it slides up from the bottom, so it closes downwards: ⌄, or a swipe down like the player
+  const close = () => (router.canGoBack() ? router.back() : router.replace('/'));
+  const swipe = useSwipeToClose(close);
+
   return (
-    <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
+    <Animated.View style={[styles.screen, { paddingTop: insets.top + 8 }, swipe.style]} {...swipe.panHandlers}>
       <ShowWash />
       <View style={styles.bar}>
-        <IconButton icon="arrow-back" label="Back" onPress={() => router.back()} />
+        <IconButton icon="chevron-down" label="Close" onPress={close} />
         <Text style={styles.barTitle}>Notifications</Text>
         <IconButton
           icon={unread ? 'checkmark-done' : 'trash-outline'}
@@ -63,6 +68,8 @@ export default function InboxScreen() {
         data={items ?? []}
         keyExtractor={(i) => String(i.id)}
         contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 40, gap: 10 }}
+        onScroll={swipe.onScroll}
+        scrollEventThrottle={32}
         ListEmptyComponent={
           items ? (
             <Text style={styles.empty}>Nothing yet. Check-ins, Reads, day-off plans and radio news land here.</Text>
@@ -94,7 +101,7 @@ export default function InboxScreen() {
           );
         }}
       />
-    </View>
+    </Animated.View>
   );
 }
 

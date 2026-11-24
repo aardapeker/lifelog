@@ -4,11 +4,12 @@ import { isrcOf } from '../lib/spotify';
 import { stopPreview, usePreview } from '../radar/components/Preview';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Modal, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Animated, FlatList, Image, Modal, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { searchTracks, spotifyLikedSongs, type Track } from '../lib/spotify';
 import { colors, fonts, frost, inputColors, radius } from '../lib/theme';
 import { useKeyboardHeight } from '../lib/useKeyboardVisible';
+import { useSwipeToClose } from '../lib/useSwipeToClose';
 import Ionicons from './Icon';
 import { haptic } from './motion';
 
@@ -94,10 +95,17 @@ export function SongPicker({
     setAdded((a) => new Set(a).add(t.id));
   };
   const list = tab === 'search' ? results : (liked ?? []);
+  // swipe the sheet down to close it, like the player (it stays mounted: back up when it opens again)
+  const swipe = useSwipeToClose(close);
+  useEffect(() => {
+    if (visible) swipe.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" statusBarTranslucent navigationBarTranslucent onRequestClose={close}>
       <Pressable style={styles.backdrop} onPress={close} accessibilityLabel="Close">
+        <Animated.View style={swipe.style} {...swipe.panHandlers}>
         <Pressable style={[styles.sheet, keyboard ? { marginBottom: keyboard, paddingBottom: 12, maxHeight: screen - keyboard - insets.top - 12 } : { paddingBottom: insets.bottom + 12 }]} onPress={() => {}}>
           <View style={styles.handle} />
           <View style={styles.titleRow}>
@@ -137,6 +145,8 @@ export function SongPicker({
             keyExtractor={(t) => t.id}
             keyboardShouldPersistTaps="handled"
             style={styles.list}
+            onScroll={swipe.onScroll}
+            scrollEventThrottle={32}
             renderItem={({ item }) => (
               <Pressable onPress={() => pick(item)} style={({ pressed }) => [styles.row, pressed && styles.rowPressed]} accessibilityRole="button" accessibilityLabel={`${isIn(item) ? 'Added' : 'Add'} ${item.name} by ${item.artist}`}>
                 {/* the cover plays a preview; the rest of the row adds the song */}
@@ -168,6 +178,7 @@ export function SongPicker({
             )}
           />
         </Pressable>
+        </Animated.View>
       </Pressable>
     </Modal>
   );
