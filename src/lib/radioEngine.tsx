@@ -34,6 +34,10 @@ import { banSong, bannedSongs, getRadioPrefs, likedSongs, rememberPlayed, toggle
 import { onRadioCommand, publishToWidget } from '../widget/radioBridge';
 import { clearClips, keepSample, playable, playClip, preferVoiceModel, pruneShowVoices, sampleFile, showVoiceFile, skipTalk, synthesize, type Talking } from './tts';
 
+/** A song's intro loops under a longer intro talk when it's at least this long… */
+const INTRO_LOOP_MIN_MS = 8000;
+/** …starting over this long before the first sung line. */
+const INTRO_LOOP_EARLY_MS = 1200;
 const HISTORY_KEY = 'radio.history';
 const DAY_MS = 24 * 60 * 60 * 1000;
 const VOICED_SHOWS = 3; // the newest shows keep their voices (~20 MB each), so playing them again is free
@@ -352,16 +356,37 @@ function useRadioEngine() {
         if (!uri) return; // not voiced in time: the song just plays, nobody waits at the start of a song
         // the voice waits until Spotify really plays: if it went first, Spotify starting would take the
         // audio back and the music wouldn't be turned down under the voice
+        let at = { ms: 0, when: Date.now() }; // where the song was, and when we looked
         for (let k = 0; ; k++) {
           await waitMs(500);
           if (live.current.index !== i || live.current.paused || k >= 12) return;
           const p = await playbackState().catch(() => null);
-          if (p?.isPlaying && sameTrack(p.track, s.slots[i].track)) break;
+          if (p?.isPlaying && sameTrack(p.track, s.slots[i].track)) {
+            at = { ms: p.progressMs, when: Date.now() };
+            break;
+          }
         }
         setSpeaking(true);
         const t = playClip(uri, true, voiceVolume(s.slots[i].facts?.gain));
         talking.current = t;
+        // a DJ's loop: while they're still talking, the instrumental intro starts over just before the
+        // singing comes in, so a longer talk never talks over the vocals (the heartbeat keeps time with the screen off)
+        const introMs = (s.slots[i].facts?.introSec ?? 0) * 1000;
+        let talkingOver = true;
+        if (introMs >= INTRO_LOOP_MIN_MS)
+          (async () => {
+            while (talkingOver) {
+              await waitMs(250);
+              const l = live.current;
+              if (!talkingOver || l.index !== i || l.paused) return;
+              if (at.ms + (Date.now() - at.when) >= introMs - INTRO_LOOP_EARLY_MS) {
+                await seekTo(0).catch(() => {});
+                at = { ms: 0, when: Date.now() };
+              }
+            }
+          })();
         await t.done;
+        talkingOver = false;
         if (talking.current === t) talking.current = null;
         setSpeaking(false);
       })();

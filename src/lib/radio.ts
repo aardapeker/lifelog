@@ -569,8 +569,9 @@ export async function buildShow(
       'short (one or two quick lines) and may react to the song that is fading out. ' +
       `INTRO TALK: up to ${MAX_INTROS} talks in the show (not two in a row) may play over the START of their song, with the music turned down, ` +
       'like a DJ hyping a song in: set "intro":true only for a song that opens with a long instrumental intro ' +
-      '(10 seconds or more before the singing starts: trust the song facts when they say so, never when they say the singing starts right away). That talk must be very short (one or two quick lines, under ' +
-      '8 seconds spoken), hype the song that is starting, and have "overlap":0. Never the first talk, a commercial or the ' +
+      '(10 seconds or more before the singing starts: trust the song facts when they say so, never when they say the singing starts right away). ' +
+      'The intro loops under them while they talk (like a DJ), so it may be 2 to 4 lines, talking the song in; it hypes ' +
+      'the song that is starting and has "overlap":0. Never the first talk, a commercial or the ' +
       'news. When unsure about a song\'s intro, don\'t. ' +
       LYRICS_RULE +
       'Lines are SPOKEN aloud by a voice engine: no emojis, no markdown, no stage directions in brackets, natural speech, ' +
@@ -620,7 +621,7 @@ export async function buildShow(
     const label = t.label === 'Commercial' || t.label === 'News' ? t.label : null;
     const talk = lines(t.talk);
     const intro =
-      intros < MAX_INTROS && k > 0 && !label && t.intro === true && talk.length > 0 && talk.length <= 3 && introFits(facts[k]) && !lastIntro;
+      intros < MAX_INTROS && k > 0 && !label && t.intro === true && talk.length > 0 && talk.length <= (facts[k]?.introSec != null ? 5 : 2) && introFits(facts[k]) && !lastIntro; // an unmeasured intro can't loop: short
     if (intro) intros++;
     lastIntro = intro;
     // the writer guesses from memory; the measured ending has the last word (never over a song that ends on the singing)
