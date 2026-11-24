@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Glass, GlassArea } from '../components/Glass';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '../components/Icon';
@@ -10,6 +10,7 @@ import { useRadio } from '../lib/radioEngine';
 import { colors, fonts, radius } from '../lib/theme';
 import { showAlert } from '../lib/dialog';
 import { useFirstFrame } from '../lib/perf';
+import { useSwipeToClose } from '../lib/useSwipeToClose';
 
 /**
  * The show's playlist on its own page: covers, lengths, the one playing now. Tap a song to jump to it
@@ -20,9 +21,10 @@ export default function PlaylistScreen() {
   const insets = useSafeAreaInsets();
   const { show, index, phase, palette, current, paused, hearts, banned, toggleHeart, ban, jumpTo, replay, keepLive, liveKept, save, togglePause, skip } = useRadio();
   const close = () => (router.canGoBack() ? router.back() : router.replace('/onair'));
+  const swipe = useSwipeToClose(close); // swipe down to close, like the player
 
   return (
-    <View style={styles.screen}>
+    <Animated.View style={[styles.screen, swipe.style]} {...swipe.panHandlers}>
       <GlassArea>
       {/* the song's colour at the top, fading into black (like the light from the cover) */}
       <ColourWash glow={palette?.glow ?? null} />
@@ -38,7 +40,7 @@ export default function PlaylistScreen() {
       </View>
 
       {show ? (
-        <ScrollView contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 130 }]}>
+        <ScrollView contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 130 }]} onScroll={swipe.onScroll} scrollEventThrottle={32}>
           {phase === 'done' && <Text style={styles.hint}>Tap a song to play the show again from there.</Text>}
           {show.slots.map((s, i) => {
             const now = i === index && phase === 'onair';
@@ -114,7 +116,7 @@ export default function PlaylistScreen() {
         </Glass>
       )}
       </GlassArea>
-    </View>
+    </Animated.View>
   );
 }
 
