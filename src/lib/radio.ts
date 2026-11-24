@@ -574,8 +574,9 @@ export async function buildShow(
       'like a DJ hyping a song in: set "intro":true only for a song that opens with a long instrumental intro ' +
       '(10 seconds or more before the singing starts: trust the song facts when they say so, never when they say the singing starts right away). ' +
       'The intro loops under them while they talk (like a DJ), so it may be 2 to 4 lines, talking the song in; it hypes ' +
-      'the song that is starting and has "overlap":0. Never the first talk, a commercial or the ' +
-      'news. When unsure about a song\'s intro, don\'t. ' +
+      'the song that is starting and has "overlap":0. Never the first talk or the news. A COMMERCIAL may be one ' +
+      '(label "Commercial" and "intro":true): read over the song\'s intro like a real radio ad, the music low under it, ' +
+      'up to 5 lines, then the last line hands over to the song. When unsure about a song\'s intro, don\'t. ' +
       LYRICS_RULE +
       'Lines are SPOKEN aloud by a voice engine: no emojis, no markdown, no stage directions in brackets, natural speech, ' +
       'short sentences. You may put <laugh> or <short pause> inside a line. ' +
@@ -631,8 +632,9 @@ export async function buildShow(
     const label = t.label === 'Commercial' || t.label === 'News' ? t.label : null;
     const talk = lines(t.talk);
     // an unmeasured intro can't loop: short; the inspiring moment over a looping intro gets room for its 3 to 5 lines and the comedian's
-    const room = facts[k]?.introSec == null ? 2 : t.moment === true ? 7 : 5;
-    const intro = intros < MAX_INTROS && k > 0 && !label && t.intro === true && talk.length > 0 && talk.length <= room && introFits(facts[k]) && !lastIntro;
+    const room = facts[k]?.introSec == null ? 2 : t.moment === true ? 7 : label === 'Commercial' ? 6 : 5;
+    // the news stays on its own; a commercial may ride the intro, like a radio ad over the music
+    const intro = intros < MAX_INTROS && k > 0 && label !== 'News' && t.intro === true && talk.length > 0 && talk.length <= room && introFits(facts[k]) && !lastIntro;
     if (intro) intros++;
     lastIntro = intro;
     // the writer guesses from memory; the measured ending has the last word (never over a song that ends on the singing)
