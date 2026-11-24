@@ -80,11 +80,16 @@ export function voiceVolume(gain: number | null | undefined): number {
   return Math.round(Math.min(1, Math.max(0.4, Math.pow(10, (loudness - 10) / 20))) * 100) / 100;
 }
 
-/** One playlist line's facts for the writer: "96 BPM · 18 s intro before the singing · ends on the vocal". */
+/** A tempo as words a DJ would say: slow and heavy, easy-going, upbeat, fast and lively. */
+export const tempoFeel = (bpm: number) =>
+  bpm < 80 ? 'slow and heavy' : bpm < 100 ? 'easy-going, mid-tempo' : bpm < 125 ? 'upbeat, you can move to it' : 'fast and lively, a dancer';
+
+/** One playlist line's facts for the writer: "easy-going, mid-tempo · 18 s intro before the singing · ends on the vocal". */
 export function factsLine(f: SongFacts): string {
   const parts: string[] = [];
   if (f.fame) parts.push(f.fame === 'big hit' ? 'a big hit' : f.fame === 'deep cut' ? 'a deep cut' : 'well known');
-  if (f.bpm) parts.push(`${Math.round(f.bpm)} BPM (${f.bpm < 90 ? 'slow' : f.bpm < 120 ? 'mid-tempo' : 'fast'})`);
+  // the tempo as a feel, never a number: the hosts said "yüz altmış tempo" on air (Arda: say hareketli, oynak…)
+  if (f.bpm) parts.push(tempoFeel(f.bpm));
   if (f.instrumental) parts.push('instrumental');
   if (f.introSec != null) parts.push(f.introSec >= 10 ? `${f.introSec} s instrumental intro before the singing` : 'the singing starts right away');
   if (f.tailSec != null) parts.push(f.tailSec >= 6 ? `${f.tailSec} s of music after the last sung line` : 'ends right on the vocal');

@@ -559,10 +559,11 @@ export async function buildShow(
       'welcome them with it ("nine times this week, are you okay?"), never for every song. ' +
       'SONG FACTS: the playlist may say whether a song is a big hit or a deep cut (from real popularity data): the ' +
       'hosts can play with that ("everybody knows this one", "a hidden gem only real fans know"), now and then, not ' +
-      'for every song. It may also give each song\'s tempo (BPM) and its real intro and ending lengths, measured from ' +
+      'for every song. It may also give each song\'s tempo as a feel and its real intro and ending lengths, measured from ' +
       'when the singing starts and stops. Let the tempo set the talk\'s energy: calm and slower before a slow song, ' +
       'quick and hyped before a fast one, and the hosts may notice a change of pace ("let\'s slow it down", "now the ' +
-      'tempo goes up"); say an actual BPM number at most once in the whole show. ' +
+      'tempo goes up", in Turkish "ağır bir şarkı", "hareketli", "oynak", "kıpır kıpır"). These measurements are for ' +
+      'you, never said out loud: no BPM, tempo or second counts on air, ever. ' +
       'Like a real DJ, sometimes talk over the END of a song: for each talk after the first, set "overlap" to the ' +
       'seconds (4 to 12) the talk may run over the outro of the PREVIOUS song, but only when that previous ' +
       'song fades out or ends on a long, repetitive instrumental tail. Use 0 when it "ends right on the vocal", ' +
