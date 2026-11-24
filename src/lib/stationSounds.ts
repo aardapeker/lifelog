@@ -218,23 +218,23 @@ export async function slowRate(db: SQLiteDatabase, station: string): Promise<num
 export const setSlowRate = (db: SQLiteDatabase, station: string, rate: number) => setSetting(db, slowKey(station), String(rate));
 
 /*
- * The station's weather: an ambience under the hosts with the music bed (rain, a storm, wind, birds on a
- * sunny morning, crickets at night; or the room: an old computer's fan, a buzzing amp, vinyl crackle), or the real weather where you are right now (open-meteo, the place
+ * The station's weather: an ambience under the hosts with the music bed (rain, a storm, wind; or the room:
+ * vinyl crackle), or the real weather where you are right now (open-meteo, the place
  * set for "Plan my day"). The sounds are long nature recordings on Deezer: the first 30-second preview
  * found is saved once and shared by all stations. It loops (rain doesn't mind) and stays quieter than the bed.
  */
-export type WeatherKind = 'none' | 'rain' | 'storm' | 'wind' | 'sunny' | 'night' | 'computer' | 'amp' | 'vinyl' | 'live';
-/** `fits`: the title has to say it's that sound (the first "night sounds" hit had a voice talking in it). */
+export type WeatherKind = 'none' | 'rain' | 'storm' | 'wind' | 'vinyl' | 'live';
+/**
+ * `fits`: the title has to say it's that sound (the first "night sounds" hit had a voice talking in it).
+ * Sunny (birds), night (crickets), the old computer and the amp hum were taken out (Arda, Nov 24); a station
+ * still set to one of them plays none.
+ */
 export const WEATHERS: { key: WeatherKind; label: string; query?: string; fits?: RegExp }[] = [
   { key: 'none', label: 'None' },
   { key: 'rain', label: '🌧 Rainy', query: 'rain sounds', fits: /rain/i },
   { key: 'storm', label: '⛈ Stormy', query: 'thunderstorm sounds', fits: /thunder|storm/i },
   { key: 'wind', label: '🌬 Windy', query: 'wind sounds', fits: /wind/i },
-  { key: 'sunny', label: '☀️ Sunny', query: 'birds singing morning nature sounds', fits: /bird/i },
-  { key: 'night', label: '🌙 Night', query: 'crickets chirping night', fits: /cricket/i },
-  // not weather, the room: Arda's ideas
-  { key: 'computer', label: '🖥️ Old computer', query: 'old computer fan hum sound', fits: /computer|fan|hum/i },
-  { key: 'amp', label: '🔊 Amp hum', query: 'guitar amp hum buzz sound', fits: /amp|hum|buzz/i },
+  // not weather, the room: Arda's idea
   { key: 'vinyl', label: '📀 Vinyl crackle', query: 'vinyl crackle sound', fits: /vinyl|crackle/i },
   { key: 'live', label: '📍 Real weather' },
 ];
@@ -247,7 +247,7 @@ export async function stationWeather(db: SQLiteDatabase, station: string): Promi
 }
 export const setStationWeather = (db: SQLiteDatabase, station: string, w: WeatherKind) => setSetting(db, weatherKey(station), w);
 
-/** Right now where you are (Plan my day's place): storm, rain, wind, sunny, night, or none. */
+/** Right now where you are (Plan my day's place): storm, rain, wind, or none. */
 async function liveWeather(db: SQLiteDatabase): Promise<WeatherKind> {
   const { lat, lon } = await getPlannerSettings(db);
   if (lat == null || lon == null) return 'none';
@@ -258,15 +258,15 @@ async function liveWeather(db: SQLiteDatabase): Promise<WeatherKind> {
   if (code >= 95) return 'storm';
   if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return 'rain';
   if ((c?.wind_speed_10m ?? 0) >= 30 || (code >= 71 && code <= 77) || code === 85 || code === 86) return 'wind';
-  if (!c?.is_day) return 'night';
-  return code <= 1 ? 'sunny' : 'none';
+  return 'none'; // a clear day or night: quiet (the birds and the crickets are gone)
 }
 
 // v2: the files picked before the title check are left behind (and deleted), so each is chosen again
 const weatherFile = (w: WeatherKind) => new File(dir(), `weather2-${w}.mp3`);
 function dropOldWeather(): void {
   try {
-    for (const f of dir().list()) if (f instanceof File && /^weather-[a-z]+\.mp3$/.test(f.name)) f.delete();
+    // the files picked the old way, and the ambiences that were taken out
+    for (const f of dir().list()) if (f instanceof File && /^weather-[a-z]+\.mp3$|^weather2-(sunny|night|computer|amp)\.mp3$/.test(f.name)) f.delete();
   } catch {}
 }
 /** The ambience's recording, saved the first time it's needed. */
