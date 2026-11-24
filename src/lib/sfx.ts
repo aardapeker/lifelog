@@ -2,13 +2,14 @@ import { busyTone, splitBeeps } from './phoneLine';
 
 /*
  * The radio's sound effects, made on the phone (no files, no downloads): the studio phone ringing, a phone
- * buzzing, the doorbell, a knock, Downstairs Teyze's broom on her ceiling, a dead phone line, a spoon in a tea glass, a tesbih. The writer puts
+ * buzzing, the doorbell, a knock, Downstairs Teyze's broom on her ceiling, a dead phone line, a spoon in a tea glass, a tesbih, a
+ * lighter and a cigarette. The writer puts
  * a tag in a line ("<sfx:ring>"); the tag never reaches the voice: the sound plays before the line (a tag in
  * its first half) or after it (in its second half). 16-bit mono PCM; pure, so it's tested.
  */
 
-export type Sfx = 'ring' | 'buzz' | 'doorbell' | 'knock' | 'ceiling' | 'busy' | 'tea' | 'tesbih';
-export const SFX: Sfx[] = ['ring', 'buzz', 'doorbell', 'knock', 'ceiling', 'busy', 'tea', 'tesbih'];
+export type Sfx = 'ring' | 'buzz' | 'doorbell' | 'knock' | 'ceiling' | 'busy' | 'tea' | 'tesbih' | 'cigarette';
+export const SFX: Sfx[] = ['ring', 'buzz', 'doorbell', 'knock', 'ceiling', 'busy', 'tea', 'tesbih', 'cigarette'];
 
 function pcm(rate: number, seconds: number, sample: (t: number, i: number) => number): Uint8Array {
   const n = Math.round(rate * seconds);
@@ -100,8 +101,7 @@ function tesbih(rate: number): Uint8Array {
     [0.0, 0.8], [0.34, 0.7], [0.66, 0.85], [0.98, 0.65], [1.3, 0.8], [1.5, 0.55], [1.58, 0.6], [1.66, 0.7], [2.0, 0.75], [2.33, 0.9],
   ];
   const partials: [number, number][] = [[1850, 1], [2620, 0.6], [3380, 0.35]];
-  let noise = 0x2545f491; // a fixed little noise (xorshift): the same tesbih every time
-  const rnd = () => ((noise ^= noise << 13), (noise ^= noise >>> 17), (noise ^= noise << 5), ((noise >>> 0) / 4294967296) * 2 - 1);
+  const rnd = noiseFrom(0x2545f491); // the same tesbih every time
   return pcm(rate, 2.6, (t) => {
     let v = 0;
     for (const [at, hard] of clacks) {
@@ -113,6 +113,47 @@ function tesbih(rate: number): Uint8Array {
       v += (body + click) * hard;
     }
     return v * 0.2;
+  });
+}
+
+/** A fixed little noise source (xorshift), so a sound is the same every time. */
+function noiseFrom(seed: number): () => number {
+  let x = seed;
+  return () => ((x ^= x << 13), (x ^= x >>> 17), (x ^= x << 5), ((x >>> 0) / 4294967296) * 2 - 1);
+}
+
+/**
+ * Lighting one up: the lighter's wheel scratching the flint (a gritty little scrape), the flame catching (a
+ * soft whoosh), then a long drag: the paper and tobacco crackling quietly as it burns. Kederli Kemal's sound.
+ */
+function cigarette(rate: number): Uint8Array {
+  const rnd = noiseFrom(0x1f2e3d4c);
+  let low = 0; // a one-pole low-pass for the whoosh and the drag
+  let high = 0; // and a high-pass (the noise minus its low part) for the scrape
+  const crackles = Array.from({ length: 26 }, (_, k) => 0.75 + k * 0.05 + (((k * 7919) % 13) / 13) * 0.04); // when the paper pops
+  return pcm(rate, 2.3, (t) => {
+    const n = rnd();
+    low += (n - low) * 0.06;
+    high = n - low;
+    let v = 0;
+    // the wheel: two quick scrapes, 50 ms each, the second strikes
+    for (const at of [0, 0.12]) {
+      const local = t - at;
+      if (local >= 0 && local < 0.05) v += high * 0.9 * (0.5 + 0.5 * Math.sin(2 * Math.PI * 180 * local)) * envelope(local, 0.05, 0.005);
+    }
+    // the flame: a whoosh that swells and settles
+    const flame = t - 0.17;
+    if (flame >= 0 && flame < 0.55) v += low * 2.4 * Math.sin(Math.PI * Math.min(1, flame / 0.55)) * Math.exp(-flame * 2);
+    // the drag: a quiet breath of burning, with little pops of crackle
+    const drag = t - 0.7;
+    if (drag >= 0 && drag < 1.5) {
+      v += low * 1.1 * envelope(drag, 1.5, 0.25);
+      for (const at of crackles) {
+        const local = t - at;
+        if (local >= 0 && local < 0.012) v += n * 0.5 * Math.exp(-local * 400);
+      }
+    }
+    return v * 0.5;
   });
 }
 
@@ -135,6 +176,8 @@ export function sfxPcm(kind: Sfx, rate: number): Uint8Array {
       return tea(rate);
     case 'tesbih':
       return tesbih(rate);
+    case 'cigarette':
+      return cigarette(rate);
   }
 }
 
