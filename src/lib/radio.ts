@@ -514,6 +514,9 @@ export async function buildShow(
       'how far they have come with something from their notes (what they are learning or building, getting through the ' +
       'shifts, a goal), or the idea of the article written for them (if given below), in your own words. Warm and specific, ' +
       'not cheesy, no clichés, no made-up quotes from famous people. The comedian may land one soft line after it. ' +
+      'Best of all, say it over the START of a soft song with a long instrumental intro (set "intro":true and ' +
+      '"moment":true on that talk): the intro loops under the voice and the song comes in as the talk ends, like a ' +
+      'film scene. Only when the song facts measure such an intro; otherwise a normal talk. ' +
       'If earlier moments are listed below, yours must be NEW: not just other words, another MESSAGE (if they said "you\'re ' +
       'not just carrying boxes, you\'re building something", don\'t say that again in any form), another subject, other ' +
       'images and metaphors, never their lines, never the same journal line quoted again. Find a fresh angle in the ' +
@@ -620,8 +623,9 @@ export async function buildShow(
     const t = talks.find((x) => Number(x.song) === k + 1) ?? talks[k] ?? {};
     const label = t.label === 'Commercial' || t.label === 'News' ? t.label : null;
     const talk = lines(t.talk);
-    const intro =
-      intros < MAX_INTROS && k > 0 && !label && t.intro === true && talk.length > 0 && talk.length <= (facts[k]?.introSec != null ? 5 : 2) && introFits(facts[k]) && !lastIntro; // an unmeasured intro can't loop: short
+    // an unmeasured intro can't loop: short; the inspiring moment over a looping intro gets room for its 3 to 5 lines and the comedian's
+    const room = facts[k]?.introSec == null ? 2 : t.moment === true ? 7 : 5;
+    const intro = intros < MAX_INTROS && k > 0 && !label && t.intro === true && talk.length > 0 && talk.length <= room && introFits(facts[k]) && !lastIntro;
     if (intro) intros++;
     lastIntro = intro;
     // the writer guesses from memory; the measured ending has the last word (never over a song that ends on the singing)
