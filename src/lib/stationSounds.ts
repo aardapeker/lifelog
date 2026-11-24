@@ -157,7 +157,7 @@ export async function removeBedPick(db: SQLiteDatabase, station: string, id: num
 }
 
 /**
- * The show's beds: your picks in a shuffled order, a different one under each talk (each plays once, 30 s),
+ * The show's beds: your picks in a shuffled order, a different one under each talk (looping under it),
  * round and round; a new shuffle per show, not starting with the one the last show ended on.
  */
 let deck: { station: string; uris: string[]; next: number } | null = null;
@@ -344,7 +344,7 @@ function fade(player: AudioPlayer, to: number, ms: number): Promise<void> {
   });
 }
 
-/** The music bed fades in under the hosts (if one is picked and it's on). It plays once, 30 s, no loop. */
+/** The music bed fades in under the hosts (if one is picked and it's on) and loops until the talk ends (Arda: loop again, Nov 24). */
 export async function bedIn(station: string): Promise<void> {
   if (!enabled) return;
   stopBed();
@@ -360,7 +360,7 @@ export async function bedIn(station: string): Promise<void> {
   if (!uri) return;
   const player = createAudioPlayer(uri);
   bed = player;
-  quietly(() => (player.loop = false)); // once: a 30-second preview starting over broke the mood
+  quietly(() => (player.loop = true)); // a long talk outlasts a 30-second preview: it starts over, as Arda prefers
   quietly(() => (player.volume = 0));
   if (showRate !== 1) {
     quietly(() => (player.shouldCorrectPitch = false)); // the pitch drops with the speed: that's the "slowed" sound
