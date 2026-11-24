@@ -2,13 +2,13 @@ import { busyTone, splitBeeps } from './phoneLine';
 
 /*
  * The radio's sound effects, made on the phone (no files, no downloads): the studio phone ringing, a phone
- * buzzing, the doorbell, a knock, Downstairs Teyze's broom on her ceiling, a dead phone line, a spoon in a tea glass. The writer puts
+ * buzzing, the doorbell, a knock, Downstairs Teyze's broom on her ceiling, a dead phone line, a spoon in a tea glass, a tesbih. The writer puts
  * a tag in a line ("<sfx:ring>"); the tag never reaches the voice: the sound plays before the line (a tag in
  * its first half) or after it (in its second half). 16-bit mono PCM; pure, so it's tested.
  */
 
-export type Sfx = 'ring' | 'buzz' | 'doorbell' | 'knock' | 'ceiling' | 'busy' | 'tea';
-export const SFX: Sfx[] = ['ring', 'buzz', 'doorbell', 'knock', 'ceiling', 'busy', 'tea'];
+export type Sfx = 'ring' | 'buzz' | 'doorbell' | 'knock' | 'ceiling' | 'busy' | 'tea' | 'tesbih';
+export const SFX: Sfx[] = ['ring', 'buzz', 'doorbell', 'knock', 'ceiling', 'busy', 'tea', 'tesbih'];
 
 function pcm(rate: number, seconds: number, sample: (t: number, i: number) => number): Uint8Array {
   const n = Math.round(rate * seconds);
@@ -90,6 +90,32 @@ function tea(rate: number): Uint8Array {
   });
 }
 
+/**
+ * A tesbih between the fingers, the kahvehane way: beads dropping one by one onto the others with a dry little
+ * clack (stone or amber: a short knock with a woody ring around 1.8–3.4 kHz), steady, then a quick run of
+ * three as the thumb flicks them, and the tassel end. Kederli Kemal's sound.
+ */
+function tesbih(rate: number): Uint8Array {
+  const clacks: [number, number][] = [
+    [0.0, 0.8], [0.34, 0.7], [0.66, 0.85], [0.98, 0.65], [1.3, 0.8], [1.5, 0.55], [1.58, 0.6], [1.66, 0.7], [2.0, 0.75], [2.33, 0.9],
+  ];
+  const partials: [number, number][] = [[1850, 1], [2620, 0.6], [3380, 0.35]];
+  let noise = 0x2545f491; // a fixed little noise (xorshift): the same tesbih every time
+  const rnd = () => ((noise ^= noise << 13), (noise ^= noise >>> 17), (noise ^= noise << 5), ((noise >>> 0) / 4294967296) * 2 - 1);
+  return pcm(rate, 2.6, (t) => {
+    let v = 0;
+    for (const [at, hard] of clacks) {
+      const local = t - at;
+      if (local < 0 || local > 0.09) continue;
+      const tune = 1 + ((at * 5.1) % 1 - 0.5) * 0.06; // no two beads quite alike
+      const body = partials.reduce((sum, [f, a]) => sum + Math.sin(2 * Math.PI * f * tune * local) * a, 0) * Math.exp(-local * 70);
+      const click = rnd() * Math.exp(-local * 600) * 0.6; // the hard tick of bead on bead
+      v += (body + click) * hard;
+    }
+    return v * 0.2;
+  });
+}
+
 /** The sound, as 16-bit mono PCM at `rate`. */
 export function sfxPcm(kind: Sfx, rate: number): Uint8Array {
   switch (kind) {
@@ -107,6 +133,8 @@ export function sfxPcm(kind: Sfx, rate: number): Uint8Array {
       return busyTone(rate);
     case 'tea':
       return tea(rate);
+    case 'tesbih':
+      return tesbih(rate);
   }
 }
 

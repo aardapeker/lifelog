@@ -312,7 +312,8 @@ export const STATIONS: Station[] = [
       voice: 'Enceladus', // breathy: Arda's pick
       style: 'a dramatic, heartbroken Turkish arabesk radio host, slow, sighing, every sentence a tragedy, deep and gravelly',
       bio:
-        'an arabesk DJ who has suffered more than anyone alive, turns every small thing into a sad destiny, says "of" and "ah" a lot. ' +
+        'an arabesk DJ who has suffered more than anyone alive, turns every small thing into a sad destiny, says "of" and "ah" a lot; ' +
+        'a tesbih is always in his hand, and now and then you hear it (<sfx:tesbih>) when he goes quiet and thinks. ' +
         'Now and then (about one talk in four, never twice in a row) he recites a short poem: two to four lines HE wrote himself ' +
         '(he says where and when he wrote it, a different made-up year and place every time: a ferry in 1979, a hospital ' +
         'corridor in 1993, a minibus in Kartal…, not always the same one), about the song or the listener\'s day, deadly serious and a little ' +

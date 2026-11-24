@@ -582,7 +582,8 @@ export async function buildShow(
       'SOUND EFFECTS: the studio has real ones, played where you put their tag at the START or the END of a line: ' +
       '<sfx:ring> (the studio phone rings, before a caller), <sfx:buzz> (a phone vibrating), <sfx:doorbell> (someone at ' +
       'the studio door), <sfx:knock> (a knock on the door), <sfx:ceiling> (a broom banging on the ceiling from below), ' +
-      '<sfx:busy> (a caller\'s line goes dead: the busy tone), <sfx:tea> (a teaspoon stirring a tulip tea glass). Use them for comedy and to set up a moment, two or three ' +
+      '<sfx:busy> (a caller\'s line goes dead: the busy tone), <sfx:tea> (a teaspoon stirring a tulip tea glass), <sfx:tesbih> (prayer beads clacking through ' +
+      'someone\'s fingers, the kahvehane way). Use them for comedy and to set up a moment, two or three ' +
       'in the whole show, and react to them in the words ("Telefon çalıyor!"). Never write the sound as words ("düt düt"). ' +
       LANGUAGE[station.lang] +
       '\n\n' +
