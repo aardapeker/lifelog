@@ -132,12 +132,8 @@ export async function getBackgroundModel(db: SQLiteDatabase, provider: Provider)
   return getSetting(db, `backgroundModel.${provider}`, PROVIDERS[provider].backgroundModel);
 }
 
-/** The model that writes radio shows: '' means the same as the chat. */
-export async function getRadioModel(db: SQLiteDatabase, provider: Provider): Promise<string> {
-  return getSetting(db, `radioModel.${provider}`, '');
-}
 
-export type Job = 'radio' | 'background';
+export type Job = 'radio' | 'background' | 'studio';
 
 /**
  * Which provider a job runs on (Settings → AI): '' = the same as the chat. A job set to a provider
@@ -164,13 +160,24 @@ export async function getBackgroundConfig(db: SQLiteDatabase) {
   return { provider, apiKey, model: await getBackgroundModel(db, provider), adapter };
 }
 
-/** Who writes the radio shows: its own provider and model, or the chat's. */
-export async function getRadioConfig(db: SQLiteDatabase) {
-  const { chat, provider, apiKey } = await jobProvider(db, 'radio');
-  const own = await getRadioModel(db, provider);
+/** The model a writing job uses (`radioModel.claude`, `studioModel.claude`): '' means the same as the chat. */
+export async function getJobModel(db: SQLiteDatabase, job: 'radio' | 'studio', provider: Provider): Promise<string> {
+  return getSetting(db, `${job}Model.${provider}`, '');
+}
+
+/** A writing job's AI: its own provider and model (Settings → AI), or the chat's. */
+async function writerConfig(db: SQLiteDatabase, job: 'radio' | 'studio') {
+  const { chat, provider, apiKey } = await jobProvider(db, job);
+  const own = await getJobModel(db, job, provider);
   const model = own || (provider === chat.provider ? chat.model : await getChatModel(db, provider));
   return { provider, apiKey, model, adapter: PROVIDERS[provider] };
 }
+
+/** Who writes the radio shows. */
+export const getRadioConfig = (db: SQLiteDatabase) => writerConfig(db, 'radio');
+
+/** Who writes and edits Studio's scripts (Opus for a script, while the chat and the radio stay cheap). */
+export const getStudioConfig = (db: SQLiteDatabase) => writerConfig(db, 'studio');
 
 /**
  * For playful jobs (Bug Arena, Radar's TL;DRs): Gemini when its key is saved (cheap, and it's the

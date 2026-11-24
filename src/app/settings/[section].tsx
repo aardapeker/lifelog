@@ -73,7 +73,7 @@ import {
   type PlannerSettings,
 } from '../../lib/planner';
 import { weekStart } from '../../lib/recap';
-import { getBackgroundModel, getChatConfig, getChatModel, getJobProvider, getRadioModel, MODEL_CHOICES, PROVIDERS, saveChatConfig, setJobProvider, type Job } from '../../lib/chat';
+import { getBackgroundModel, getChatConfig, getChatModel, getJobModel, getJobProvider, MODEL_CHOICES, PROVIDERS, saveChatConfig, setJobProvider, type Job } from '../../lib/chat';
 import { VOICE_MODELS } from '../../lib/tts';
 import { priceHint } from '../../lib/usage';
 import { getSetting, setSetting } from '../../lib/db';
@@ -948,44 +948,10 @@ function ModelChips({ provider, value, onPick, extra }: { provider: Provider; va
   );
 }
 
-/** The other jobs: who writes the radio, who does the chores, which voice reads the radio. Saved on tap. */
-function JobModels({ provider }: { provider: Provider }) {
+/** "Same as chat", then every provider: a job can run on another AI than the chat. */
+function ProviderChips({ job, value, set, keys }: { job: Job; value: Provider | ''; set: (p: Provider | '') => void; keys: Record<string, boolean> }) {
   const db = useSQLiteContext();
-  const [radioOn, setRadioOn] = useState<Provider | ''>(''); // '' = same as chat
-  const [backOn, setBackOn] = useState<Provider | ''>('');
-  const [radio, setRadio] = useState('');
-  const [background, setBackground] = useState('');
-  const [voice, setVoice] = useState(VOICE_MODELS[0].id);
-  const [keys, setKeys] = useState<Record<string, boolean>>({});
-  const [chatModel, setChatModel] = useState(''); // what "Chat model" means right now
-  const radioP = radioOn || provider;
-  const backP = backOn || provider;
-
-  useFocusEffect(
-    useCallback(() => {
-      getJobProvider(db, 'radio').then(setRadioOn);
-      getJobProvider(db, 'background').then(setBackOn);
-      getSetting(db, 'voiceModel', VOICE_MODELS[0].id).then(setVoice);
-      Promise.all((Object.keys(PROVIDERS) as Provider[]).map(async (p) => [p, !!(await getKey(p))] as const)).then((all) =>
-        setKeys(Object.fromEntries(all)),
-      );
-    }, [db]),
-  );
-  useEffect(() => {
-    getRadioModel(db, radioP).then(setRadio);
-    getChatModel(db, radioP).then(setChatModel);
-  }, [db, radioP]);
-  const modelName = (id: string) => MODEL_CHOICES[radioP]?.find((m) => m.id === id)?.label ?? id;
-  useEffect(() => {
-    getBackgroundModel(db, backP).then(setBackground);
-  }, [db, backP]);
-
-  const save = (key: string, value: string, set: (v: string) => void) => {
-    set(value);
-    setSetting(db, key, value);
-  };
-  /** "Same as chat", then every provider: a job can run on another AI than the chat. */
-  const ProviderChips = ({ job, value, set }: { job: Job; value: Provider | ''; set: (p: Provider | '') => void }) => (
+  return (
     <View style={styles.chips}>
       {(['', ...Object.keys(PROVIDERS)] as (Provider | '')[]).map((p) => (
         <Chip
@@ -1000,27 +966,95 @@ function JobModels({ provider }: { provider: Provider }) {
       ))}
     </View>
   );
+}
+
+/**
+ * A writing job (the radio's shows, Studio's scripts): its own AI and model, or the chat's. Saved on tap.
+ * Studio can write on Opus while the chat and the daily radio stay on a cheaper model.
+ */
+function WriterChoice({ job, icon, title, provider, keys, hint }: { job: 'radio' | 'studio'; icon: ComponentProps<typeof Ionicons>['name']; title: string; provider: Provider; keys: Record<string, boolean>; hint: string }) {
+  const db = useSQLiteContext();
+  const [on, setOn] = useState<Provider | ''>(''); // '' = same as chat
+  const [model, setModel] = useState('');
+  const [chatModel, setChatModel] = useState(''); // what "Chat model" means right now
+  const p = on || provider;
+  useFocusEffect(
+    useCallback(() => {
+      getJobProvider(db, job).then(setOn);
+    }, [db, job]),
+  );
+  useEffect(() => {
+    getJobModel(db, job, p).then(setModel);
+    getChatModel(db, p).then(setChatModel);
+  }, [db, job, p]);
+  const modelName = (id: string) => MODEL_CHOICES[p]?.find((m) => m.id === id)?.label ?? id;
+  const noKey = on && !keys[on] ? ` No ${PROVIDERS[on].label} key yet, so it uses ${PROVIDERS[provider].label} until you add one.` : '';
+  return (
+    <>
+      <Label icon={icon}>{title}</Label>
+      <Text style={styles.subLabel}>AI</Text>
+      <ProviderChips job={job} value={on} set={setOn} keys={keys} />
+      <Text style={styles.subLabel}>Model</Text>
+      <ModelChips
+        provider={p}
+        value={model}
+        extra={{ id: '', label: `${on && on !== provider ? 'Default' : 'Chat model'}${chatModel ? ` (${modelName(chatModel)})` : ''}` }}
+        onPick={(m) => {
+          setModel(m);
+          setSetting(db, `${job}Model.${p}`, m);
+        }}
+      />
+      <Text style={styles.hint}>
+        {model ? priceHint(model) : 'Uses the chat model.'} {hint}
+        {noKey}
+      </Text>
+    </>
+  );
+}
+
+/** The other jobs: who writes the radio and Studio, who does the chores, which voice reads the radio. Saved on tap. */
+function JobModels({ provider }: { provider: Provider }) {
+  const db = useSQLiteContext();
+  const [backOn, setBackOn] = useState<Provider | ''>('');
+  const [background, setBackground] = useState('');
+  const [voice, setVoice] = useState(VOICE_MODELS[0].id);
+  const [keys, setKeys] = useState<Record<string, boolean>>({});
+  const backP = backOn || provider;
+
+  useFocusEffect(
+    useCallback(() => {
+      getJobProvider(db, 'background').then(setBackOn);
+      getSetting(db, 'voiceModel', VOICE_MODELS[0].id).then(setVoice);
+      Promise.all((Object.keys(PROVIDERS) as Provider[]).map(async (p) => [p, !!(await getKey(p))] as const)).then((all) =>
+        setKeys(Object.fromEntries(all)),
+      );
+    }, [db]),
+  );
+  useEffect(() => {
+    getBackgroundModel(db, backP).then(setBackground);
+  }, [db, backP]);
+
+  const save = (key: string, value: string, set: (v: string) => void) => {
+    set(value);
+    setSetting(db, key, value);
+  };
   const noKey = (p: Provider | '') => (p && !keys[p] ? ` No ${PROVIDERS[p].label} key yet, so it uses ${PROVIDERS[provider].label} until you add one.` : '');
 
   return (
     <>
-      <Label icon="radio-outline">Radio writer</Label>
-      <Text style={styles.subLabel}>AI</Text>
-      <ProviderChips job="radio" value={radioOn} set={setRadioOn} />
-      <Text style={styles.subLabel}>Model</Text>
-      <ModelChips
-        provider={radioP}
-        value={radio}
-        extra={{ id: '', label: `${radioOn && radioOn !== provider ? 'Default' : 'Chat model'}${chatModel ? ` (${modelName(chatModel)})` : ''}` }}
-        onPick={(m) => save(`radioModel.${radioP}`, m, setRadio)}
+      <WriterChoice job="radio" icon="radio-outline" title="Radio writer" provider={provider} keys={keys} hint="The cheaper one is a bit less funny." />
+      <WriterChoice
+        job="studio"
+        icon="film-outline"
+        title="Studio writer"
+        provider={provider}
+        keys={keys}
+        hint="Writes and edits the scripts, and does the editor's review. A script is worth the best model (Opus); the fact checks always use Gemini with Google Search."
       />
-      <Text style={styles.hint}>
-        {radio ? priceHint(radio) : 'Writes the shows with the chat model.'} The cheaper one is a bit less funny.{noKey(radioOn)}
-      </Text>
 
       <Label icon="cog-outline">Background jobs</Label>
       <Text style={styles.subLabel}>AI</Text>
-      <ProviderChips job="background" value={backOn} set={setBackOn} />
+      <ProviderChips job="background" value={backOn} set={setBackOn} keys={keys} />
       <Text style={styles.subLabel}>Model</Text>
       <ModelChips provider={backP} value={background} onPick={(m) => save(`backgroundModel.${backP}`, m, setBackground)} />
       <Text style={styles.hint}>

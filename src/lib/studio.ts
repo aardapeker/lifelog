@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { listReads } from './reads';
-import { getChatConfig, parseJsonReply, PROVIDERS } from './chat';
+import { getStudioConfig, parseJsonReply, PROVIDERS } from './chat';
 import { aboutUser } from './context';
 import { getSetting, setSetting } from './db';
 import { groundedSearch, type Source } from './gemini';
@@ -133,10 +133,11 @@ import { fixNote, parseCheck, scenesOf, sceneMarkdown, WORDS_PER_MINUTE, type Ch
 
 // ---------------------------------------------------------------- the AI work
 
+/** Studio's writer: Settings → AI → Studio writer (its own model, e.g. Opus), or the chat's. */
 async function writer(db: SQLiteDatabase) {
-  const chat = await getChatConfig(db);
-  if (!chat.apiKey) throw new Error('Add an API key in Settings first.');
-  return { ...chat, adapter: PROVIDERS[chat.provider] };
+  const w = await getStudioConfig(db);
+  if (!w.apiKey) throw new Error('Add an API key in Settings first.');
+  return w;
 }
 
 const running = new Set<number>();
