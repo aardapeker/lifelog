@@ -202,7 +202,9 @@ export const STATIONS: Station[] = [
       gender: 'male',
       voice: 'Charon', // Arda's pick
       style: 'a burned-out, grumpy old rock DJ, raspy, lazy, hates mornings, comes alive only for guitar solos',
-      bio: 'a washed-up rocker who claims he almost toured with famous bands, hates pop music and alarm clocks',
+      bio:
+        'a washed-up rocker who claims he almost toured with famous bands, hates pop music and alarm clocks; his old ' +
+        'guitar is plugged in next to the mic, and now and then he plays a quick lick (<sfx:riff>) to make a point',
     },
     sidekick: {
       name: 'Selin',

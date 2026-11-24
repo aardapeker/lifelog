@@ -3,13 +3,13 @@ import { busyTone, splitBeeps } from './phoneLine';
 /*
  * The radio's sound effects, made on the phone (no files, no downloads): the studio phone ringing, a phone
  * buzzing, the doorbell, a knock, Downstairs Teyze's broom on her ceiling, a dead phone line, a spoon in a tea glass, a tesbih, a
- * lighter and a cigarette. The writer puts
+ * lighter and a cigarette, a guitar riff. The writer puts
  * a tag in a line ("<sfx:ring>"); the tag never reaches the voice: the sound plays before the line (a tag in
  * its first half) or after it (in its second half). 16-bit mono PCM; pure, so it's tested.
  */
 
-export type Sfx = 'ring' | 'buzz' | 'doorbell' | 'knock' | 'ceiling' | 'busy' | 'tea' | 'tesbih' | 'cigarette';
-export const SFX: Sfx[] = ['ring', 'buzz', 'doorbell', 'knock', 'ceiling', 'busy', 'tea', 'tesbih', 'cigarette'];
+export type Sfx = 'ring' | 'buzz' | 'doorbell' | 'knock' | 'ceiling' | 'busy' | 'tea' | 'tesbih' | 'cigarette' | 'riff';
+export const SFX: Sfx[] = ['ring', 'buzz', 'doorbell', 'knock', 'ceiling', 'busy', 'tea', 'tesbih', 'cigarette', 'riff'];
 
 function pcm(rate: number, seconds: number, sample: (t: number, i: number) => number): Uint8Array {
   const n = Math.round(rate * seconds);
@@ -157,6 +157,55 @@ function cigarette(rate: number): Uint8Array {
   });
 }
 
+/**
+ * One plucked string (Karplus–Strong: a burst of noise running round a delay line one period long, softened
+ * every pass, the way a real string loses its highs), `seconds` long. `damp` < 1 mutes it (a palm on the strings).
+ */
+function pluck(rate: number, freq: number, seconds: number, damp: number, rnd: () => number): Float32Array {
+  const out = new Float32Array(Math.round(rate * seconds));
+  const period = Math.max(2, Math.round(rate / freq));
+  const line = Float32Array.from({ length: period }, () => rnd());
+  for (let i = 0; i < out.length; i++) {
+    const k = i % period;
+    const next = line[(k + 1) % period];
+    out[i] = line[k];
+    line[k] = 0.5 * (line[k] + next) * 0.996 * damp;
+  }
+  return out;
+}
+
+/**
+ * Riff's guitar: a short, original rock lick on a distorted electric (power chords: root, fifth, octave).
+ * Three palm-muted chugs on E, a jump up to G and A, then a big open E5 left ringing. Gebze Rock's sound.
+ */
+function riff(rate: number): Uint8Array {
+  const rnd = noiseFrom(0x5eed5);
+  const total = Math.round(rate * 2.4);
+  const mix = new Float32Array(total);
+  const E2 = 82.41;
+  const chord = (at: number, root: number, seconds: number, muted: boolean) => {
+    for (const [ratio, gain] of [[1, 1], [1.5, 0.8], [2, 0.6]] as const) {
+      const s = pluck(rate, root * ratio, seconds, muted ? 0.985 : 1, rnd);
+      const from = Math.round(rate * at);
+      for (let i = 0; i < s.length && from + i < total; i++) mix[from + i] += s[i] * gain * envelope(i / rate, seconds, 0.004);
+    }
+  };
+  // chug chug chug, G5, A5, then E5 rings out
+  chord(0.0, E2, 0.16, true);
+  chord(0.2, E2, 0.16, true);
+  chord(0.4, E2, 0.16, true);
+  chord(0.62, E2 * 1.189, 0.28, false); // G
+  chord(0.95, E2 * 1.335, 0.28, false); // A
+  chord(1.3, E2, 1.1, false);
+  // the amp: drive it into soft clipping, then take the fizz off the top
+  let low = 0;
+  return pcm(rate, 2.4, (_t, i) => {
+    const driven = Math.tanh(mix[i] * 6);
+    low += (driven - low) * 0.35;
+    return low * 0.3;
+  });
+}
+
 /** The sound, as 16-bit mono PCM at `rate`. */
 export function sfxPcm(kind: Sfx, rate: number): Uint8Array {
   switch (kind) {
@@ -178,6 +227,8 @@ export function sfxPcm(kind: Sfx, rate: number): Uint8Array {
       return tesbih(rate);
     case 'cigarette':
       return cigarette(rate);
+    case 'riff':
+      return riff(rate);
   }
 }
 
