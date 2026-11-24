@@ -429,7 +429,11 @@ export async function buildShow(
     songHistories(db, tracks.map((t) => t.id)).catch(() => new Map()),
     historySummary(db).catch(() => ({ plays: 0, since: null })),
   ]);
-  const [moments, visits] = await Promise.all([recentMoments(db), regular ? recentVisits(db, regular.name) : Promise.resolve([])]);
+  const [moments, visits, said] = await Promise.all([
+    recentMoments(db),
+    regular ? recentVisits(db, regular.name) : Promise.resolve([]),
+    lastShowsSaid(db),
+  ]);
   // the inspiring moment's material: the newest article the friend researched and wrote for them (last 10 days)
   const read = (await listReads(db, 3).catch(() => [])).find((r) => r.status === 'done' && (r.done_at ?? 0) > Date.now() - 10 * 86_400_000);
   const article = read ? articleOf(read) : null;
@@ -469,6 +473,9 @@ export async function buildShow(
       'comes back from the shift (their shift week says when: a morning shift leaves before dawn, an evening shift comes ' +
       'home around midnight, a night shift goes out late at night), with one practical tip (umbrella, coat, gloves). ' +
       'Numbers only from the forecast, rounded and said naturally; never invent weather. No forecast, no report. ' +
+      'FRESH: if the last shows\' talks are listed below, those details and jokes were JUST used (often the same few ' +
+      'journal lines on every station). Don\'t build talks on them again: dig into OTHER things in the notes, the ' +
+      'throwbacks, the songs and the regulars; at most one quick callback to an old joke in the whole show. ' +
       'INSPIRATION: once in the show (in the middle, not the first or the last talk, not a commercial or the news), one ' +
       'host drops the act for a moment and gives a short, sincere, inspiring talk (3 to 5 lines) for THIS listener: about ' +
       'how far they have come with something from their notes (what they are learning or building, getting through the ' +
@@ -551,6 +558,7 @@ export async function buildShow(
       (welcome.length ? `Their favourites (greet these like old friends when they come): ${welcome.map(songLine).join('; ')}\n` : '') +
       (wish.trim() ? `The listener asked for: ${wish.trim()}\n` : '') +
       ((await weather) ? `Forecast where the listener is (local times): ${await weather}\n` : '') +
+      (said.length ? `What the last shows already said (don't lean on the same details):\n${said.map((t) => `- ${t}`).join('\n')}\n` : '') +
       (moments.length ? `Earlier inspiring moments (don't repeat them):\n${moments.map((m) => `- ${m}`).join('\n')}\n` : '') +
       (article ? `An article the listener's friend researched and wrote for them lately: "${article.title}": ${article.hook} Why it matters to them: ${article.forYou}\n` : '') +
       `\n${notesText}` +
@@ -610,6 +618,27 @@ export async function recentMoments(db: SQLiteDatabase, max = 6): Promise<string
  */
 export const recentVisits = (db: SQLiteDatabase, name: string, max = 3) =>
   recentTalks(db, (s) => s.talk.some((l) => l.speaker === name), max, name);
+
+/**
+ * What the last shows (any station) said, talk by talk, shortened: the writer sees it so a new show finds other
+ * things to talk about. One day's shows all leaned on the same few journal lines (the broken heater in C1, the
+ * Sunday overtime at 300%) across three stations.
+ */
+export async function lastShowsSaid(db: SQLiteDatabase, shows = 2): Promise<string[]> {
+  try {
+    const all = JSON.parse(await getSetting(db, 'radio.history', '[]')) as { savedAt: number; show: { slots: Slot[]; outro?: { text: string }[] } }[];
+    return all
+      .sort((a, b) => b.savedAt - a.savedAt)
+      .slice(0, shows)
+      .flatMap((h) => [...h.show.slots.map((s) => s.talk), h.show.outro ?? []])
+      .map((talk) => talk.map((l) => l.text).join(' '))
+      .filter(Boolean)
+      .map((t) => (t.length > 220 ? `${t.slice(0, 217)}…` : t))
+      .slice(0, 30);
+  } catch {
+    return [];
+  }
+}
 
 /** Talks from Recent shows (radio.history), newest first, cut to 400 characters; only `who`'s lines when given. */
 async function recentTalks(db: SQLiteDatabase, keep: (s: Slot) => boolean, max: number, who?: string): Promise<string[]> {
