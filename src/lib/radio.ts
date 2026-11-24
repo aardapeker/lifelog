@@ -26,6 +26,8 @@ import type { SpokenLine } from './tts';
 
 /** overlap: seconds the talk before this song may run over the END of the previous one (0 = wait for it). */
 /** intro: the talk plays over the START of this song instead (music turned down), a DJ hyping it in. */
+/** How many intro talks a show may have (Arda liked them: "like real hosts", Nov 2026; it was one). */
+const MAX_INTROS = 3;
 /** `moment`: the show's one sincere, inspiring talk (remembered, so the next shows say something new). */
 export type Slot = { track: Track; talk: SpokenLine[]; label: string | null; overlap: number; intro?: boolean; moment?: boolean; facts?: SongFacts };
 /** outro: the goodbye after the last song. */
@@ -565,7 +567,7 @@ export async function buildShow(
       'finale, a big final chord, a dramatic last note, a ballad\'s quiet last bars. When the facts give the ending\'s ' +
       'length, the overlap must be shorter than it. About a third of transitions at most. Overlapping talks must be ' +
       'short (one or two quick lines) and may react to the song that is fading out. ' +
-      'INTRO TALK: at most ONE talk in the whole show may play over the START of its song, with the music turned down, ' +
+      `INTRO TALK: up to ${MAX_INTROS} talks in the show (not two in a row) may play over the START of their song, with the music turned down, ` +
       'like a DJ hyping a song in: set "intro":true only for a song that opens with a long instrumental intro ' +
       '(10 seconds or more before the singing starts: trust the song facts when they say so, never when they say the singing starts right away). That talk must be very short (one or two quick lines, under ' +
       '8 seconds spoken), hype the song that is starting, and have "overlap":0. Never the first talk, a commercial or the ' +
@@ -610,14 +612,17 @@ export async function buildShow(
   const lines = (raw?: RawLine[]) => spoken(station, [guest, regular], raw);
   // each talk goes with its song: by the number it gives, else by position
   const talks = plan.talks ?? [];
-  let introUsed = false; // one intro talk per show, whatever the writer says
+  let intros = 0; // a few intro talks per show (MAX_INTROS), whatever the writer says, never two in a row
+  let lastIntro = false;
   let momentUsed = false; // and one inspiring moment
   const slots: Slot[] = tracks.map((track, k) => {
     const t = talks.find((x) => Number(x.song) === k + 1) ?? talks[k] ?? {};
     const label = t.label === 'Commercial' || t.label === 'News' ? t.label : null;
     const talk = lines(t.talk);
-    const intro = !introUsed && k > 0 && !label && t.intro === true && talk.length > 0 && talk.length <= 3 && introFits(facts[k]);
-    if (intro) introUsed = true;
+    const intro =
+      intros < MAX_INTROS && k > 0 && !label && t.intro === true && talk.length > 0 && talk.length <= 3 && introFits(facts[k]) && !lastIntro;
+    if (intro) intros++;
+    lastIntro = intro;
     // the writer guesses from memory; the measured ending has the last word (never over a song that ends on the singing)
     const asked = k && !label && !intro ? Math.max(0, Math.min(12, Math.round(Number(t.overlap) || 0))) : 0;
     const overlap = fitOverlap(asked, facts[k - 1]);
