@@ -23,7 +23,8 @@ import type { SpokenLine } from './tts';
 
 /** overlap: seconds the talk before this song may run over the END of the previous one (0 = wait for it). */
 /** intro: the talk plays over the START of this song instead (music turned down), a DJ hyping it in. */
-export type Slot = { track: Track; talk: SpokenLine[]; label: string | null; overlap: number; intro?: boolean; facts?: SongFacts };
+/** `moment`: the show's one sincere, inspiring talk (remembered, so the next shows say something new). */
+export type Slot = { track: Track; talk: SpokenLine[]; label: string | null; overlap: number; intro?: boolean; moment?: boolean; facts?: SongFacts };
 /** outro: the goodbye after the last song. */
 /** `guest`: a host from another station who wandered into this show (a crossover), with their voice. */
 /** `regular`: one of the station's own sketch characters (a caller, a live report, a studio visitor). */
@@ -428,6 +429,7 @@ export async function buildShow(
     songHistories(db, tracks.map((t) => t.id)).catch(() => new Map()),
     historySummary(db).catch(() => ({ plays: 0, since: null })),
   ]);
+  const moments = await recentMoments(db);
   // the inspiring moment's material: the newest article the friend researched and wrote for them (last 10 days)
   const read = (await listReads(db, 3).catch(() => [])).find((r) => r.status === 'done' && (r.done_at ?? 0) > Date.now() - 10 * 86_400_000);
   const article = read ? articleOf(read) : null;
@@ -472,6 +474,8 @@ export async function buildShow(
       'how far they have come with something from their notes (what they are learning or building, getting through the ' +
       'shifts, a goal), or the idea of the article written for them (if given below), in your own words. Warm and specific, ' +
       'not cheesy, no clichés, no made-up quotes from famous people. The comedian may land one soft line after it. ' +
+      'If earlier moments are listed below, yours must be NEW: another subject, other images and metaphors, never their ' +
+      'lines, and never the same journal line quoted again. ' +
       'The first talk opens the show with a station ID. Make it about THIS listener: callbacks to what they wrote, ' +
       'their shift, their cat, their plans. Teasing is welcome, cruelty is not. ' +
       'The first talk ends with "this show is brought to you by…" and a FAKE SPONSOR made from one small, real thing in ' +
@@ -522,9 +526,9 @@ export async function buildShow(
       'short sentences. You may put <laugh> or <short pause> inside a line. ' +
       LANGUAGE[station.lang] +
       '\n\n' +
-      `Return {"title":"show name","talks":[{"song":1,"label":null or "Commercial" or "News","overlap":0,"intro":false,` +
+      `Return {"title":"show name","talks":[{"song":1,"label":null or "Commercial" or "News","overlap":0,"intro":false,"moment":false,` +
       `"talk":[{"who":${names},"text":"…"}]}],"outro":[{"who":${names},"text":"…"}]} with exactly ${tracks.length} talks, ` +
-      'one per song, in playlist order ("song" is its number). ' +
+      'one per song, in playlist order ("song" is its number); "moment" is true on the one INSPIRATION talk. ' +
       '"outro" is said after the last song: wrap up the show, a callback or two, a warm goodbye (2 to 4 lines).\n\n' +
       about,
     temperature: 1.1, // the talks stay readable at this level
@@ -536,6 +540,7 @@ export async function buildShow(
       (welcome.length ? `Their favourites (greet these like old friends when they come): ${welcome.map(songLine).join('; ')}\n` : '') +
       (wish.trim() ? `The listener asked for: ${wish.trim()}\n` : '') +
       ((await weather) ? `Forecast where the listener is (local times): ${await weather}\n` : '') +
+      (moments.length ? `Earlier inspiring moments (don't repeat them):\n${moments.map((m) => `- ${m}`).join('\n')}\n` : '') +
       (article ? `An article the listener's friend researched and wrote for them lately: "${article.title}": ${article.hook} Why it matters to them: ${article.forYou}\n` : '') +
       `\n${notesText}` +
       (throwbacks.length
@@ -545,7 +550,7 @@ export async function buildShow(
   });
   const plan = parseJsonReply<{
     title?: string;
-    talks?: { song?: number; label?: string | null; overlap?: number; intro?: boolean; talk?: { who?: string; text?: string }[] }[];
+    talks?: { song?: number; label?: string | null; overlap?: number; intro?: boolean; moment?: boolean; talk?: { who?: string; text?: string }[] }[];
     outro?: { who?: string; text?: string }[];
   }>(reply);
 
@@ -553,6 +558,7 @@ export async function buildShow(
   // each talk goes with its song: by the number it gives, else by position
   const talks = plan.talks ?? [];
   let introUsed = false; // one intro talk per show, whatever the writer says
+  let momentUsed = false; // and one inspiring moment
   const slots: Slot[] = tracks.map((track, k) => {
     const t = talks.find((x) => Number(x.song) === k + 1) ?? talks[k] ?? {};
     const label = t.label === 'Commercial' || t.label === 'News' ? t.label : null;
@@ -562,7 +568,9 @@ export async function buildShow(
     // the writer guesses from memory; the measured ending has the last word (never over a song that ends on the singing)
     const asked = k && !label && !intro ? Math.max(0, Math.min(12, Math.round(Number(t.overlap) || 0))) : 0;
     const overlap = fitOverlap(asked, facts[k - 1]);
-    return { track, talk, label, overlap, intro, facts: facts[k] };
+    const moment = !momentUsed && !label && t.moment === true && talk.length > 0;
+    if (moment) momentUsed = true;
+    return { track, talk, label, overlap, intro, moment, facts: facts[k] };
   });
   return {
     title: plan.title?.trim() || pick.title?.trim() || station.name,
@@ -574,6 +582,24 @@ export async function buildShow(
     guest,
     regular,
   };
+}
+
+/**
+ * The inspiring moments of the last shows (any station), newest first: the writer sees them so the next one
+ * says something new. Two shows in a row used "Yalnızlık bir duvar değil, sessiz bir atölye", once on Your
+ * Friend and again on Gebze Rock. Read from Recent shows (radio.history); shows from before `moment` have none.
+ */
+export async function recentMoments(db: SQLiteDatabase, max = 6): Promise<string[]> {
+  try {
+    const all = JSON.parse(await getSetting(db, 'radio.history', '[]')) as { savedAt: number; show: { slots: Slot[] } }[];
+    return all
+      .sort((a, b) => b.savedAt - a.savedAt)
+      .flatMap((h) => h.show.slots.filter((s) => s.moment).map((s) => s.talk.map((l) => l.text).join(' ')))
+      .slice(0, max)
+      .map((t) => (t.length > 400 ? `${t.slice(0, 397)}…` : t));
+  } catch {
+    return [];
+  }
 }
 
 /**
