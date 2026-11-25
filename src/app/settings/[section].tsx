@@ -81,7 +81,7 @@ import { embed, indexPending, indexStats } from '../../lib/embeddings';
 import { getKey, maskKey, setKey, type Provider } from '../../lib/keys';
 import { getCrashToken, sendCrash, setCrashToken } from '../../lib/crashReport';
 import { useBottomSpace } from '../../components/MiniPlayer';
-import { colors, inputColors, fonts, radius, TAB_BAR_SPACE, frost } from '../../lib/theme';
+import { colors, inputColors, fonts, radius, TAB_BAR_SPACE, frost, glassField } from '../../lib/theme';
 import { showAlert } from '../../lib/dialog';
 import { BlurSource, CAN_BLUR, useBlurSource } from '../../components/Glass';
 import { ShowWash } from '../../components/radioParts';
@@ -1637,14 +1637,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 13,
     borderRadius: radius.sm,
-    backgroundColor: colors.raised,
+    ...glassField,
     color: colors.text,
     fontFamily: fonts.sansRegular,
     fontSize: 15,
   },
   profile: { minHeight: 140, lineHeight: 22 },
 
-  segment: { flexDirection: 'row', backgroundColor: colors.raised, borderRadius: radius.pill, padding: 4 },
+  segment: { flexDirection: 'row', ...glassField, borderRadius: radius.pill, padding: 4 },
   segmentItem: { flex: 1, paddingVertical: 11, borderRadius: radius.pill, alignItems: 'center' },
   segmentActive: { backgroundColor: colors.accent },
   segmentText: { fontFamily: fonts.sansRegular, fontSize: 14, color: colors.muted },
@@ -1652,7 +1652,7 @@ const styles = StyleSheet.create({
 
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 22 },
   toggle: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 22 },
-  bgBox: { marginTop: 18, padding: 14, borderRadius: radius.sm, backgroundColor: colors.raised },
+  bgBox: { marginTop: 18, padding: 14, borderRadius: radius.sm, ...glassField },
   bgBoxWarn: { borderWidth: 1, borderColor: colors.text },
   times: { flexDirection: 'row', gap: 8 },
   timeLabel: { fontFamily: fonts.sansRegular, fontSize: 12, color: colors.muted, marginTop: 4, textAlign: 'center' },

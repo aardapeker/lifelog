@@ -8,7 +8,7 @@ import { RemoteImage } from '../radar/components/RemoteImage';
 import { searchDeezer, trackTime, type DzTrack } from '../lib/deezer';
 import { addBedPick, BED_IDEAS, bedPickUri, bedPicks, ensureDefaultBeds, loadStationSoundsSetting, setSlowRate, SLOW_RATES, slowRate, setStationWeather, stationWeather, resolveWeather, weatherPreview, WEATHERS, type WeatherKind, removeBedPick, setStationSoundsOn, type BedPick } from '../lib/stationSounds';
 import type { Station } from '../lib/stations';
-import { colors, fonts, inputColors, radius } from '../lib/theme';
+import { colors, fonts, inputColors, radius, glassField } from '../lib/theme';
 import Ionicons from './Icon';
 import { Chip, IconButton, PillButton, StatusLine, type Status } from './ui';
 
@@ -265,6 +265,6 @@ const styles = StyleSheet.create({
   sheet: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 20 },
   sheetHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   sheetTitle: { flex: 1, textAlign: 'center', fontFamily: fonts.sans, fontSize: 16, color: colors.text },
-  input: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: radius.sm, backgroundColor: colors.raised, color: colors.text, fontFamily: fonts.sansRegular, fontSize: 15 },
+  input: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: radius.sm, ...glassField, color: colors.text, fontFamily: fonts.sansRegular, fontSize: 15 },
   ideas: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 10 },
 });

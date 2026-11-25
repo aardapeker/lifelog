@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, FlatList, Image, Modal, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { searchTracks, spotifyLikedSongs, type Track } from '../lib/spotify';
-import { colors, fonts, frost, inputColors, radius } from '../lib/theme';
+import { colors, fonts, frost, inputColors, radius, glassField } from '../lib/theme';
 import { useKeyboardHeight } from '../lib/useKeyboardVisible';
 import { useSwipeToClose } from '../lib/useSwipeToClose';
 import Ionicons from './Icon';
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
   tabOn: { backgroundColor: colors.accent, borderColor: colors.accent },
   tabText: { fontFamily: fonts.sans, fontSize: 14, color: colors.text },
   tabTextOn: { color: colors.accentText },
-  input: { backgroundColor: colors.raised, borderRadius: radius.pill, paddingHorizontal: 18, paddingVertical: 12, color: colors.text, fontFamily: fonts.sansRegular, fontSize: 15, marginBottom: 6 },
+  input: { ...glassField, borderRadius: radius.pill, paddingHorizontal: 18, paddingVertical: 12, color: colors.text, fontFamily: fonts.sansRegular, fontSize: 15, marginBottom: 6 },
   empty: { fontFamily: fonts.sansRegular, fontSize: 14, color: colors.muted, textAlign: 'center', marginVertical: 14, paddingHorizontal: 12 },
   list: { flexGrow: 0 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 9, paddingHorizontal: 6, borderRadius: radius.sm },

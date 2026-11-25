@@ -2,7 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { colors, fonts, inputColors, radius, frost } from '../lib/theme';
+import { colors, fonts, inputColors, radius, frost, glassField } from '../lib/theme';
 import { bytesLabel, radioStorage, type RadioStorage } from '../lib/radioStorage';
 import { FEATURES, getBudget, lira, setBudget, usageReport, usdToTry, type UsageReport } from '../lib/usage';
 import { Glass } from './Glass';
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
   budgetRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 },
   input: {
     flex: 1,
-    backgroundColor: colors.raised,
+    ...glassField,
     borderRadius: radius.sm,
     paddingHorizontal: 14,
     paddingVertical: 12,

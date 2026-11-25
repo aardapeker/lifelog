@@ -48,3 +48,14 @@ export const frost = {
   borderWidth: 1,
   borderColor: 'rgba(255, 255, 255, 0.1)',
 } as const;
+
+/**
+ * Fields inside a glass card (text boxes, segmented switches, small panels): the same frosted glass, a step
+ * lighter so they stand out from the card they sit on. They used to be solid grey (`raised`), which looked
+ * like dark holes punched in the glass.
+ */
+export const glassField = {
+  backgroundColor: 'rgba(255, 255, 255, 0.09)',
+  borderWidth: 1,
+  borderColor: 'rgba(255, 255, 255, 0.14)',
+} as const;
