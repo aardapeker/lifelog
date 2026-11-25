@@ -139,8 +139,8 @@ export default function RadioHome() {
                 const cover = h.show.slots[Math.min(h.index, h.show.slots.length - 1)]?.track.image;
                 const heard = open ? h.index / Math.max(1, h.show.slots.length) : 1;
                 const accent = skinOf(h.show.station.key).accent;
-                // a slim row: tap it for the show's page (its songs, resume or play again); ▶ carries on straight away
-                // (or plays it again); the bar shows how far you got
+                // a card: tap it for the show's page (its songs, resume or play again). The name gets the room (up to
+                // three lines), the actions sit on their own line under it: ▶ carries on (or plays it again) at once
                 return (
                   <PressScale
                     key={h.id}
@@ -149,25 +149,28 @@ export default function RadioHome() {
                     onPress={() => router.push({ pathname: '/show/[id]', params: { id: h.id } })}
                     accessibilityLabel={`${showName(h.show)}: its songs, resume or play again`}
                   >
-                    {cover ? <Image source={{ uri: cover }} style={styles.pastCover} /> : <View style={styles.pastCover} />}
-                    <View style={{ flex: 1, gap: 3 }}>
-                      <Text style={styles.pastName} numberOfLines={2}>
-                        {showName(h.show)}
-                      </Text>
-                      <Text style={styles.pastSub} numberOfLines={2}>
-                        <Text style={{ color: accent }}>{h.show.station.name}</Text>
-                        {`, ${ago(h.savedAt)}${open ? `, song ${h.index + 1} of ${h.show.slots.length}` : ''}`}
-                      </Text>
-                      <View style={styles.pastTrack}>
-                        <View style={[styles.pastHeard, { width: `${Math.round(heard * 100)}%`, backgroundColor: accent }]} />
+                    <View style={styles.pastTop}>
+                      {cover ? <Image source={{ uri: cover }} style={styles.pastCover} /> : <View style={styles.pastCover} />}
+                      <View style={{ flex: 1, gap: 4 }}>
+                        <Text style={styles.pastName} numberOfLines={3}>
+                          {showName(h.show)}
+                        </Text>
+                        <Text style={styles.pastSub} numberOfLines={2}>
+                          <Text style={{ color: accent }}>{h.show.station.name}</Text>
+                          {` · ${ago(h.savedAt)} · ${h.show.slots.length} songs`}
+                        </Text>
                       </View>
                     </View>
-                    <View style={styles.pastIcons}>
-                      <Pressable onPress={() => resume(h.id, !open)} hitSlop={8} accessibilityLabel={open ? 'Resume' : 'Play again'}>
-                        <Ionicons name={open ? 'play' : 'refresh'} size={18} color={colors.text} />
+                    <View style={styles.pastTrack}>
+                      <View style={[styles.pastHeard, { width: `${Math.round(heard * 100)}%`, backgroundColor: accent }]} />
+                    </View>
+                    <View style={styles.pastActions}>
+                      <Pressable onPress={() => resume(h.id, !open)} hitSlop={8} style={styles.pastPlay} accessibilityLabel={open ? 'Resume' : 'Play again'}>
+                        <Ionicons name={open ? 'play' : 'refresh'} size={16} color={accent} />
+                        <Text style={[styles.pastPlayText, { color: accent }]}>{open ? `Resume · song ${h.index + 1} of ${h.show.slots.length}` : 'Play again'}</Text>
                       </Pressable>
-                      <Pressable onPress={() => keepShow(h.id, !h.kept)} hitSlop={8} accessibilityLabel={h.kept ? 'Unsave show' : 'Save show'}>
-                        <Ionicons name={h.kept ? 'bookmark' : 'bookmark-outline'} size={18} color={h.kept ? colors.text : colors.muted} />
+                      <Pressable onPress={() => keepShow(h.id, !h.kept)} hitSlop={10} accessibilityLabel={h.kept ? 'Unsave show' : 'Save show'}>
+                        <Ionicons name={h.kept ? 'bookmark' : 'bookmark-outline'} size={19} color={h.kept ? colors.text : colors.muted} />
                       </Pressable>
                       <Pressable
                         onPress={() =>
@@ -178,10 +181,10 @@ export default function RadioHome() {
                               ])
                             : forgetShow(h.id)
                         }
-                        hitSlop={8}
+                        hitSlop={10}
                         accessibilityLabel="Delete show"
                       >
-                        <Ionicons name="close" size={18} color={colors.muted} />
+                        <Ionicons name="close" size={19} color={colors.muted} />
                       </Pressable>
                     </View>
                   </PressScale>
@@ -226,11 +229,14 @@ const styles = StyleSheet.create({
   nowSmall: { fontFamily: fonts.sans, fontSize: 12, color: colors.muted },
   nowName: { fontFamily: fonts.sans, fontSize: 16, color: colors.text, marginTop: 2 },
   nowArtist: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.muted, marginTop: 1 },
-  past: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, paddingHorizontal: 12, borderRadius: radius.md, ...frost, marginBottom: 8 }, // glass, like Life's cards
-  pastCover: { width: 52, height: 52, borderRadius: 10, backgroundColor: colors.raised },
-  pastName: { fontFamily: fonts.sans, fontSize: 15, color: colors.text },
+  past: { padding: 14, gap: 12, borderRadius: radius.md, ...frost, marginBottom: 10 }, // glass, like Life's cards
+  pastTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  pastCover: { width: 76, height: 76, borderRadius: 12, backgroundColor: colors.raised },
+  pastName: { fontFamily: fonts.display, fontSize: 18, lineHeight: 23, letterSpacing: -0.2, color: colors.text },
   pastSub: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.muted },
-  pastTrack: { height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.12)', overflow: 'hidden', marginTop: 4 },
+  pastTrack: { height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.12)', overflow: 'hidden' },
   pastHeard: { height: 3, borderRadius: 2 },
-  pastIcons: { flexDirection: 'row', gap: 16, alignItems: 'center', paddingLeft: 4 },
+  pastActions: { flexDirection: 'row', alignItems: 'center', gap: 20 },
+  pastPlay: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  pastPlayText: { fontFamily: fonts.sans, fontSize: 14 },
 });
