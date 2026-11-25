@@ -494,6 +494,9 @@ export async function buildShow(
       'comes back from the shift (their shift week says when: a morning shift leaves before dawn, an evening shift comes ' +
       'home around midnight, a night shift goes out late at night), with one practical tip (umbrella, coat, gloves). ' +
       'Numbers only from the forecast, rounded and said naturally; never invent weather. No forecast, no report. ' +
+      'OWN LIVES: the hosts have their own made-up pasts (tours, old jobs, neighbourhoods); the listener\'s memories ' +
+      'from the notes are the LISTENER\'s. Talk ABOUT them ("Arda, sen Bostancı\'dan Kalamış\'a yürümüşsün…"), never ' +
+      'give them to a host as their own past ("my tour was the patso queue in Bostancı"). ' +
       'FRESH: if the last shows\' talks are listed below, those details and jokes were JUST used (often the same few ' +
       'journal lines on every station). Don\'t build talks on them again: dig into OTHER things in the notes, the ' +
       'throwbacks, the songs and the regulars; at most one quick callback to an old joke in the whole show. ' +
