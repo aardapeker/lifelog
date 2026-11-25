@@ -34,12 +34,6 @@ function buzz(rate: number): Uint8Array {
   });
 }
 
-/** "Ding-dong": two bell notes (E5, C5) with an overtone, ringing out. */
-function doorbell(rate: number): Uint8Array {
-  const note = (t: number, f: number) => (Math.sin(2 * Math.PI * f * t) + 0.3 * Math.sin(2 * Math.PI * f * 2.76 * t)) * Math.exp(-t * 2.6);
-  return pcm(rate, 1.8, (t) => 0.3 * (note(t, 659) * envelope(t, 10, 0.005) + (t >= 0.55 ? note(t - 0.55, 523) * envelope(t - 0.55, 10, 0.005) : 0)));
-}
-
 /** Knuckles on a door: three dull knocks. */
 function knock(rate: number): Uint8Array {
   const gap = 0.24;
@@ -56,7 +50,7 @@ function knock(rate: number): Uint8Array {
 }
 
 /**
- * A recorded sound (sfxRecordings.ts: the phone, the tea glass, the tesbih, Kemal's cigarette, the ceiling, the crowd, the news music), as PCM at `rate`. Decoded once each;
+ * A recorded sound (sfxRecordings.ts: the phone, the doorbell, the tea glass, the tesbih, Kemal's cigarette, the ceiling, the crowd, the news music), as PCM at `rate`. Decoded once each;
  * resampled if the voices come at another rate.
  */
 const decoded: Partial<Record<keyof typeof RECORDINGS, Int16Array>> = {};
@@ -175,7 +169,7 @@ export function sfxPcm(kind: Sfx, rate: number): Uint8Array {
     case 'buzz':
       return buzz(rate);
     case 'doorbell':
-      return doorbell(rate);
+      return recorded('doorbell', rate); // ding dong (a recording)
     case 'knock':
       return knock(rate);
     case 'ceiling':
