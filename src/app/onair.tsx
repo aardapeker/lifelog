@@ -14,7 +14,7 @@ import { ActionSheet, type SheetAction } from '../components/ActionSheet';
 import { DragList } from '../components/DragList';
 import { Booth, ShowTape } from '../components/booth';
 import { ProgressLine } from '../components/ProgressLine';
-import { skinOf } from '../lib/skins';
+import { skinOf, speakersOf } from '../lib/skins';
 import { useLateFonts } from '../lib/lateFonts';
 import { LyricsCard } from '../components/LyricsCard';
 import { SongAbout } from '../components/SongAbout';
@@ -327,8 +327,13 @@ export default function OnAirScreen() {
                 accessibilityLabel="What the hosts said"
               >
                 <Text style={[styles.pillText, { fontFamily: skin.promptFont, color: speaking ? skin.text : skin.said }]} numberOfLines={1}>
+                  {/* what it is and who's on, short enough to fit (the talk's first words, cut off mid-word, read oddly) */}
                   {onMic.talk[0]
-                    ? `${onMic.label === 'News' ? '📰' : onMic.label === 'Commercial' ? '📢' : onMic.label === 'Goodbye' ? '👋' : '🎙️'} ${onMic.talk[0].text.replace(/<[^>]+>/g, '').trim()}`
+                    ? onMic.label === 'News'
+                      ? '📰 News'
+                      : onMic.label === 'Commercial'
+                        ? '📢 Commercial break'
+                        : `${onMic.label === 'Goodbye' ? '👋' : '🎙️'} ${speakersOf(onMic.talk).join(' & ')}`
                     : '🎵 Just the music'}
                 </Text>
               </Pressable>
