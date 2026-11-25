@@ -1,5 +1,7 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useSQLiteContext } from 'expo-sqlite';
+import { getCinemas, setCinemas } from '../../lib/cinemaDeals';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '../../components/Icon';
@@ -113,6 +115,7 @@ export default function RadarSettingsScreen() {
                     t.sources.tvPremieres ? 'new series' : '',
                     ...(t.sources.steamGames ?? []).map((x) => `🎮 ${x}`),
                     t.sources.steamDeals ? 'Steam deals' : '',
+                    t.sources.cinemaFilms ? '🎬 my cinemas' : '',
                   ]
                     .filter(Boolean)
                     .join(' · ')}
@@ -270,6 +273,13 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
   const [tvPremieres, setTvPremieres] = useState(topic?.sources.tvPremieres ?? false);
   const [steamGames, setSteamGames] = useState(topic?.sources.steamGames?.join(', ') ?? '');
   const [steamDeals, setSteamDeals] = useState(topic?.sources.steamDeals ?? false);
+  const [cinemaFilms, setCinemaFilms] = useState(topic?.sources.cinemaFilms ?? false);
+  // your cinemas are one list for the app (the radio's cinema day uses it too), saved with the topic
+  const db = useSQLiteContext();
+  const [cinemas, setCinemaNames] = useState('');
+  useEffect(() => {
+    getCinemas(db).then(setCinemaNames).catch(() => {});
+  }, [db]);
   const [busy, setBusy] = useState(false);
 
   // the sources this topic uses: only those are open in the form, the rest wait as "＋" chips
@@ -283,7 +293,7 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
       open: () => setSpotifyArtists(true), // your Spotify top artists: works with one tap
       clear: () => (setArtists(''), setSpotifyArtists(false)),
     },
-    { key: 'movies', label: 'Movies', used: tmdbLists.length > 0 || !!tmdbPeople.trim(), open: () => {}, clear: () => (setTmdbLists([]), setTmdbPeople('')) },
+    { key: 'movies', label: 'Movies', used: tmdbLists.length > 0 || !!tmdbPeople.trim() || cinemaFilms, open: () => {}, clear: () => (setTmdbLists([]), setTmdbPeople(''), setCinemaFilms(false)) },
     { key: 'tv', label: 'Series', used: !!tvShows.trim() || tvPremieres, open: () => {}, clear: () => (setTvShows(''), setTvPremieres(false)) },
     { key: 'games', label: 'Games', used: !!steamGames.trim() || steamDeals, open: () => setSteamDeals(true), clear: () => (setSteamGames(''), setSteamDeals(false)) },
     { key: 'quakes', label: 'Quakes', used: quakeMin > 0, open: () => setQuakeMin(3), clear: () => setQuakeMin(0) },
@@ -327,6 +337,7 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
     onThisDay ||
     tvPremieres ||
     steamDeals ||
+    cinemaFilms ||
     tmdbLists.length > 0 ||
     quakeMin > 0 ||
     f1;
@@ -335,6 +346,7 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
     if (!ok) return;
     setBusy(true);
     try {
+      if (cinemaFilms) await setCinemas(db, cinemas);
       await onSave({
         name: name.trim(),
         color,
@@ -359,6 +371,7 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
           tvPremieres,
           steamGames: splitList(steamGames),
           steamDeals,
+          cinemaFilms,
           stockSymbol: topic?.sources.stockSymbol ?? null,
         },
       });
@@ -417,6 +430,18 @@ function TopicForm({ topic, onSave, onCancel, onDelete }: { topic?: Topic; onSav
             })}
           </View>
           <Field label="Directors & actors (their new films)" value={tmdbPeople} onChange={setTmdbPeople} placeholder="Christopher Nolan, Nuri Bilge Ceylan" />
+          <View style={styles.switchRow}>
+            <Text style={[ui.body, { flex: 1 }]}>What's showing at my cinemas (Google Search, once a film week)</Text>
+            <Switch value={cinemaFilms} onValueChange={setCinemaFilms} trackColor={{ true: colors.up }} />
+          </View>
+          {cinemaFilms && (
+            <Field
+              label="Your cinemas (the radio's cinema day uses them too)"
+              value={cinemas}
+              onChange={setCinemaNames}
+              placeholder="Paribu Cineverse Kanyon, Zorlu"
+            />
+          )}
         </>,
       )}
       {box(

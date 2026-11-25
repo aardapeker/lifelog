@@ -17,7 +17,7 @@ const json = <T,>(s: string, fallback: T): T => {
     return fallback;
   }
 };
-const EMPTY_SOURCES: TopicSources = { githubRepos: [], mastodonTags: [], arxiv: false, stockSymbol: null, youtubeChannels: [], feeds: [], devtoTags: [], tmdbLists: [], tmdbPeople: [], artists: [], spotifyArtists: false, onThisDay: false, quakeMinMag: null, quakeArea: 'near', f1: false, tvShows: [], tvPremieres: false, steamGames: [], steamDeals: false };
+const EMPTY_SOURCES: TopicSources = { githubRepos: [], mastodonTags: [], arxiv: false, stockSymbol: null, youtubeChannels: [], feeds: [], devtoTags: [], tmdbLists: [], tmdbPeople: [], artists: [], spotifyArtists: false, onThisDay: false, quakeMinMag: null, quakeArea: 'near', f1: false, tvShows: [], tvPremieres: false, steamGames: [], steamDeals: false, cinemaFilms: false };
 const toTopic = (r: TopicRow): Topic => ({
   id: r.id,
   slug: r.slug,
@@ -142,10 +142,13 @@ const STARTERS_3: TopicInput[] = [
   { name: 'Games', color: '#5BE0A0', keywords: [], excludeWords: [], sources: { ...EMPTY_SOURCES, steamDeals: true } },
 ];
 
+/** What's showing at your cinemas (Nov 2026): fill in Your cinemas once (Radar ⚙ → the topic, or Settings → Radio). */
+const STARTERS_4: TopicInput[] = [{ name: 'Cinema', color: '#F5C211', keywords: [], excludeWords: [], sources: { ...EMPTY_SOURCES, cinemaFilms: true } }];
+
 export async function ensureStarterTopics(db: SQLiteDatabase): Promise<void> {
   const seeded = await getSetting(db, 'radar.seeded', '');
-  if (seeded === '4') return;
-  await setSetting(db, 'radar.seeded', '4');
+  if (seeded === '5') return;
+  await setSetting(db, 'radar.seeded', '5');
   const fresh = !(await db.getFirstAsync('SELECT 1 FROM radar_topics'));
   // the "Radiohead" starter of v2, if it's still as it came, grows into "Music" (your Spotify artists too)
   if (seeded === '2') {
@@ -154,7 +157,7 @@ export async function ensureStarterTopics(db: SQLiteDatabase): Promise<void> {
     if (old && artists?.length === 1 && artists[0] === 'Radiohead') await saveTopic(db, old.id, MUSIC_STARTER);
   }
   // a new phone gets every starter; an older install only the new ones, and none it already has by name
-  const add = [...(fresh && !seeded ? STARTERS : []), ...(seeded === '2' || seeded === '3' ? [] : STARTERS_2), ...(seeded === '3' ? [] : [HISTORY_STARTER]), ...STARTERS_3];
+  const add = [...(fresh && !seeded ? STARTERS : []), ...(seeded === '2' || seeded === '3' ? [] : STARTERS_2), ...(seeded === '3' ? [] : [HISTORY_STARTER]), ...(seeded === '4' ? [] : STARTERS_3), ...STARTERS_4];
   const names = new Set((await db.getAllAsync<{ name: string }>('SELECT name FROM radar_topics')).map((r) => r.name.toLowerCase()));
   for (const t of add) if (!names.has(t.name.toLowerCase())) await saveTopic(db, null, t);
 }

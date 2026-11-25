@@ -12,8 +12,9 @@ import { quakes } from './quakes';
 import { steamGames } from './steam';
 import { tmdb } from './tmdb';
 import { tvShows } from './tvmaze';
+import { cinemaFilms } from './cinemas';
 import type { ContentSource } from './types';
 import { youtube } from './youtube';
 
 /** Every platform Radar reads (on the phone). Adding one = writing one ContentSource and listing it here. */
-export const SOURCES: ContentSource[] = [bingNews, hackerNews, youtube, githubReleases, mastodon, rssFeeds, devto, arxiv, tmdb, tvShows, steamGames, deezer, quakes, f1, onThisDay];
+export const SOURCES: ContentSource[] = [bingNews, hackerNews, youtube, githubReleases, mastodon, rssFeeds, devto, arxiv, tmdb, tvShows, steamGames, deezer, quakes, f1, onThisDay, cinemaFilms];

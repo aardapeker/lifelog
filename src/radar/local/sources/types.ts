@@ -25,6 +25,9 @@ export type FetchContext = {
   cache: Record<string, string>; // small lookups kept across runs (YouTube handle → channel id)
   tmdbKey: string | null; // read once per run from the keystore (sources stay free of native code)
   spotifyArtists: string[]; // your top Spotify artists, for topics that follow them
+  cinemas: string; // your cinemas, by name ("" = none)
+  /** Gemini with Google Search (null without a key): the answer and the pages it read. */
+  search: ((prompt: string) => Promise<{ text: string; sources: { title: string; uri: string }[] }>) | null;
 };
 
 /** One platform. Adding a platform = one more of these in sources/index.ts; ingest doesn't change. */

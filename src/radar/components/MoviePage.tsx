@@ -1,7 +1,9 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { useSQLiteContext } from "expo-sqlite";
+import { cachedCritics, lookUpCritics, type Critics } from "../../lib/critics";
 import {
   Image,
   Pressable,
@@ -200,6 +202,8 @@ function Details({
         </Section>
       )}
 
+      <CriticsSay m={m} />
+
       {m.cast.length > 0 && (
         <Row title="Top cast">
           {m.cast.map((p) => (
@@ -239,6 +243,64 @@ function Details({
         This product uses the TMDB API but is not endorsed or certified by TMDB.
       </Text>
     </View>
+  );
+}
+
+/**
+ * What critics say: one tap reads real reviews with Google Search (Gemini) and sums them up, with the pages it
+ * read. Kept for two weeks, so it opens straight away the next time.
+ */
+function CriticsSay({ m }: { m: MovieDetails }) {
+  const db = useSQLiteContext();
+  const [c, setC] = useState<Critics | null>(null);
+  const [state, setState] = useState<"idle" | "busy" | string>("idle");
+  useEffect(() => {
+    setC(null);
+    setState("idle");
+    cachedCritics(db, m.kind, m.id).then(setC).catch(() => {});
+  }, [db, m.kind, m.id]);
+  const ask = async () => {
+    setState("busy");
+    try {
+      setC(await lookUpCritics(db, m.kind, m.id, m.title, m.year));
+      setState("idle");
+    } catch (e) {
+      setState(e instanceof Error ? e.message : String(e));
+    }
+  };
+  return (
+    <Section title="What critics say">
+      {c ? (
+        <>
+          <Text style={ui.body}>{c.verdict}</Text>
+          {c.good.map((g) => (
+            <Text key={`g${g}`} style={styles.line}>
+              <Text style={{ color: "#5BE0A0" }}>＋ </Text>
+              {g}
+            </Text>
+          ))}
+          {c.bad.map((b) => (
+            <Text key={`b${b}`} style={styles.line}>
+              <Text style={{ color: "#FF8A80" }}>－ </Text>
+              {b}
+            </Text>
+          ))}
+          <View style={styles.genres}>
+            {c.sources.map((x) => (
+              <Pill key={x.uri} label={x.title || "Source"} icon="open-outline" onPress={() => browse(x.uri)} />
+            ))}
+          </View>
+        </>
+      ) : state === "busy" ? (
+        <Text style={ui.muted}>Reading the reviews…</Text>
+      ) : (
+        <>
+          {state !== "idle" && <Text style={ui.muted}>{state}</Text>}
+          <Text style={ui.muted}>Reads real reviews with Google Search and sums them up. No spoilers.</Text>
+          <Pill label="Read the reviews" icon="sparkles-outline" variant="solid" onPress={ask} />
+        </>
+      )}
+    </Section>
   );
 }
 

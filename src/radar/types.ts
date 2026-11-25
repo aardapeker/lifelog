@@ -97,6 +97,7 @@ export interface TopicSources {
   tvPremieres?: boolean; // …plus big new series starting on streaming services
   steamGames?: string[]; // Steam: their sales, release day and developer announcements
   steamDeals?: boolean; // Steam's specials, 50% off or more (free-to-keep ones too)
+  cinemaFilms?: boolean; // what's showing at your cinemas (one list for the app), found with Google Search
 }
 
 export interface Topic {

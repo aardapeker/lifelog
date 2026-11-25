@@ -6,8 +6,8 @@ import { getKey } from './keys';
 import { cleanDeals, dealsOn, EN_DAYS, stale, ymd, type Deal, type Found } from './cinemaDays';
 
 /*
- * Cinema day on the radio: the listener's own cinemas (Settings → Music → Radio, by name: nothing about where
- * they live is in the code) and their discount days ("every Wednesday, 160 TL"), found with Gemini + Google
+ * Cinema day on the radio: the listener's own cinemas (Settings → Music → Radio or Radar's Movies, by name: nothing
+ * about where they live is in the code) and their discount days ("every Wednesday, 160 TL"), found with Gemini + Google
  * Search, the way a person would look them up. Cinema chains have no public API, and their apps' private ones are
  * off limits, so this reads public pages only.
  *
@@ -15,7 +15,7 @@ import { cleanDeals, dealsOn, EN_DAYS, stale, ymd, type Deal, type Found } from 
  * an end date that hasn't passed; the hosts mention one only on its day (or the day before).
  */
 
-const CINEMAS = 'radio.cinemas';
+const CINEMAS = 'cinemas'; // also Radar's "Your cinemas" films
 const CACHE = 'radio.cinemaDeals';
 
 export const getCinemas = (db: SQLiteDatabase) => getSetting(db, CINEMAS, '');

@@ -67,7 +67,7 @@ export function dealsOn(deals: Deal[], day: Date): Deal[] {
 }
 
 /** Last Friday 00:00 (today if it's Friday): the films change then. */
-function lastFriday(now: Date): number {
+export function lastFriday(now: Date): number {
   const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   d.setDate(d.getDate() - ((d.getDay() + 2) % 7));
   return d.getTime();

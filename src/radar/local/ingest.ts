@@ -1,4 +1,7 @@
 import { getKey } from '../../lib/keys';
+import { getCinemas } from '../../lib/cinemaDeals';
+import { groundedSearch } from '../../lib/gemini';
+import { PROVIDERS } from '../../lib/chat';
 import { topArtists } from '../../lib/spotify';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import type { IngestResult, Topic } from '../types';
@@ -39,7 +42,11 @@ async function run(db: SQLiteDatabase): Promise<IngestResult> {
   ]);
   // your top Spotify artists, only when a topic follows them (one cached call a day)
   const spotifyArtists = topics.some((t) => t.sources.spotifyArtists) ? (await topArtists(db).catch(() => [])).map((a) => a.name) : [];
-  const ctx = { since: Date.now() - LOOKBACK, settings, throttle: new Throttle(throttleState), cache, tmdbKey, spotifyArtists };
+  // your cinemas and Google Search, only when a topic follows what's showing there
+  const wantsCinemas = topics.some((t) => t.sources.cinemaFilms);
+  const [cinemas, geminiKey] = wantsCinemas ? await Promise.all([getCinemas(db), getKey('gemini')]) : ['', null];
+  const search = geminiKey ? (prompt: string) => groundedSearch(geminiKey, PROVIDERS.gemini.defaultModel, prompt, 'research') : null;
+  const ctx = { since: Date.now() - LOOKBACK, settings, throttle: new Throttle(throttleState), cache, tmdbKey, spotifyArtists, cinemas: cinemas.trim(), search };
   const latinOnly = settings.languages.every((l) => LATIN_LANGS.has(l));
   let fetched = 0;
   let saved = 0;
