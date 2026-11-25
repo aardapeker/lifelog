@@ -77,6 +77,7 @@ import { getBackgroundModel, getChatConfig, getChatModel, getJobModel, getJobPro
 import { VOICE_MODELS } from '../../lib/tts';
 import { priceHint } from '../../lib/usage';
 import { getSetting, setSetting } from '../../lib/db';
+import { getCinemas, setCinemas } from '../../lib/cinemaDeals';
 import { embed, indexPending, indexStats } from '../../lib/embeddings';
 import { getKey, maskKey, setKey, type Provider } from '../../lib/keys';
 import { getCrashToken, sendCrash, setCrashToken } from '../../lib/crashReport';
@@ -801,6 +802,7 @@ function RadioSection() {
   const [history, setHistory] = useState<{ plays: number; since: number | null } | null>(null);
   const [importing, setImporting] = useState<Status>({ kind: 'idle' });
   const [lockCheck, setLockCheck] = useState<string | null>(null);
+  const [cinemas, setCinemaText] = useState('');
 
   useFocusEffect(
     useCallback(() => {
@@ -810,6 +812,7 @@ function RadioSection() {
       bannedSongs(db).then(setBans);
       likedSongs(db).then(setHearts);
       likedAccess(db).then(setAccess);
+      getCinemas(db).then(setCinemaText);
     }, [db]),
   );
   if (!p) return null;
@@ -855,6 +858,20 @@ function RadioSection() {
         value={p.spotifyLiked}
         onChange={(spotifyLiked) => update({ spotifyLiked })}
       />
+      <Text style={styles.label}>Your cinemas</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="e.g. Paribu Cineverse Kanyon, Zorlu"
+        placeholderTextColor={colors.muted}
+        value={cinemas}
+        onChangeText={setCinemaText}
+        onEndEditing={() => setCinemas(db, cinemas)}
+        {...inputColors}
+      />
+      <Text style={styles.hint}>
+        On a cinema's discount day (or the day before), Neon FM and Your Friend tell you about it, with what's showing. Found with
+        Google Search once a week (Gemini key), only from these cinemas. Empty: off.
+      </Text>
       <Toggle
         label="Surprise themes"
         hint="Each show gets a random twist: one-hit wonders, duets, one year of the era…"

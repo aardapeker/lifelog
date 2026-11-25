@@ -13,6 +13,7 @@ import { forecastFor } from './forecast';
 import { eightiesToday } from './timeMachine';
 import { ratesLine, todaysRates } from './rates';
 import { todaysDays } from './specialDays';
+import { cinemaNotes } from './cinemaDeals';
 import { bannedSongs, FAVOURITES_PER_SHOW, getRadioPrefs, likedSongs, playedSongs, playsThisMonth, songLine } from './songMemory';
 import { findTrack, musicTaste, spotifyLikedSongs, type Track } from './spotify';
 import { freeVoice, STATIONS, type Persona, type Station } from './stations';
@@ -250,6 +251,12 @@ export async function buildShow(
   const within = <T,>(p: Promise<T>, fallback: T) => Promise.race([p.catch(() => fallback), new Promise<T>((r) => setTimeout(() => r(fallback), 8000))]);
   const rates = station.key === 'arabesk' ? within(todaysRates(), []) : Promise.resolve([]); // Tuzla's "piyasalar"
   const days = within(todaysDays(), []);
+  // cinema day at the listener's own cinemas (Settings → Radio), on the stations that would tell a friend about it.
+  // A weekly Google search when the deals are stale, so it gets more time than the others
+  const cinema =
+    station.key === 'neon' || station.key === 'friend'
+      ? Promise.race([cinemaNotes(db, city).catch(() => null), new Promise<null>((r) => setTimeout(() => r(null), 25000))])
+      : Promise.resolve(null);
   // the real weather where you are (Settings → Days Off's place), started now, needed only when the talks are written
   const weather =
     place.lat != null && place.lon != null
@@ -509,6 +516,12 @@ export async function buildShow(
       'MARKETS: if today\'s dollar, euro and gram gold are given below, once in the show a host reads them like a ' +
       'market report in the station\'s style (numbers rounded and said naturally, only these numbers; up or down since ' +
       'yesterday is the drama). No advice about buying or selling. ' +
+      'CINEMA: if cinema deals are given below, once in the show (not the first talk, not the news) a host tips the ' +
+      'listener off like a friend: the deal (today, or tomorrow if it says TOMORROW) at their cinema, the price, maybe one ' +
+      'or two films from the list, and that it comes from the cinema\'s own campaign ("kampanyaya göre"). Only if their ' +
+      'shift lets them go: a morning-shift week is free in the evening, a night-shift week in the early evening before ' +
+      'work; on an evening-shift week they are at work, so say it as a pity or skip it. Only the cinemas, films and ' +
+      'prices given; never invent any. ' +
       'MILESTONES: the playlist may say how many times the listener played an artist on Spotify and where that artist ' +
       'ranks for them (real numbers). Once or twice a show, celebrate one like a radio milestone ("Sezen Aksu, your number ' +
       '3 artist, 412 plays!"), with the exact numbers given. ' +
@@ -609,6 +622,7 @@ export async function buildShow(
       ((await weather) ? `Forecast where the listener is (local times): ${await weather}\n` : '') +
       ((await days).length ? `Today is: ${(await days).map((d) => `${d.name}${d.solemn ? ' (SOLEMN)' : ''}`).join('; ')}\n` : '') +
       ((await rates).length ? `Today's markets: ${ratesLine(await rates)}\n` : '') +
+      ((await cinema) ? `Cinema deals (Google Search): ${await cinema}\n` : '') +
       ((await timeMachine).length ? `On this day in the 80s (Wikipedia):\n${(await timeMachine).map((e) => `- ${e}`).join('\n')}\n` : '') +
       (said.length ? `What the last shows already said (don't lean on the same details):\n${said.map((t) => `- ${t}`).join('\n')}\n` : '') +
       (moments.length ? `Earlier inspiring moments (don't repeat them):\n${moments.map((m) => `- ${m}`).join('\n')}\n` : '') +
