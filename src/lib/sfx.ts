@@ -9,8 +9,8 @@ import { RECORDED_RATE, RECORDINGS } from './sfxRecordings';
  * its first half) or after it (in its second half). 16-bit mono PCM; pure, so it's tested.
  */
 
-export type Sfx = 'ring' | 'buzz' | 'doorbell' | 'knock' | 'ceiling' | 'busy' | 'tea' | 'tesbih' | 'cigarette' | 'riff' | 'jingle' | 'news';
-export const SFX: Sfx[] = ['ring', 'buzz', 'doorbell', 'knock', 'ceiling', 'busy', 'tea', 'tesbih', 'cigarette', 'riff', 'jingle', 'news'];
+export type Sfx = 'ring' | 'buzz' | 'doorbell' | 'knock' | 'ceiling' | 'busy' | 'tea' | 'tesbih' | 'cigarette' | 'riff' | 'jingle' | 'news' | 'laugh' | 'applause';
+export const SFX: Sfx[] = ['ring', 'buzz', 'doorbell', 'knock', 'ceiling', 'busy', 'tea', 'tesbih', 'cigarette', 'riff', 'jingle', 'news', 'laugh', 'applause'];
 
 function pcm(rate: number, seconds: number, sample: (t: number, i: number) => number): Uint8Array {
   const n = Math.round(rate * seconds);
@@ -56,7 +56,7 @@ function knock(rate: number): Uint8Array {
 }
 
 /**
- * A recorded sound (sfxRecordings.ts: the phone, the tea glass, the tesbih, Kemal's cigarette, the ceiling, the news music), as PCM at `rate`. Decoded once each;
+ * A recorded sound (sfxRecordings.ts: the phone, the tea glass, the tesbih, Kemal's cigarette, the ceiling, the crowd, the news music), as PCM at `rate`. Decoded once each;
  * resampled if the voices come at another rate.
  */
 const decoded: Partial<Record<keyof typeof RECORDINGS, Int16Array>> = {};
@@ -194,6 +194,10 @@ export function sfxPcm(kind: Sfx, rate: number): Uint8Array {
       return jingle(rate);
     case 'news':
       return recorded('news', rate); // the news music's opening (a recording)
+    case 'laugh':
+      return recorded('laugh', rate); // the studio crowd laughing (a recording)
+    case 'applause':
+      return recorded('applause', rate); // the studio crowd clapping (a recording)
   }
 }
 

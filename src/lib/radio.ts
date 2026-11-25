@@ -602,7 +602,10 @@ export async function buildShow(
       'the studio door), <sfx:knock> (a knock on the door), <sfx:ceiling> (a broom banging on the ceiling from below), ' +
       '<sfx:busy> (a caller\'s line goes dead: the busy tone), <sfx:tea> (a teaspoon stirring a tulip tea glass), <sfx:tesbih> (prayer beads clacking through ' +
       'someone\'s fingers, the kahvehane way), <sfx:cigarette> (a lighter flicks and a cigarette is lit, a long drag), ' +
-      '<sfx:riff> (a short distorted electric guitar lick, played live in the studio). Use them for comedy and to set up a moment, two or three ' +
+      '<sfx:riff> (a short distorted electric guitar lick, played live in the studio), <sfx:laugh> (a sitcom laugh track: ' +
+      'the studio crowd laughs, at the END of a line whose joke or roast really lands), <sfx:applause> (a small crowd ' +
+      'claps: a milestone, a brave caller, a host\'s big announcement). Laugh and applause at most once each a show, ' +
+      'and not on every station\'s mood (no laugh track on a sad or inspiring moment). Use them for comedy and to set up a moment, two or three ' +
       'in the whole show, and react to them in the words ("Telefon çalıyor!"). Never write the sound as words ("düt düt"). ' +
       LANGUAGE[station.lang] +
       '\n\n' +
