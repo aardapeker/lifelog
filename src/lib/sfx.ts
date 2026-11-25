@@ -68,26 +68,54 @@ function thumps(rate: number, deep: boolean): Uint8Array {
 }
 
 /**
- * A teaspoon stirring sugar in a tulip tea glass: quick little clinks of thin glass (a few high, slightly
- * out-of-tune partials that ring for a moment), a bit uneven, the way a hand stirs. Çaycı Cengiz's sound.
+ * A teaspoon stirring sugar in a tulip tea glass, then the two taps on the rim (tık tık) to shake the drops off:
+ * Çaycı Cengiz's sound. The stir is not a row of separate taps (that's what it sounded like): the spoon circles
+ * about three times a second, brushing the glass on both sides, so the clinks come fast, uneven and overlapping
+ * (thin glass rings on), over the scrape of spoon and sugar on the bottom and the swirl of the tea.
  */
 function tea(rate: number): Uint8Array {
-  // when each clink lands, and how hard (a fixed pattern: the same stir every time, no randomness in the timing)
-  const clinks: [number, number][] = [
-    [0.0, 0.9], [0.17, 0.6], [0.31, 0.85], [0.46, 0.55], [0.6, 0.8], [0.75, 0.5], [0.88, 0.75], [1.03, 0.45], [1.15, 0.7], [1.42, 1],
-  ];
-  const partials: [number, number][] = [[2950, 1], [4420, 0.55], [6180, 0.3], [7900, 0.15]];
-  return pcm(rate, 1.9, (t) => {
-    let v = 0;
-    for (const [at, hard] of clinks) {
-      const local = t - at;
-      if (local < 0 || local > 0.35) continue;
-      const ring = Math.exp(-local * 26) * Math.min(1, local / 0.0008);
-      // each clink a hair higher or lower, like a spoon hitting a slightly different spot
-      const tune = 1 + (at * 7.3 % 1 - 0.5) * 0.03;
-      for (const [f, a] of partials) v += Math.sin(2 * Math.PI * f * tune * local) * a * ring * hard;
+  const rnd = noiseFrom(0x7f4a7c15); // the same stir every time
+  const REV = 3.1; // turns a second
+  // the clinks: two a turn (both sides of the glass), each a little early or late and softer or harder
+  const clinks: [number, number, number][] = [];
+  for (let k = 0; k < 6; k++)
+    for (const side of [0, 0.5]) {
+      const at = (k + side) / REV + (((k * 7 + side * 10) % 5) - 2) * 0.012;
+      clinks.push([at, side ? 0.55 + ((k * 3) % 4) * 0.08 : 0.8 + ((k * 5) % 3) * 0.08, 1 + (((k * 11 + side * 6) % 7) - 3) * 0.006]);
     }
-    return v * 0.16;
+  const stirEnd = clinks[clinks.length - 1][0] + 0.05;
+  const taps: [number, number, number][] = [[stirEnd + 0.28, 1.25, 1.01], [stirEnd + 0.5, 1.1, 0.995]]; // tık tık on the rim
+  const glass: [number, number][] = [[3120, 1], [4580, 0.6], [6350, 0.32], [8100, 0.14]];
+  const ping = (local: number, hard: number, tune: number, decay: number) => {
+    const env = Math.exp(-local * decay) * Math.min(1, local / 0.0006);
+    let v = 0;
+    for (const [f, a] of glass) v += Math.sin(2 * Math.PI * f * tune * local) * a;
+    return v * env * hard;
+  };
+  let low = 0; // the swirl: noise through a soft low-pass
+  let prev = 0; // the scrape: noise minus its low part (a high-pass)
+  let high = 0;
+  const seconds = taps[1][0] + 0.7;
+  return pcm(rate, seconds, (t) => {
+    const n = rnd() * 2 - 1;
+    low += (n - low) * 0.03;
+    high = 0.85 * (high + n - prev);
+    prev = n;
+    let v = 0;
+    if (t < stirEnd) {
+      const circle = Math.abs(Math.sin(Math.PI * REV * t)); // louder as the spoon sweeps the bottom
+      const fade = Math.min(1, t / 0.08, (stirEnd - t) / 0.15);
+      v += (high * 0.09 * (0.4 + 0.6 * circle) + low * 0.5 * (0.5 + 0.5 * circle)) * fade;
+    }
+    for (const [at, hard, tune] of clinks) {
+      const local = t - at;
+      if (local >= 0 && local < 0.45) v += ping(local, hard, tune, 11) * 0.55;
+    }
+    for (const [at, hard, tune] of taps) {
+      const local = t - at;
+      if (local >= 0 && local < 0.7) v += ping(local, hard, tune, 6.5) * 0.7;
+    }
+    return v * 0.3;
   });
 }
 
