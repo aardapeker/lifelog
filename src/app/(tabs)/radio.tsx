@@ -8,9 +8,11 @@ import { bigTitleMotion, CollapsingHeader, useCollapsingHeader } from '../../com
 import { FadeIn, Pulse, PressScale, stagger } from '../../components/motion';
 import { ago, showName, ShowWash } from '../../components/radioParts';
 import { StationArt } from '../../components/StationArt';
+import { TuningDial } from '../../components/TuningDial';
 import { Chip } from '../../components/ui';
 import { useRadio } from '../../lib/radioEngine';
 import { STATIONS } from '../../lib/stations';
+import { skinOf } from '../../lib/skins';
 import { colors, fonts, frost, radius, TAB_BAR_SPACE } from '../../lib/theme';
 import { TopBar } from '../../components/TopBar';
 import { showAlert } from '../../lib/dialog';
@@ -62,6 +64,13 @@ export default function RadioHome() {
             {/* the same top as Life (Arda: the small "Radio", a glass panel and a big "Tune In" were too much) */}
             <TopBar kicker="Tune in" title={<Animated.Text style={[styles.title, bigTitleMotion(y)]}>Radio</Animated.Text>} />
 
+            {/* the dial: the needle on the station that's on air (or the last one heard); tap a mark to tune in */}
+            <TuningDial
+              stations={STATIONS}
+              on={(live && show?.station.key) || history[0]?.show.station.key || null}
+              onTune={(st) => router.push(`/station/${st.key}`)}
+            />
+
             {/* the show in progress, one tap away */}
             {live && (
               <FadeIn>
@@ -76,7 +85,7 @@ export default function RadioHome() {
                   <View style={{ flex: 1 }}>
                     <View style={styles.nowTag}>
                       {phase === 'onair' && !paused && <Pulse style={styles.dot} />}
-                      <Text style={styles.nowSmall}>{phase === 'onair' ? 'ON AIR' : phase === 'review' ? 'YOUR PLAYLIST IS READY' : 'PREPARING YOUR SHOW'}</Text>
+                      <Text style={styles.nowSmall}>{phase === 'onair' ? `On air, ${show?.station.name ?? ''}` : phase === 'review' ? 'Your playlist is ready' : 'Preparing your show'}</Text>
                     </View>
                     <Text style={styles.nowName} numberOfLines={1}>
                       {phase === 'onair' && current ? current.track.name : show ? showName(show) : 'Warming up the mic…'}
@@ -137,30 +146,37 @@ export default function RadioHome() {
               (tab === 'saved' ? saved : history).map((h) => {
                 const open = !h.done && h.index < h.show.slots.length;
                 const cover = h.show.slots[Math.min(h.index, h.show.slots.length - 1)]?.track.image;
+                const heard = open ? h.index / Math.max(1, h.show.slots.length) : 1;
+                const accent = skinOf(h.show.station.key).accent;
+                // a slim row: tap it to carry on (or play it again); ↺ starts over; the bar shows how far you got
                 return (
-                  <View key={h.id} style={styles.past}>
+                  <PressScale
+                    key={h.id}
+                    style={styles.past}
+                    scaleTo={0.98}
+                    onPress={() => resume(h.id, !open)}
+                    accessibilityLabel={`${open ? 'Resume' : 'Play again'}: ${showName(h.show)}`}
+                  >
                     {cover ? <Image source={{ uri: cover }} style={styles.pastCover} /> : <View style={styles.pastCover} />}
-                    <View style={{ flex: 1 }}>
+                    <View style={{ flex: 1, gap: 3 }}>
                       <Text style={styles.pastName} numberOfLines={1}>
                         {showName(h.show)}
                       </Text>
                       <Text style={styles.pastSub} numberOfLines={1}>
-                        {h.kept ? 'Saved · ' : ''}
-                        {h.show.station.name} · {ago(h.savedAt)} · {open ? `song ${h.index + 1}/${h.show.slots.length}` : 'finished'}
+                        <Text style={{ color: accent }}>{h.show.station.name}</Text>
+                        {`, ${ago(h.savedAt)}${open ? `, song ${h.index + 1} of ${h.show.slots.length}` : ''}`}
                       </Text>
-                      <View style={styles.pastActions}>
-                        {open ? (
-                          <>
-                            <Chip label="Resume" active onPress={() => resume(h.id, false)} />
-                            <Chip label="From the start" onPress={() => resume(h.id, true)} />
-                          </>
-                        ) : (
-                          <Chip label="Play again" active onPress={() => resume(h.id, true)} />
-                        )}
+                      <View style={styles.pastTrack}>
+                        <View style={[styles.pastHeard, { width: `${Math.round(heard * 100)}%`, backgroundColor: accent }]} />
                       </View>
                     </View>
                     <View style={styles.pastIcons}>
-                      <Pressable onPress={() => keepShow(h.id, !h.kept)} hitSlop={10} accessibilityLabel={h.kept ? 'Unsave show' : 'Save show'}>
+                      {open && (
+                        <Pressable onPress={() => resume(h.id, true)} hitSlop={8} accessibilityLabel="Play from the start">
+                          <Ionicons name="refresh" size={18} color={colors.muted} />
+                        </Pressable>
+                      )}
+                      <Pressable onPress={() => keepShow(h.id, !h.kept)} hitSlop={8} accessibilityLabel={h.kept ? 'Unsave show' : 'Save show'}>
                         <Ionicons name={h.kept ? 'bookmark' : 'bookmark-outline'} size={18} color={h.kept ? colors.text : colors.muted} />
                       </Pressable>
                       <Pressable
@@ -172,13 +188,13 @@ export default function RadioHome() {
                               ])
                             : forgetShow(h.id)
                         }
-                        hitSlop={10}
+                        hitSlop={8}
                         accessibilityLabel="Delete show"
                       >
                         <Ionicons name="close" size={18} color={colors.muted} />
                       </Pressable>
                     </View>
-                  </View>
+                  </PressScale>
                 );
               })
             )}
@@ -200,7 +216,7 @@ const styles = StyleSheet.create({
   tile: { aspectRatio: 1.45 },
   tileName: { fontFamily: fonts.sans, fontSize: 15, color: colors.text, marginTop: 10, marginLeft: 2 },
   tileLine: { fontFamily: fonts.sansRegular, fontSize: 12, lineHeight: 16, color: colors.muted, marginTop: 2, marginLeft: 2 },
-  tileLast: { fontFamily: fonts.mono, fontSize: 10, letterSpacing: 0.3, color: 'rgba(255,255,255,0.45)', marginTop: 5, marginLeft: 2 },
+  tileLast: { fontFamily: fonts.sansRegular, fontSize: 12, color: 'rgba(255,255,255,0.45)', marginTop: 4, marginLeft: 2 },
   nowControls: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   nowPlay: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.text, alignItems: 'center', justifyContent: 'center' },
   empty: { fontFamily: fonts.sansRegular, fontSize: 15, lineHeight: 22, color: colors.muted, marginTop: 8 },
@@ -217,13 +233,14 @@ const styles = StyleSheet.create({
   nowCoverEmpty: { alignItems: 'center', justifyContent: 'center' },
   nowTag: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.danger },
-  nowSmall: { fontFamily: fonts.sans, fontSize: 11, letterSpacing: 1, color: colors.muted },
+  nowSmall: { fontFamily: fonts.sans, fontSize: 12, color: colors.muted },
   nowName: { fontFamily: fonts.sans, fontSize: 16, color: colors.text, marginTop: 2 },
   nowArtist: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.muted, marginTop: 1 },
-  past: { flexDirection: 'row', gap: 14, padding: 14, borderRadius: radius.md, ...frost, marginBottom: 10 }, // glass, like Life's cards
-  pastCover: { width: 56, height: 56, borderRadius: 12, backgroundColor: colors.raised },
-  pastName: { fontFamily: fonts.sans, fontSize: 16, color: colors.text },
-  pastSub: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.muted, marginTop: 2 },
-  pastActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
-  pastIcons: { gap: 16, alignItems: 'center' },
+  past: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, paddingHorizontal: 12, borderRadius: radius.md, ...frost, marginBottom: 8 }, // glass, like Life's cards
+  pastCover: { width: 52, height: 52, borderRadius: 10, backgroundColor: colors.raised },
+  pastName: { fontFamily: fonts.sans, fontSize: 15, color: colors.text },
+  pastSub: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.muted },
+  pastTrack: { height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.12)', overflow: 'hidden', marginTop: 4 },
+  pastHeard: { height: 3, borderRadius: 2 },
+  pastIcons: { flexDirection: 'row', gap: 16, alignItems: 'center', paddingLeft: 4 },
 });
