@@ -161,9 +161,19 @@ export function blocksOf(body: string): Block[] {
   return out.filter((b) => b.type !== 'para' || b.text);
 }
 
-/** The entry without its markers, for short previews: "☐ call mom", "• milk". */
+/** Inline markdown off: **bold**, *italic*, __x__, `code`, [text](link), "## " headings → the plain words. */
+export function unmark(text: string): string {
+  return text
+    .replace(/\[([^\]]+)\]\([^)\s]+\)/g, '$1')
+    .replace(/(\*\*|__)(?=\S)(.+?)(?<=\S)\1/g, '$2')
+    .replace(/(^|[^\w*])[*_](?=\S)([^*_\n]+?)(?<=\S)[*_](?!\w)/g, '$1$2')
+    .replace(/`([^`\n]+)`/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '');
+}
+
+/** The entry without its markers, for short previews: "☐ call mom", "• milk" (and no **bold** stars). */
 export function plainText(body: string): string {
-  return body
+  return unmark(body)
     .split('\n')
     .map((line) => {
       const { kind, rest } = parseLine(line);

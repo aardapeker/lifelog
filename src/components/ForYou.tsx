@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { deleteResearch, listResearch, researchSources, type Research } from '../lib/autonomy';
 import { formatDate } from '../lib/notes';
+import { unmark } from '../lib/markdown';
 import { articleOf, listReads, type Read } from '../lib/reads';
 import { colors, fonts, radius, frost } from '../lib/theme';
 import { FadeIn, stagger } from './motion';
@@ -103,7 +104,7 @@ export function ForYou() {
                 ) : (
                   <>
                     <Text style={styles.researchText} numberOfLines={3}>
-                      {r.result}
+                      {unmark(r.result ?? '')}
                     </Text>
                     <Text style={styles.researchLink}>
                       Read · {researchSources(r).length} source{researchSources(r).length === 1 ? '' : 's'} →
