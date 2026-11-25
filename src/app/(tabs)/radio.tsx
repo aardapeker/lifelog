@@ -1,16 +1,17 @@
 import Ionicons from '../../components/Icon';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurSource, GlassArea, useBlurSource, useTabBlurSource } from '../../components/Glass';
+import { bigTitleMotion, CollapsingHeader, useCollapsingHeader } from '../../components/CollapsingHeader';
 import { FadeIn, Pulse, PressScale, stagger } from '../../components/motion';
 import { ago, showName, ShowWash } from '../../components/radioParts';
 import { StationArt } from '../../components/StationArt';
 import { Chip } from '../../components/ui';
 import { useRadio } from '../../lib/radioEngine';
 import { STATIONS } from '../../lib/stations';
-import { colors, fonts, radius, TAB_BAR_SPACE } from '../../lib/theme';
+import { colors, fonts, frost, radius, TAB_BAR_SPACE } from '../../lib/theme';
 import { TopBar } from '../../components/TopBar';
 import { showAlert } from '../../lib/dialog';
 import { useFirstFrame } from '../../lib/perf';
@@ -22,8 +23,9 @@ import { useFirstFrame } from '../../lib/perf';
 export default function RadioHome() {
   useFirstFrame('Radio'); // Settings → Privacy → Speed
   const insets = useSafeAreaInsets();
-  const blur = useBlurSource(); // for the tab bar's frosted glass
+  const blur = useBlurSource(); // for the tab bar's and the slim top bar's frosted glass
   useTabBlurSource(blur);
+  const { y, onScroll } = useCollapsingHeader(); // like Life: the big title scrolls away into a slim glass bar
   const [tab, setTab] = useState<'stations' | 'recent' | 'saved'>('stations');
   const { history, loadHistory, playPast, forgetShow, keepShow, phase, show, current, paused, togglePause, skip } = useRadio();
   const saved = history.filter((h) => h.kept); // 🔖 kept for good
@@ -50,10 +52,15 @@ export default function RadioHome() {
           driver, SIGSEGV) right after "Write the show". The sheet is see-through glass instead. */}
       <ShowWash />
       <BlurSource target={blur}>
-      <GlassArea style={{ paddingTop: insets.top + 8 }}>
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.content, { paddingBottom: 40 + TAB_BAR_SPACE + insets.bottom }]}>
-            {/* the same bar as the other tabs (Arda: the small "Radio", a glass panel and a big "Tune In" were too much) */}
-            <TopBar kicker="Tune in" title="Radio" />
+      <GlassArea>
+          <Animated.ScrollView
+            style={{ flex: 1 }}
+            onScroll={onScroll}
+            scrollEventThrottle={16}
+            contentContainerStyle={[styles.content, { paddingTop: insets.top + 12, paddingBottom: 40 + TAB_BAR_SPACE + insets.bottom }]}
+          >
+            {/* the same top as Life (Arda: the small "Radio", a glass panel and a big "Tune In" were too much) */}
+            <TopBar kicker="Tune in" title={<Animated.Text style={[styles.title, bigTitleMotion(y)]}>Radio</Animated.Text>} />
 
             {/* the show in progress, one tap away */}
             {live && (
@@ -175,16 +182,18 @@ export default function RadioHome() {
                 );
               })
             )}
-          </ScrollView>
+          </Animated.ScrollView>
       </GlassArea>
       </BlurSource>
+      <CollapsingHeader title="Radio" y={y} blur={blur} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { paddingHorizontal: 20, paddingTop: 4 },
+  content: { paddingHorizontal: 20 },
+  title: { fontFamily: fonts.display, letterSpacing: -0.4, fontSize: 34, color: colors.text },
   tabs: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 22 },
   cell: { width: '48.2%' },
@@ -201,9 +210,7 @@ const styles = StyleSheet.create({
     gap: 14,
     padding: 12,
     borderRadius: radius.md,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
+    ...frost, // glass, like Life's cards
     marginBottom: 18,
   },
   nowCover: { width: 54, height: 54, borderRadius: 12, backgroundColor: colors.raised },
@@ -213,7 +220,7 @@ const styles = StyleSheet.create({
   nowSmall: { fontFamily: fonts.sans, fontSize: 11, letterSpacing: 1, color: colors.muted },
   nowName: { fontFamily: fonts.sans, fontSize: 16, color: colors.text, marginTop: 2 },
   nowArtist: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.muted, marginTop: 1 },
-  past: { flexDirection: 'row', gap: 14, padding: 14, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.06)', marginBottom: 10 },
+  past: { flexDirection: 'row', gap: 14, padding: 14, borderRadius: radius.md, ...frost, marginBottom: 10 }, // glass, like Life's cards
   pastCover: { width: 56, height: 56, borderRadius: 12, backgroundColor: colors.raised },
   pastName: { fontFamily: fonts.sans, fontSize: 16, color: colors.text },
   pastSub: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.muted, marginTop: 2 },
