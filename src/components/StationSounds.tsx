@@ -1,6 +1,7 @@
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Animated, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Animated, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { GestureDetector, GestureHandlerRootView, ScrollView } from 'react-native-gesture-handler';
 import { useSwipeToClose } from '../lib/useSwipeToClose';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { stopPreview, usePreview } from '../radar/components/Preview';
@@ -128,6 +129,8 @@ export function StationSounds({ station }: { station: Station }) {
 
       {/* transparent: swiped down, the station page shows behind it */}
       <Modal visible={picking} animationType="slide" onRequestClose={() => setPicking(false)} statusBarTranslucent transparent>
+        {/* a Modal is its own window on Android: gestures need their own root in it */}
+        <GestureHandlerRootView style={{ flex: 1 }}>
         <BedPicker
           station={station}
           picked={new Set(picks.map((p) => p.id))}
@@ -137,6 +140,7 @@ export function StationSounds({ station }: { station: Station }) {
           }}
           onClose={() => setPicking(false)}
         />
+        </GestureHandlerRootView>
       </Modal>
     </View>
   );
@@ -189,7 +193,8 @@ function BedPicker({ station, picked, onAdded, onClose }: { station: Station; pi
   const swipe = useSwipeToClose(onClose); // swipe down to close, like the player
 
   return (
-    <Animated.View style={[styles.sheet, { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 10 }, swipe.style]} {...swipe.panHandlers}>
+    <GestureDetector gesture={swipe.gesture}>
+    <Animated.View style={[styles.sheet, { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 10 }, swipe.style]}>
       <View style={styles.sheetHead}>
         <IconButton icon="chevron-down" label="Close" onPress={onClose} />
         <Text style={styles.sheetTitle} numberOfLines={1}>
@@ -216,7 +221,7 @@ function BedPicker({ station, picked, onAdded, onClose }: { station: Station; pi
       <Text style={styles.hint}>Pick tracks without singing: the hosts talk over them. Tap one to hear 30 seconds.</Text>
       {err && <Text style={styles.err}>{err}</Text>}
       {busy && <ActivityIndicator color={colors.text} style={{ marginTop: 16 }} />}
-      <ScrollView contentContainerStyle={{ gap: 4, paddingBottom: 24 }} keyboardShouldPersistTaps="handled" onScroll={swipe.onScroll} scrollEventThrottle={32}>
+      <ScrollView simultaneousWith={swipe.gesture} contentContainerStyle={{ gap: 4, paddingBottom: 24 }} keyboardShouldPersistTaps="handled" onScroll={swipe.onScroll} scrollEventThrottle={32}>
         {results?.map((t) => {
           const playing = pv.is(String(t.id));
           const has = added.has(t.id);
@@ -247,6 +252,7 @@ function BedPicker({ station, picked, onAdded, onClose }: { station: Station; pi
         {results && !results.length && !busy && <Text style={styles.hint}>Nothing found. Try other words.</Text>}
       </ScrollView>
     </Animated.View>
+    </GestureDetector>
   );
 }
 

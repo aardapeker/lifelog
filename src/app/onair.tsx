@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Image, Pressable, ScrollView, StyleSheet, Text, View, type ScrollViewInstance } from 'react-native';
+import { ActivityIndicator, Animated, Image, Pressable, StyleSheet, Text, View, type ScrollViewInstance } from 'react-native';
+import { GestureDetector, ScrollView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BuildProgress } from '../components/BuildProgress';
 import { BlurSource, FrostedGlass, Glass, useBlurSource } from '../components/Glass';
@@ -108,7 +109,8 @@ export default function OnAirScreen() {
     ) : null;
 
   return (
-    <Animated.View style={[styles.screen, swipe.style]} {...swipe.panHandlers}>
+    <GestureDetector gesture={swipe.gesture}>
+    <Animated.View style={[styles.screen, swipe.style]}>
       {/* the page is what the top bar blurs once you scroll (the bar sits outside it, never inside) */}
       <BlurSource target={blur}>
       {/* the same background as the playlist: the song's colour at the top, fading into black */}
@@ -130,6 +132,7 @@ export default function OnAirScreen() {
 
       <ScrollView
         ref={page}
+        simultaneousWith={swipe.gesture} // swipe down to close works on the whole page, not just the top bar
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 74, paddingBottom: insets.bottom + 40 }]}
         scrollEnabled={!dragging}
         onScroll={(e) => {
@@ -394,6 +397,7 @@ export default function OnAirScreen() {
         )}
       </View>
     </Animated.View>
+    </GestureDetector>
   );
 }
 

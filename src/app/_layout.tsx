@@ -9,6 +9,7 @@ import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent';
 import * as SplashScreen from 'expo-splash-screen';
 import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useEffect } from 'react';
 import { DialogHost } from '../components/DialogHost';
 import { mark } from '../lib/perf';
@@ -106,6 +107,8 @@ export default function RootLayout() {
   if (!loaded) return null;
 
   return (
+    // Gesture Handler's root: the swipe-down-to-close pages use its pan (it works over a scroll view, a PanResponder didn't)
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <ShareIntentProvider>
     <SQLiteProvider
       databaseName={DB_NAME}
@@ -166,5 +169,6 @@ export default function RootLayout() {
       </RadioProvider>
     </SQLiteProvider>
     </ShareIntentProvider>
+    </GestureHandlerRootView>
   );
 }

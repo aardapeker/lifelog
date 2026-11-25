@@ -1,39 +1,60 @@
-import { useMemo, useRef } from 'react';
-import { Animated, PanResponder, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { useRef } from 'react';
+import { Animated, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { usePanGesture } from 'react-native-gesture-handler';
 
 /**
- * Swipe down to close, like a music app's player: a clearly downward drag at the top of the page pulls the
- * whole screen down with the finger; far (140 px) or fast enough, it slides away and `close` runs, otherwise it
- * springs back. It only takes over when the page is scrolled to its top, the drag is mostly vertical and
- * `blocked()` is false (a playlist row being held), so scrolling, seeking and reordering still work.
+ * Swipe down to close, like a music app's player: a clearly downward drag that starts with the page scrolled to its
+ * top pulls the whole screen down with the finger; far (140 px) or fast enough, it slides away and `close` runs,
+ * otherwise it springs back. Not while `blocked()` (a playlist row being held), and sideways drags fail it, so
+ * scrolling, seeking and reordering still work.
  *
- * Put `style` on the screen's Animated.View with `panHandlers`, and `onScroll` on its ScrollView. A sheet
- * that stays mounted (a Modal) calls `reset` when it opens again, or it would still be pulled down.
+ * Why Gesture Handler: with React Native's own PanResponder, Android's ScrollView took the touch for itself the
+ * moment the finger moved (it does even at the top, for its overscroll glow), so only the parts of a page that
+ * don't scroll (the top bar) could be swiped. A native pan runs alongside the scroll view instead.
+ *
+ * Use: wrap the screen's Animated.View (with `style`) in <GestureDetector gesture={swipe.gesture}>, and give its
+ * scroll view (Gesture Handler's ScrollView) `simultaneousWith={swipe.gesture}` and `onScroll={swipe.onScroll}`.
+ * A sheet that stays mounted (a Modal) calls `reset` when it opens again, or it would still be pulled down.
  */
 export function useSwipeToClose(close: () => void, blocked: () => boolean = () => false) {
   const { height } = useWindowDimensions();
   const scrollY = useRef(0);
+  const armed = useRef(false); // this drag started at the top: it may pull the page
   const pull = useRef(new Animated.Value(0)).current;
-  const latest = useRef({ close, blocked });
-  latest.current = { close, blocked };
-  const panHandlers = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponderCapture: (_e, g) => !latest.current.blocked() && scrollY.current <= 0 && g.dy > 14 && g.dy > Math.abs(g.dx) * 2,
-        onPanResponderMove: (_e, g) => pull.setValue(Math.max(0, g.dy)),
-        onPanResponderRelease: (_e, g) => {
-          if (g.dy > 140 || g.vy > 1) Animated.timing(pull, { toValue: height, duration: 180, useNativeDriver: true }).start(() => latest.current.close());
-          else Animated.spring(pull, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start();
-        },
-        onPanResponderTerminate: () => Animated.spring(pull, { toValue: 0, useNativeDriver: true }).start(),
-      }).panHandlers,
-    [height, pull],
-  );
+  const latest = useRef({ close, blocked, height });
+  latest.current = { close, blocked, height };
+
+  const gesture = usePanGesture({
+    runOnJS: true, // the page moves with an RN Animated value, set from JS
+    activeOffsetY: 12, // a clear downward drag (an upward one is the scroll view's)
+    failOffsetX: [-24, 24], // a sideways one is someone else's (seeking, a row)
+    cancelsJSResponder: false, // never cut off a PanResponder underneath (the playlist's drag-to-reorder, the seek bar)
+    onBegin: () => {
+      armed.current = scrollY.current <= 1 && !latest.current.blocked();
+    },
+    onUpdate: (e) => {
+      if (armed.current) pull.setValue(Math.max(0, e.translationY));
+    },
+    onDeactivate: (e) => {
+      if (!armed.current) return;
+      armed.current = false;
+      if (e.translationY > 140 || e.velocityY > 1000)
+        Animated.timing(pull, { toValue: latest.current.height, duration: 180, useNativeDriver: true }).start(() => latest.current.close());
+      else Animated.spring(pull, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start();
+    },
+    onFinalize: (e) => {
+      if (!e.canceled || !armed.current) return;
+      armed.current = false;
+      Animated.spring(pull, { toValue: 0, useNativeDriver: true }).start();
+    },
+  });
+
   return {
-    panHandlers,
+    gesture,
     style: { transform: [{ translateY: pull }] },
     onScroll: (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       scrollY.current = e.nativeEvent.contentOffset.y;
+      if (scrollY.current > 1) armed.current = false; // the page scrolled mid-drag: it's a scroll, not a pull
     },
     reset: () => {
       pull.setValue(0);

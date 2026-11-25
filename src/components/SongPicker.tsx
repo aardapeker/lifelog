@@ -4,7 +4,8 @@ import { isrcOf } from '../lib/spotify';
 import { stopPreview, usePreview } from '../radar/components/Preview';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, FlatList, Image, Modal, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Animated, Image, Modal, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { FlatList, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { searchTracks, spotifyLikedSongs, type Track } from '../lib/spotify';
 import { colors, fonts, frost, inputColors, radius, glassField } from '../lib/theme';
@@ -104,8 +105,11 @@ export function SongPicker({
 
   return (
     <Modal visible={visible} transparent animationType="slide" statusBarTranslucent navigationBarTranslucent onRequestClose={close}>
+      {/* a Modal is its own window on Android: gestures need their own root in it */}
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <Pressable style={styles.backdrop} onPress={close} accessibilityLabel="Close">
-        <Animated.View style={swipe.style} {...swipe.panHandlers}>
+        <GestureDetector gesture={swipe.gesture}>
+        <Animated.View style={swipe.style}>
         <Pressable style={[styles.sheet, keyboard ? { marginBottom: keyboard, paddingBottom: 12, maxHeight: screen - keyboard - insets.top - 12 } : { paddingBottom: insets.bottom + 12 }]} onPress={() => {}}>
           <View style={styles.handle} />
           <View style={styles.titleRow}>
@@ -141,6 +145,7 @@ export function SongPicker({
           {!busy && !error && tab === 'search' && query.trim() && !results.length ? <Text style={styles.empty}>Nothing found. Try another spelling?</Text> : null}
           {tab === 'liked' && liked?.length === 0 ? <Text style={styles.empty}>No Liked Songs (or Spotify needs connecting again in Settings → Music).</Text> : null}
           <FlatList
+            simultaneousWith={swipe.gesture}
             data={list}
             keyExtractor={(t) => t.id}
             keyboardShouldPersistTaps="handled"
@@ -179,7 +184,9 @@ export function SongPicker({
           />
         </Pressable>
         </Animated.View>
+        </GestureDetector>
       </Pressable>
+      </GestureHandlerRootView>
     </Modal>
   );
 }

@@ -1,7 +1,8 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
-import { Animated, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FadeIn } from '../components/motion';
 import { UNREAD } from '../components/TopBar';
@@ -49,7 +50,8 @@ export default function InboxScreen() {
   const swipe = useSwipeToClose(close);
 
   return (
-    <Animated.View style={[styles.screen, { paddingTop: insets.top + 8 }, swipe.style]} {...swipe.panHandlers}>
+    <GestureDetector gesture={swipe.gesture}>
+    <Animated.View style={[styles.screen, { paddingTop: insets.top + 8 }, swipe.style]}>
       <ShowWash />
       <View style={styles.bar}>
         <IconButton icon="chevron-down" label="Close" onPress={close} />
@@ -65,6 +67,7 @@ export default function InboxScreen() {
         />
       </View>
       <FlatList
+        simultaneousWith={swipe.gesture}
         data={items ?? []}
         keyExtractor={(i) => String(i.id)}
         contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 40, gap: 10 }}
@@ -102,6 +105,7 @@ export default function InboxScreen() {
         }}
       />
     </Animated.View>
+    </GestureDetector>
   );
 }
 

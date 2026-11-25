@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
-import { Animated, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Image, StyleSheet, Text, View } from 'react-native';
+import { GestureDetector, ScrollView } from 'react-native-gesture-handler';
 import { Glass, GlassArea } from '../components/Glass';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '../components/Icon';
@@ -24,7 +25,8 @@ export default function PlaylistScreen() {
   const swipe = useSwipeToClose(close); // swipe down to close, like the player
 
   return (
-    <Animated.View style={[styles.screen, swipe.style]} {...swipe.panHandlers}>
+    <GestureDetector gesture={swipe.gesture}>
+    <Animated.View style={[styles.screen, swipe.style]}>
       <GlassArea>
       {/* the song's colour at the top, fading into black (like the light from the cover) */}
       <ColourWash glow={palette?.glow ?? null} />
@@ -40,7 +42,7 @@ export default function PlaylistScreen() {
       </View>
 
       {show ? (
-        <ScrollView contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 130 }]} onScroll={swipe.onScroll} scrollEventThrottle={32}>
+        <ScrollView simultaneousWith={swipe.gesture} contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 130 }]} onScroll={swipe.onScroll} scrollEventThrottle={32}>
           {phase === 'done' && <Text style={styles.hint}>Tap a song to play the show again from there.</Text>}
           {show.slots.map((s, i) => {
             const now = i === index && phase === 'onair';
@@ -117,6 +119,7 @@ export default function PlaylistScreen() {
       )}
       </GlassArea>
     </Animated.View>
+    </GestureDetector>
   );
 }
 

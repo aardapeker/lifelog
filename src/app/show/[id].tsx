@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Animated, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Image, StyleSheet, Text, View } from 'react-native';
+import { GestureDetector, ScrollView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GlassArea } from '../../components/Glass';
 import Ionicons from '../../components/Icon';
@@ -44,7 +45,8 @@ export default function ShowScreen() {
   const startAt = (i: number) => play(h.id, true, i);
 
   return (
-    <Animated.View style={[styles.screen, swipe.style]} {...swipe.panHandlers}>
+    <GestureDetector gesture={swipe.gesture}>
+    <Animated.View style={[styles.screen, swipe.style]}>
       <GlassArea>
         {/* the station's colour at the top, fading into black */}
         <ColourWash glow={hslToRgb(toHsl(skin.accent) ?? { h: 280, s: 0.4, l: 0.5 })} />
@@ -54,7 +56,7 @@ export default function ShowScreen() {
           <IconButton icon={h.kept ? 'bookmark' : 'bookmark-outline'} label={h.kept ? 'Unsave the show' : 'Save the show'} onPress={() => keepShow(h.id, !h.kept)} />
         </View>
 
-        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]} onScroll={swipe.onScroll} scrollEventThrottle={32}>
+        <ScrollView simultaneousWith={swipe.gesture} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]} onScroll={swipe.onScroll} scrollEventThrottle={32}>
           {/* the show: its cover, name, station, when, how far you got */}
           <View style={styles.hero}>
             {cover ? <Image source={{ uri: cover }} style={styles.cover} /> : <View style={styles.cover} />}
@@ -129,6 +131,7 @@ export default function ShowScreen() {
         </ScrollView>
       </GlassArea>
     </Animated.View>
+    </GestureDetector>
   );
 }
 
