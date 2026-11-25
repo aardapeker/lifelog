@@ -92,7 +92,13 @@ export function LyricsCard({ track, progress, running, paused, palette, skin, on
 
   return (
     <>
-      <Pressable onPress={() => lines.length && setFull(true)} style={styles.card} accessibilityLabel="Open the lyrics full screen">
+      {/* the song's half of the page glows in the cover's colour (the cover, the player, this), the station's half
+          (the booth, the tape) in the station's */}
+      <Pressable
+        onPress={() => lines.length && setFull(true)}
+        style={[styles.card, { boxShadow: `0 10px 36px ${alpha(t.top, 0.5)}` }]}
+        accessibilityLabel="Open the lyrics full screen"
+      >
         <LinearGradient colors={[t.top, t.bottom]} style={StyleSheet.absoluteFill} />
         <View style={styles.head}>
           <Text style={styles.title}>Lyrics</Text>
@@ -256,7 +262,7 @@ function FullLyrics({
 }
 
 const styles = StyleSheet.create({
-  card: { marginTop: 18, borderRadius: 22, overflow: 'hidden', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8, gap: 10 },
+  card: { marginTop: 18, borderRadius: 28, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', overflow: 'hidden', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8, gap: 10 },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontFamily: fonts.sansBold, fontSize: 17, color: colors.text },
   round: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.25)', alignItems: 'center', justifyContent: 'center' },

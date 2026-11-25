@@ -264,8 +264,17 @@ export default function OnAirScreen() {
             {/* under the player: hosts on/off · what's on the mic · more */}
             <View style={styles.under}>
               <Tap icon={voice ? 'mic-outline' : 'mic-off-outline'} label={voice ? 'Hosts on (tap to mute them)' : 'Hosts off'} onPress={r.toggleVoice} small />
-              <Pressable style={styles.pill} onPress={() => setTalkOpen((o) => !o)} accessibilityLabel="What the hosts said">
-                <Text style={styles.pillText} numberOfLines={1}>
+              {/* the booth's ticket: in the station's colours and letters, lit while the hosts talk */}
+              <Pressable
+                style={[
+                  styles.pill,
+                  { backgroundColor: skin.panel, borderColor: speaking ? skin.accent : skin.border, borderRadius: Math.min(22, skin.radius * 2) },
+                  speaking && { boxShadow: `0 0 14px ${skin.glow ?? skin.accent}88` },
+                ]}
+                onPress={() => setTalkOpen((o) => !o)}
+                accessibilityLabel="What the hosts said"
+              >
+                <Text style={[styles.pillText, { fontFamily: skin.promptFont, color: speaking ? skin.text : skin.said }]} numberOfLines={1}>
                   {onMic.talk[0]
                     ? `${onMic.label === 'News' ? '📰' : onMic.label === 'Commercial' ? '📢' : onMic.label === 'Goodbye' ? '👋' : '🎙️'} ${onMic.talk[0].text.replace(/<[^>]+>/g, '').trim()}`
                     : '🎵 Just the music'}
@@ -330,7 +339,7 @@ export default function OnAirScreen() {
         <IconButton icon="chevron-down" label="Close" onPress={close} />
         <View style={styles.barMid}>
           <View style={styles.onAir}>
-            {phase === 'onair' && !paused && <Pulse style={styles.dot} />}
+            {phase === 'onair' && !paused && <Pulse style={[styles.dot, { backgroundColor: skin.air }]} />}
             <Text style={styles.barSmall}>{phase === 'onair' ? 'ON AIR' : phase === 'done' ? 'THAT WAS' : 'PREPARING'}</Text>
           </View>
           <Text style={styles.barTitle} numberOfLines={1}>
@@ -386,8 +395,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.22)',
   },
   under: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16, paddingHorizontal: 6 },
-  pill: { flex: 1, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.10)' },
-  pillText: { fontFamily: fonts.sansRegular, fontSize: 13, color: 'rgba(255,255,255,0.75)' },
+  pill: { flex: 1, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1 },
+  pillText: { fontSize: 13 },
   done: { fontFamily: fonts.sansRegular, fontSize: 15, lineHeight: 22, color: colors.muted, marginTop: 10 },
   reviewTitle: { fontFamily: fonts.display, fontSize: 26, color: colors.text, marginBottom: 6 },
   reviewHint: { fontFamily: fonts.sansRegular, fontSize: 14, lineHeight: 20, color: colors.muted, marginBottom: 14 },

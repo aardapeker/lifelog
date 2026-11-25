@@ -43,9 +43,9 @@ export function SongAbout({ track }: { track: Track }) {
 
   const a = info?.artist;
   return (
-    <Glass radius={22} style={styles.card} fill="rgba(20, 19, 19, 0.38)">
+    <Glass radius={28} style={styles.card} fill="rgba(20, 19, 19, 0.38)">
       <Pressable onPress={() => setOpen(!open)} style={styles.head} accessibilityRole="button" accessibilityState={{ expanded: open }}>
-        <Text style={styles.label}>ABOUT THE SONG & ARTIST</Text>
+        <Text style={styles.title}>About the song</Text>
         <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={colors.muted} />
       </Pressable>
       {open &&
@@ -95,7 +95,7 @@ export function SongAbout({ track }: { track: Track }) {
             )}
             {info.alsoLike.length > 0 && (
               <View style={[styles.section, { gap: 12 }]}>
-                <Text style={styles.label}>FANS ALSO LIKE</Text>
+                <Text style={styles.sub}>Fans also like</Text>
                 <ArtistRow artists={info.alsoLike} />
               </View>
             )}
@@ -118,7 +118,8 @@ function Fact({ label, value }: { label: string; value: string }) {
 const styles = StyleSheet.create({
   card: { padding: 18, marginTop: 18, gap: 12 },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  label: { fontFamily: fonts.sans, fontSize: 11, letterSpacing: 1.2, color: colors.muted },
+  title: { fontFamily: fonts.sansBold, fontSize: 17, color: colors.text }, // like the lyrics card's
+  sub: { fontFamily: fonts.sans, fontSize: 14, color: colors.text },
   muted: { fontFamily: fonts.sansRegular, fontSize: 13, color: colors.muted },
   fact: { fontFamily: fonts.sansRegular, fontSize: 15, color: colors.text, lineHeight: 22 },
   factRow: { flexDirection: 'row', alignItems: 'baseline', gap: 12 },

@@ -37,6 +37,42 @@ export function Panel({ skin, style, children }: { skin: Skin; style?: StyleProp
   );
 }
 
+const HALO = 60; // how far the breathing halo reaches past the booth (its blur + spread, and some air)
+
+/**
+ * The booth's halo, breathing while the hosts are on the mic, in the station's colour (neon's pink, the CRT's
+ * green, rock's stage yellow, the friend's amber…), and fading out when the music takes over. The one moving
+ * thing on the booth, like a studio's ON AIR sign lighting up the glass.
+ * Drawn once into a texture and only faded (the GlowingCover trick): the view reaches HALO px past the
+ * booth, so the whole glow fits in the texture and no square edge shows.
+ */
+function Breathing({ skin, on, style, children }: { skin: Skin; on: boolean; style?: StyleProp<ViewStyle>; children: ReactNode }) {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!on) {
+      Animated.timing(v, { toValue: 0, duration: 700, useNativeDriver: true }).start();
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(v, { toValue: 1, duration: 1300, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(v, { toValue: 0.45, duration: 1300, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [on, v]);
+  const c = skin.glow ?? skin.accent;
+  return (
+    <View style={style}>
+      <Animated.View pointerEvents="none" renderToHardwareTextureAndroid style={[styles.haloRoom, { opacity: v }]}>
+        <View style={[styles.halo, { borderRadius: skin.radius, boxShadow: `0 0 30px 3px ${c}99` }]} />
+      </Animated.View>
+      {children}
+    </View>
+  );
+}
+
 /** A CRT's scan lines: one gradient with hard stops, not dozens of views. `lines`: how many dark lines. */
 const scanOf = (n: number) => {
   const colors: string[] = [];
@@ -136,6 +172,7 @@ export function Booth({
   const talking = now >= 0 ? talk[now]?.speaker : null;
   const tag = label ? LABELS[label] : null;
   return (
+    <Breathing skin={skin} on={speaking} style={styles.boothRoom}>
     <Panel skin={skin} style={styles.booth}>
       <View style={styles.boothHead}>
         <Ionicons name="mic-outline" size={18} color={skin.accent} />
@@ -176,6 +213,7 @@ export function Booth({
         })}
       </Text>
     </Panel>
+    </Breathing>
   );
 }
 
@@ -286,7 +324,10 @@ const styles = StyleSheet.create({
   airDot: { width: 7, height: 7, borderRadius: 4 },
   airText: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 1.6 },
   meter: { flexDirection: 'row', alignItems: 'center', gap: 2, height: 16 },
-  booth: { padding: 16, marginTop: 18 },
+  boothRoom: { marginTop: 18 },
+  booth: { padding: 16 },
+  haloRoom: { position: 'absolute', top: -HALO, left: -HALO, right: -HALO, bottom: -HALO },
+  halo: { position: 'absolute', top: HALO, left: HALO, right: HALO, bottom: HALO },
   boothHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   hosts: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   host: { paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, maxWidth: 140 },
