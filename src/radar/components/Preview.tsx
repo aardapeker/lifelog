@@ -124,7 +124,8 @@ export function usePreview(owner: string) {
   };
 }
 
-const spotify = (q: string) => `https://open.spotify.com/search/${encodeURIComponent(q)}`;
+/** Spotify's search for it (opens the Spotify app when it's installed): an artist, or an artist and a title. */
+export const spotify = (q: string) => `https://open.spotify.com/search/${encodeURIComponent(q)}`;
 
 /**
  * A list of songs: the number (or the cover), title and artist, length. Tapping plays the preview;

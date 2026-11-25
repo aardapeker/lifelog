@@ -1,10 +1,10 @@
 import * as WebBrowser from 'expo-web-browser';
 import { withAgent } from '../radar/components/RemoteImage';
 import { useEffect, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { fansText } from '../lib/deezer';
 import { songInfo, type SongInfo } from '../lib/songInfo';
-import { ArtistRow } from '../radar/components/Preview';
+import { ArtistRow, spotify } from '../radar/components/Preview';
 import { colors, fonts } from '../lib/theme';
 import { Glass } from './Glass';
 import Ionicons from './Icon';
@@ -67,7 +67,8 @@ export function SongAbout({ track }: { track: Track }) {
             {/* the artist */}
             {a && (
               <View style={[styles.section, { gap: 12 }]}>
-                <View style={styles.artistRow}>
+                {/* tap the artist to open them on Spotify, like the ones under Fans also like */}
+                <Pressable style={styles.artistRow} onPress={() => Linking.openURL(spotify(a.name))} accessibilityRole="link" accessibilityLabel={`${a.name} on Spotify`}>
                   {a.photo ? <Image source={withAgent(a.photo)} style={styles.photo} /> : null}
                   <View style={{ flex: 1, gap: 2 }}>
                     <Text style={styles.name}>{a.name}</Text>
@@ -78,7 +79,8 @@ export function SongAbout({ track }: { track: Track }) {
                       </Text>
                     )}
                   </View>
-                </View>
+                  <Ionicons name="open-outline" size={16} color={colors.muted} />
+                </Pressable>
                 {a.bio && (
                   <Pressable onPress={() => setBioOpen(!bioOpen)}>
                     <Text style={styles.bio} numberOfLines={bioOpen ? undefined : 4}>
