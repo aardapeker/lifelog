@@ -240,8 +240,9 @@ function useRadioEngine() {
     // index slots.length is the goodbye after the last song
     const said = i === s.slots.length ? s.outro : s.slots[i].talk;
     if (!said.length) return;
-    // a commercial opens with the ad break's jingle, like on real radio
-    const lines = s.slots[i]?.label === 'Commercial' && !/<sfx:jingle>/.test(said[0].text) ? [{ ...said[0], text: `<sfx:jingle> ${said[0].text}` }, ...said.slice(1)] : said;
+    // a commercial opens with the ad break's jingle, the news with its sting, like on real radio
+    const opener = ({ Commercial: 'jingle', News: 'news' } as Record<string, string>)[s.slots[i]?.label ?? ''];
+    const lines = opener && !said[0].text.includes(`<sfx:${opener}>`) ? [{ ...said[0], text: `<sfx:${opener}> ${said[0].text}` }, ...said.slice(1)] : said;
     // the newest shows keep their voices: a talk already made is played from the phone, for free
     const id = liveId.current;
     const saved = id ? showVoiceFile(id, i) : null;

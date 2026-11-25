@@ -3,13 +3,13 @@ import { busyTone, splitBeeps } from './phoneLine';
 /*
  * The radio's sound effects, made on the phone (no files, no downloads): the studio phone ringing, a phone
  * buzzing, the doorbell, a knock, Downstairs Teyze's broom on her ceiling, a dead phone line, a spoon in a tea glass, a tesbih, a
- * lighter and a cigarette, a guitar riff, the ad break's jingle. The writer puts
+ * lighter and a cigarette, a guitar riff, the ad break's jingle, the news sting. The writer puts
  * a tag in a line ("<sfx:ring>"); the tag never reaches the voice: the sound plays before the line (a tag in
  * its first half) or after it (in its second half). 16-bit mono PCM; pure, so it's tested.
  */
 
-export type Sfx = 'ring' | 'buzz' | 'doorbell' | 'knock' | 'ceiling' | 'busy' | 'tea' | 'tesbih' | 'cigarette' | 'riff' | 'jingle';
-export const SFX: Sfx[] = ['ring', 'buzz', 'doorbell', 'knock', 'ceiling', 'busy', 'tea', 'tesbih', 'cigarette', 'riff', 'jingle'];
+export type Sfx = 'ring' | 'buzz' | 'doorbell' | 'knock' | 'ceiling' | 'busy' | 'tea' | 'tesbih' | 'cigarette' | 'riff' | 'jingle' | 'news';
+export const SFX: Sfx[] = ['ring', 'buzz', 'doorbell', 'knock', 'ceiling', 'busy', 'tea', 'tesbih', 'cigarette', 'riff', 'jingle', 'news'];
 
 function pcm(rate: number, seconds: number, sample: (t: number, i: number) => number): Uint8Array {
   const n = Math.round(rate * seconds);
@@ -207,12 +207,44 @@ function riff(rate: number): Uint8Array {
 }
 
 /**
- * The ad break's jingle: a TV-commercial sting, not a phone's chime. Two short brass stabs on G, then the band lands
- * on a big C chord that swells and rings out, with a bass note, a kick on each hit and a clap on the landing
- * ("ta-ta, TAAA!"). The brass is a bright, buzzy tone whose top fades as it holds (a filter closing), with a little
- * vibrato on the long chord. Original, under two seconds.
+ * The ad break's jingle: a cheesy, happy TV-ad tune on a plucked ukulele-ish string (the riff's Karplus–Strong
+ * string, high and bright), "ba-da-ba-ba-BAAA" up a major chord to a high note that rings, a bass pluck under the
+ * first and last notes and a clap on the off-beats. Bouncy and silly, so it says "advert" (a phone's bell-like
+ * chime said "new message"). Original, under two seconds.
  */
 function jingle(rate: number): Uint8Array {
+  const rnd = noiseFrom(0x3c6ef372);
+  const total = Math.round(rate * 1.7);
+  const mix = new Float32Array(total);
+  const C5 = 523.25;
+  const add = (at: number, f: number, seconds: number, gain: number) => {
+    const s = pluck(rate, f, seconds, 1, rnd);
+    const from = Math.round(rate * at);
+    for (let i = 0; i < s.length && from + i < total; i++) mix[from + i] += s[i] * gain * envelope(i / rate, seconds, 0.003);
+  };
+  // the tune: C E G A G, then up to a high C that rings out
+  const tune: [number, number, number][] = [
+    [0.0, C5, 0.16], [0.15, C5 * 1.26, 0.16], [0.3, C5 * 1.498, 0.16], [0.45, C5 * 1.682, 0.12], [0.57, C5 * 1.498, 0.2], [0.8, C5 * 2, 0.85],
+  ];
+  for (const [at, f, len] of tune) add(at, f, len, 0.9);
+  add(0.8, C5 * 2 * 1.26, 0.85, 0.45); // a third on top of the last note
+  add(0.0, C5 / 4, 0.4, 0.8); // the bass
+  add(0.8, C5 / 4, 0.85, 0.8);
+  const claps = [0.3, 0.57];
+  return pcm(rate, 1.7, (t, i) => {
+    let v = mix[i] * 0.55;
+    for (const at of claps) if (t >= at && t < at + 0.12) v += (rnd() * 2 - 1) * 0.18 * Math.exp(-(t - at) * 30);
+    return v;
+  });
+}
+
+/**
+ * The news sting: the parody bulletin's fanfare. Two short brass stabs on G, then the band lands on a big C chord
+ * that swells and rings out, with a bass note, a kick on each hit and a clap on the landing ("ta-ta, TAAA!"). The
+ * brass is a bright, buzzy tone whose top fades as it holds (a filter closing), with a little vibrato on the long
+ * chord. Original, under two seconds.
+ */
+function news(rate: number): Uint8Array {
   const G3 = 196, C4 = 261.63;
   const third = 1.2599, fifth = 1.4983;
   // [when, root, how long, loud]: stab, stab, the landing
@@ -272,6 +304,8 @@ export function sfxPcm(kind: Sfx, rate: number): Uint8Array {
       return riff(rate);
     case 'jingle':
       return jingle(rate);
+    case 'news':
+      return news(rate);
   }
 }
 
