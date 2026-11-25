@@ -51,25 +51,23 @@ function doorbell(rate: number): Uint8Array {
   return pcm(rate, 1.8, (t) => 0.3 * (note(t, 659) * envelope(t, 10, 0.005) + (t >= 0.55 ? note(t - 0.55, 523) * envelope(t - 0.55, 10, 0.005) : 0)));
 }
 
-/** Knuckles on a door (three dull knocks), or a broom on the ceiling from below (three deeper, heavier thumps). */
-function thumps(rate: number, deep: boolean): Uint8Array {
-  const gap = deep ? 0.42 : 0.24;
-  const pitch = deep ? 70 : 140;
+/** Knuckles on a door: three dull knocks. */
+function knock(rate: number): Uint8Array {
+  const gap = 0.24;
   return pcm(rate, gap * 3 + 0.3, (t) => {
     let v = 0;
     for (let k = 0; k < 3; k++) {
       const local = t - k * gap;
       if (local < 0 || local > 0.25) continue;
-      const decay = Math.exp(-local * (deep ? 22 : 38));
       // a low body (the wood) and a short click on top
-      v += (Math.sin(2 * Math.PI * pitch * local) * 0.8 + (Math.random() * 2 - 1) * 0.35 * Math.exp(-local * 120)) * decay;
+      v += (Math.sin(2 * Math.PI * 140 * local) * 0.8 + (Math.random() * 2 - 1) * 0.35 * Math.exp(-local * 120)) * Math.exp(-local * 38);
     }
-    return v * (deep ? 0.5 : 0.42);
+    return v * 0.42;
   });
 }
 
 /**
- * A recorded sound (sfxRecordings.ts: the tea glass, the tesbih, Kemal's cigarette, the news music), as PCM at `rate`. Decoded once each;
+ * A recorded sound (sfxRecordings.ts: the tea glass, the tesbih, Kemal's cigarette, the ceiling, the news music), as PCM at `rate`. Decoded once each;
  * resampled if the voices come at another rate.
  */
 const decoded: Partial<Record<keyof typeof RECORDINGS, Int16Array>> = {};
@@ -190,9 +188,9 @@ export function sfxPcm(kind: Sfx, rate: number): Uint8Array {
     case 'doorbell':
       return doorbell(rate);
     case 'knock':
-      return thumps(rate, false);
+      return knock(rate);
     case 'ceiling':
-      return thumps(rate, true);
+      return recorded('ceiling', rate); // the neighbour upstairs (a recording)
     case 'busy':
       return busyTone(rate);
     case 'tea':
