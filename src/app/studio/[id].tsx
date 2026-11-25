@@ -42,7 +42,7 @@ import {
   type ReviewNote,
   type Version,
 } from '../../lib/studio';
-import { colors, fonts, frost, inputColors, radius } from '../../lib/theme';
+import { colors, fonts, frost, inputColors, radius, glassField } from '../../lib/theme';
 import { useKeyboardHeight } from '../../lib/useKeyboardVisible';
 
 type Tab = 'script' | 'research' | 'kit' | 'changes';
@@ -609,7 +609,7 @@ const styles = StyleSheet.create({
   card: { padding: 16, gap: 10 },
   cardText: { fontFamily: fonts.sansRegular, fontSize: 15, lineHeight: 22, color: colors.text },
   stats: { fontFamily: fonts.mono, fontSize: 12, color: colors.muted },
-  input: { backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', textAlignVertical: 'top', borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 10, color: colors.text, fontFamily: fonts.sansRegular, fontSize: 15, maxHeight: 120 },
+  input: { ...glassField, textAlignVertical: 'top', borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 10, color: colors.text, fontFamily: fonts.sansRegular, fontSize: 15, maxHeight: 120 },
   row: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   editorCard: { padding: 16 },
   editor: { fontFamily: fonts.serif, fontSize: 17, lineHeight: 27, color: colors.text, minHeight: 300 },

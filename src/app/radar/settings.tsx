@@ -12,7 +12,7 @@ import { colors, ui, fonts } from '../../radar/theme';
 import type { DigestSettings, RadarSettings, Topic, TopicInput } from '../../radar/types';
 import { Page, usePageBottom } from '../../components/Page';
 import { useRadar } from '../../radar/useRadar';
-import { inputColors } from '../../lib/theme';
+import { glassField, inputColors } from '../../lib/theme';
 import { showAlert } from '../../lib/dialog';
 import { getKey, maskKey, setKey } from '../../lib/keys';
 import { testTmdbKey, TMDB_LISTS } from '../../radar/local/sources/tmdb';
@@ -533,7 +533,7 @@ const styles = StyleSheet.create({
   topicName: { color: colors.paper, fontSize: 16, fontFamily: fonts.sansBold, marginBottom: 2 },
   form: { padding: 16, gap: 14 },
   fieldLabel: { color: colors.muted, fontFamily: fonts.sansRegular, fontSize: 13 },
-  input: { backgroundColor: '#333232', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 13, color: colors.paper, fontFamily: fonts.sansRegular, fontSize: 15 }, // Lifelog's text field
+  input: { ...glassField, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 13, color: colors.paper, fontFamily: fonts.sansRegular, fontSize: 15 }, // Lifelog's text field
   colors: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   swatch: { width: 30, height: 30, borderRadius: 15 },
   swatchOn: { borderWidth: 3, borderColor: colors.paper },

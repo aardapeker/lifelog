@@ -25,7 +25,7 @@ import {
   type Priced,
   type Product,
 } from '../lib/groceries';
-import { colors, fonts, inputColors, radius, frost } from '../lib/theme';
+import { colors, fonts, inputColors, radius, frost, glassField } from '../lib/theme';
 import { useFirstFrame } from '../lib/perf';
 import { ShowWash } from '../components/radioParts';
 
@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
   title: { fontFamily: fonts.display, fontSize: 36, lineHeight: 42, letterSpacing: -0.5, color: colors.text },
   sub: { fontFamily: fonts.sansRegular, fontSize: 15, color: colors.muted, marginTop: 4, marginBottom: 16 },
   addRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
-  input: { flex: 1, backgroundColor: colors.raised, borderRadius: radius.pill, paddingHorizontal: 18, paddingVertical: 13, color: colors.text, fontFamily: fonts.sansRegular, fontSize: 15 },
+  input: { flex: 1, ...glassField, borderRadius: radius.pill, paddingHorizontal: 18, paddingVertical: 13, color: colors.text, fontFamily: fonts.sansRegular, fontSize: 15 },
   item: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line, paddingVertical: 12 },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   itemText: { fontFamily: fonts.sans, fontSize: 17, color: colors.text },

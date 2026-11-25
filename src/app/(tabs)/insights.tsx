@@ -41,7 +41,7 @@ import { RadarCard } from '../../components/RadarCard';
 import { StudioCard } from '../../components/StudioCard';
 import { GroceryCard } from '../../components/GroceryCard';
 import { TopBar } from '../../components/TopBar';
-import { colors, inputColors, fonts, radius, TAB_BAR_SPACE, frost } from '../../lib/theme';
+import { colors, inputColors, fonts, radius, TAB_BAR_SPACE, frost, glassField } from '../../lib/theme';
 import { showAlert } from '../../lib/dialog';
 import { useFirstFrame } from '../../lib/perf';
 import { useFocusReload } from '../../lib/focusReload';
@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: radius.sm,
-    backgroundColor: colors.raised,
+    ...glassField,
     color: colors.text,
     fontFamily: fonts.sansRegular,
     fontSize: 15,

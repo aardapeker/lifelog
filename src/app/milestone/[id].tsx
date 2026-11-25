@@ -12,7 +12,7 @@ import {
   parseMilestoneDate,
   saveMilestone,
 } from '../../lib/milestones';
-import { colors, fonts, inputColors, radius } from '../../lib/theme';
+import { colors, fonts, inputColors, radius, glassField } from '../../lib/theme';
 import { showAlert } from '../../lib/dialog';
 import { ShowWash } from '../../components/radioParts';
 
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   emojiOn: { backgroundColor: colors.raised, borderWidth: 2, borderColor: colors.text },
   label: { fontFamily: fonts.serif, fontSize: 14, color: colors.muted, marginTop: 18, marginBottom: 8 },
   input: {
-    backgroundColor: colors.surface,
+    ...glassField,
     borderRadius: radius.sm,
     paddingHorizontal: 14,
     paddingVertical: 12,

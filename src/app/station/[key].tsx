@@ -12,7 +12,7 @@ import { getSetting, setSetting } from '../../lib/db';
 import { SHOW_LENGTHS, songLangOf, songLangsFor, type SongLang } from '../../lib/radio';
 import { useRadio } from '../../lib/radioEngine';
 import { FRIEND_VOICES, LANGS, STATIONS, voicesFor } from '../../lib/stations';
-import { colors, fonts, inputColors, radius } from '../../lib/theme';
+import { colors, fonts, inputColors, radius, glassField } from '../../lib/theme';
 import { useFirstFrame } from '../../lib/perf';
 import { skinOf } from '../../lib/skins';
 
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 13,
     borderRadius: radius.sm,
-    backgroundColor: colors.raised,
+    ...glassField,
     color: colors.text,
     fontFamily: fonts.sansRegular,
     fontSize: 15,

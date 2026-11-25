@@ -10,7 +10,7 @@ import { ShowWash } from '../../components/radioParts';
 import { Chip, IconButton, InfoButton, PillButton } from '../../components/ui';
 import { useFirstFrame } from '../../lib/perf';
 import { createProject, dropIdea, LENGTHS, listIdeas, listProjects, refreshIdeas, research, type Idea, type Project } from '../../lib/studio';
-import { colors, fonts, frost, inputColors, radius } from '../../lib/theme';
+import { colors, fonts, frost, inputColors, radius, glassField } from '../../lib/theme';
 
 /** What a project is up to, for its row. */
 const STATUS: Record<Project['status'], { label: string; color: string }> = {
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   sub: { fontFamily: fonts.sansRegular, fontSize: 14, lineHeight: 20, color: colors.muted, marginBottom: 8 },
   card: { padding: 16, gap: 10 },
   label: { fontFamily: fonts.sans, fontSize: 11, letterSpacing: 1.2, color: colors.muted },
-  input: { backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', textAlignVertical: 'top', borderRadius: radius.md, paddingHorizontal: 16, paddingVertical: 12, color: colors.text, fontFamily: fonts.sansRegular, fontSize: 15 },
+  input: { ...glassField, textAlignVertical: 'top', borderRadius: radius.md, paddingHorizontal: 16, paddingVertical: 12, color: colors.text, fontFamily: fonts.sansRegular, fontSize: 15 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 18 },
   section: { fontFamily: fonts.sansBold, fontSize: 18, color: colors.text },

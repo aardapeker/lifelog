@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton, PillButton, StatusLine, type Status } from '../components/ui';
 import { restoreFromUri, setPassphrase } from '../lib/backup';
 import { clearPendingBackup, peekPendingBackup } from '../lib/share';
-import { colors, fonts, inputColors, radius, frost } from '../lib/theme';
+import { colors, fonts, inputColors, radius, frost, glassField } from '../lib/theme';
 import { showAlert } from '../lib/dialog';
 import { ShowWash } from '../components/radioParts';
 
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 13,
     borderRadius: radius.sm,
-    backgroundColor: colors.raised,
+    ...glassField,
     color: colors.text,
     fontFamily: fonts.sansRegular,
     fontSize: 15,
