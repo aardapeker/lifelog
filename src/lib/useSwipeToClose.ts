@@ -24,6 +24,8 @@ export function useSwipeToClose(close: () => void, blocked: () => boolean = () =
   const latest = useRef({ close, blocked, height });
   latest.current = { close, blocked, height };
 
+  const home = () => Animated.spring(pull, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start();
+
   const gesture = usePanGesture({
     runOnJS: true, // the page moves with an RN Animated value, set from JS
     activeOffsetY: 12, // a clear downward drag (an upward one is the scroll view's)
@@ -35,17 +37,18 @@ export function useSwipeToClose(close: () => void, blocked: () => boolean = () =
     onUpdate: (e) => {
       if (armed.current) pull.setValue(Math.max(0, e.translationY));
     },
+    // let go: far or fast enough down, away it slides; anything else (even a drag that turned into a scroll on
+    // the way back up) springs back home, so the page never stays half pulled
     onDeactivate: (e) => {
-      if (!armed.current) return;
+      const closing = armed.current && (e.translationY > 140 || e.velocityY > 1000);
       armed.current = false;
-      if (e.translationY > 140 || e.velocityY > 1000)
-        Animated.timing(pull, { toValue: latest.current.height, duration: 180, useNativeDriver: true }).start(() => latest.current.close());
-      else Animated.spring(pull, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start();
+      if (closing) Animated.timing(pull, { toValue: latest.current.height, duration: 180, useNativeDriver: true }).start(() => latest.current.close());
+      else home();
     },
     onFinalize: (e) => {
-      if (!e.canceled || !armed.current) return;
+      if (!e.canceled) return;
       armed.current = false;
-      Animated.spring(pull, { toValue: 0, useNativeDriver: true }).start();
+      home();
     },
   });
 
@@ -54,7 +57,11 @@ export function useSwipeToClose(close: () => void, blocked: () => boolean = () =
     style: { transform: [{ translateY: pull }] },
     onScroll: (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       scrollY.current = e.nativeEvent.contentOffset.y;
-      if (scrollY.current > 1) armed.current = false; // the page scrolled mid-drag: it's a scroll, not a pull
+      // the page scrolled mid-drag (dragged back up past the start): it's a scroll now, and the page goes home
+      if (scrollY.current > 1 && armed.current) {
+        armed.current = false;
+        home();
+      }
     },
     reset: () => {
       pull.setValue(0);

@@ -66,6 +66,13 @@ function BackgroundSync() {
   return null;
 }
 
+/**
+ * The pages you swipe down to close (player, playlist, a show, notifications): they slide up over the page you
+ * came from and keep it drawn underneath, so a swipe drags the sheet off it, like a music app's player (not
+ * off a blank grey screen).
+ */
+const SHEET = { animation: 'slide_from_bottom', presentation: 'transparentModal', contentStyle: { backgroundColor: 'transparent' } } as const;
+
 export default function RootLayout() {
   // only the app's own Inter before the first screen; the stations' and Bug Arena's fonts come later (lib/lateFonts)
   const [loaded] = useFonts({ Inter_400Regular, Inter_400Regular_Italic, Inter_500Medium, Inter_600SemiBold, Inter_700Bold });
@@ -147,9 +154,9 @@ export default function RootLayout() {
         <Stack.Screen name="radar/item/[id]" options={{ animation: 'fade_from_bottom' }} />
         <Stack.Screen name="arena/play" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
         <Stack.Screen name="station/[key]" />
-        <Stack.Screen name="onair" options={{ animation: 'slide_from_bottom' }} />
-        <Stack.Screen name="playlist" options={{ animation: 'slide_from_bottom' }} />
-        <Stack.Screen name="show/[id]" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="onair" options={SHEET} />
+        <Stack.Screen name="playlist" options={SHEET} />
+        <Stack.Screen name="show/[id]" options={SHEET} />
         <Stack.Screen name="goal/[id]" />
         <Stack.Screen name="person/[name]" />
         <Stack.Screen name="plan/[day]" />
@@ -160,7 +167,7 @@ export default function RootLayout() {
         <Stack.Screen name="spotify-auth" options={{ animation: 'none' }} />
         <Stack.Screen name="you" />
         <Stack.Screen name="settings/[section]" />
-        <Stack.Screen name="inbox" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="inbox" options={SHEET} />
         <Stack.Screen name="welcome" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
       </Stack>
       {/* every popup in the app (lib/dialog's showAlert) */}
