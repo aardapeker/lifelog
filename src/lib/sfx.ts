@@ -23,19 +23,8 @@ function pcm(rate: number, seconds: number, sample: (t: number, i: number) => nu
 /** Soft in and out over `edge` seconds, so nothing clicks. */
 const envelope = (t: number, len: number, edge = 0.01) => Math.min(1, t / edge, (len - t) / edge);
 
-/** A phone vibrating on a table: a rough 170 Hz hum, two bursts. */
-function buzz(rate: number): Uint8Array {
-  return pcm(rate, 1.1, (t) => {
-    const on = t < 0.4 || (t >= 0.6 && t < 1.0);
-    if (!on) return 0;
-    const local = t < 0.4 ? t : t - 0.6;
-    const s = Math.sin(2 * Math.PI * 170 * t);
-    return (Math.sign(s) * 0.6 + s * 0.4) * 0.22 * envelope(local, 0.4, 0.02);
-  });
-}
-
 /**
- * A recorded sound (sfxRecordings.ts: the phone, the doorbell, the knock, the guitar riff, the tea glass, the tesbih, Kemal's cigarette, the ceiling, the crowd, the news music), as PCM at `rate`. Decoded once each;
+ * A recorded sound (sfxRecordings.ts: the phone ringing and buzzing, the doorbell, the knock, the guitar riff, the tea glass, the tesbih, Kemal's cigarette, the ceiling, the crowd, the news music), as PCM at `rate`. Decoded once each;
  * resampled if the voices come at another rate.
  */
 const decoded: Partial<Record<keyof typeof RECORDINGS, Int16Array>> = {};
@@ -120,7 +109,7 @@ export function sfxPcm(kind: Sfx, rate: number): Uint8Array {
     case 'ring':
       return recorded('ring', rate); // an old phone's two rings (a recording)
     case 'buzz':
-      return buzz(rate);
+      return recorded('buzz', rate); // a phone buzzing on a table (a recording)
     case 'doorbell':
       return recorded('doorbell', rate); // ding dong (a recording)
     case 'knock':
