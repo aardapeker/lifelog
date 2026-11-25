@@ -89,8 +89,6 @@ async function hasLyrics(t: DzTrack): Promise<boolean> {
  */
 const STARTERS: Record<string, { artist: string; title: string }[]> = {
   neon: [
-    { artist: 'The Motion', title: 'Where Is My Mind? - Retrowave' },
-    { artist: 'Mr.Kitty', title: 'After Dark' },
     { artist: 'Casa Noir', title: 'Resonance' },
     { artist: 'Øneheart', title: 'snowfall' },
     { artist: 'VØJ', title: 'Memory Reboot' },
@@ -98,7 +96,7 @@ const STARTERS: Record<string, { artist: string; title: string }[]> = {
   ],
 };
 /** Bumped when a station's starter list changes: it replaces that station's beds once. */
-const STARTERS_VERSION = '2';
+const STARTERS_VERSION = '3'; // 3: Where Is My Mind? and After Dark dropped (Arda, Nov 2026)
 const loose = (x: string) => x.toLowerCase().normalize('NFKD').replace(/[^a-z0-9ø]+/g, '');
 
 async function findStarter(want: { artist: string; title: string }): Promise<DzTrack | null> {
