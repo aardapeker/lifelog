@@ -105,8 +105,9 @@ jobs:
       - name: Rename files
         id: apk
         run: |
-          VERSION=$(node -p "require('./app.json').expo.version")
-          BASE="lifelog-v${VERSION}-build${GITHUB_RUN_NUMBER}"
+          # app.json's major.minor + the run number, like app.config.ts: 1.0.115
+          VERSION="$(node -p "require('./app.json').expo.version").${GITHUB_RUN_NUMBER}"
+          BASE="lifelog-v${VERSION}"
           FILES=""
           if [ -f android/app/build/outputs/bundle/release/app-release.aab ]; then
             cp android/app/build/outputs/bundle/release/app-release.aab "$BASE.aab"; FILES="$FILES $BASE.aab"
@@ -121,14 +122,14 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: lifelog-build${{ github.run_number }}
-          path: lifelog-v*-build${{ github.run_number }}.*
+          path: lifelog-v*.${{ github.run_number }}.*
 
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           # every change since the previous build (its tag), one line each; the "Build: apk" markers left out
-          PREV=$(git describe --tags --abbrev=0 --match 'v*-build*' HEAD^ 2>/dev/null || true)
+          PREV=$(git describe --tags --abbrev=0 --match 'v*' HEAD^ 2>/dev/null || true)
           {
             echo "## What's new"
             echo
@@ -137,8 +138,8 @@ jobs:
             echo "Files: ${{ steps.apk.outputs.files }}"
           } > notes.md
           cat notes.md
-          gh release create "v${{ steps.apk.outputs.version }}-build${GITHUB_RUN_NUMBER}" ${{ steps.apk.outputs.files }} \
-            --title "Lifelog v${{ steps.apk.outputs.version }} (build ${GITHUB_RUN_NUMBER})" \
+          gh release create "v${{ steps.apk.outputs.version }}" ${{ steps.apk.outputs.files }} \
+            --title "Lifelog v${{ steps.apk.outputs.version }}" \
             --notes-file notes.md \
             --latest
 
@@ -152,4 +153,4 @@ jobs:
           releaseFiles: ${{ steps.apk.outputs.name }}
           track: internal
           status: completed
-          releaseName: v${{ steps.apk.outputs.version }} (build ${{ github.run_number }})
+          releaseName: v${{ steps.apk.outputs.version }}
