@@ -317,12 +317,13 @@ function useRadioEngine() {
       (async () => {
         await withTimeout(pausePlayback(), 3000);
         const uri = await withTimeout(clips.current.get(s.slots.length) ?? Promise.resolve(null), 15000);
-        if (!live.current.speaking) return;
+        if (!live.current.speaking || live.current.show !== s) return; // another show started meanwhile
         const t = uri ? playClip(uri, false, voiceVolume(s.slots.at(-1)?.facts?.gain)) : skipTalk();
         talking.current = t;
         if (uri) bedUnder(t, s.station.key); // the goodbye over the station's music bed
         await t.done;
         talkOver.add(t);
+        if (live.current.show !== s) return; // cut off by another show: its goodbye mustn't end the new one
         await bedOut();
         live.current.speaking = false;
         setSpeaking(false);
@@ -411,18 +412,21 @@ function useRadioEngine() {
         uri = await withTimeout(clip, 15000);
         setStatus({ kind: 'idle' });
       }
-      if (live.current.index !== i || !live.current.speaking) return; // skipped or paused while it was loading
+      // skipped or paused while it was loading, or another show started (same song number, other show: its
+      // talk would play over the new one's)
+      if (live.current.show !== s || live.current.index !== i || !live.current.speaking) return;
       if (!uri && !retried.current.has(i)) setStatus({ kind: 'err', msg: "⏳ This talk wasn't ready in time, so the hosts skip it. The music goes on." });
       // as loud as the song it leads into: after a loud record the voice isn't small, before a quiet one it isn't huge
       // in the silence between songs (never over one): the station's music bed under the hosts. A talk
       // over a song's ending has the song as its bed
+      talking.current?.stop(); // never two talks at once (a new show started while the old one's hosts were on)
       const t = uri ? playClip(uri, overlap, voiceVolume(s.slots[i].facts?.gain)) : skipTalk();
       talking.current = t;
       if (uri && !overlap) bedUnder(t, s.station.key);
       const finished = await t.done;
       talkOver.add(t);
       await bedOut(); // gone before the next song starts: the two never play together
-      if (finished) start();
+      if (finished && live.current.show === s) start();
     })();
   }, [stopEngine, prepare, record]);
 
@@ -913,6 +917,9 @@ function useRadioEngine() {
     setStatus({ kind: 'idle' });
     setSteps([{ key: 'tuning' }]); // the player shows "Tuning in" with dots right away
     setPhase('building');
+    // the hosts of the show that's on stop mid-sentence (and its music bed): resumed during a talk, the old
+    // talk used to go on under the new show
+    shush();
     try {
       preview.current?.stop();
       liveId.current = id;
