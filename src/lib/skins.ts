@@ -230,6 +230,25 @@ export function promptAt(lines: SpokenLine[], frac: number): number {
 /** A talk line without the voice service's tags ("<laugh>"). */
 export const plain = (text: string) => text.replace(/<[^>]+>/g, '').trim();
 
+/**
+ * A poem in a talk line, for the teleprompter to show as verse: the writer separates a poem's lines with " / "
+ * ("…minibüsünde karalamıştım... Gönül ne kahve ister ne kışlık çarşı / Gönül bir çift tatlı söze karşı...").
+ * `before`: the words up to the verse (the last sentence end before the first slash), `after`: any words after
+ * its last line. Null when there's no verse (a lone slash, or "lines" too long to be verse).
+ */
+export function verseOf(text: string): { before: string; lines: string[]; after: string } | null {
+  const parts = text.split(/\s+\/\s+/);
+  if (parts.length < 2) return null;
+  const ends = [...parts[0].matchAll(/(?:\.\.\.|…|[.!?:])["”']?\s+/g)];
+  const cut = ends.length ? ends[ends.length - 1].index! + ends[ends.length - 1][0].length : 0;
+  const lastPart = parts[parts.length - 1];
+  const tail = /(?:\.\.\.|…|[.!?])["”']?\s+(?=["“]?[A-ZÇĞİÖŞÜ])/.exec(lastPart);
+  const lastEnd = tail ? tail.index + tail[0].length : lastPart.length;
+  const lines = [parts[0].slice(cut), ...parts.slice(1, -1), lastPart.slice(0, lastEnd)].map((l) => l.trim()).filter(Boolean);
+  if (lines.length < 2 || lines.some((l) => l.length > 90)) return null;
+  return { before: parts[0].slice(0, cut).trim(), lines, after: lastPart.slice(lastEnd).trim() };
+}
+
 /** The people on the mic in this talk, in the order they first speak. */
 export const speakersOf = (lines: SpokenLine[]): string[] => [...new Set(lines.map((l) => l.speaker).filter(Boolean))];
 

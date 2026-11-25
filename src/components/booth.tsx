@@ -2,7 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import type { Show } from '../lib/radio';
-import { clock, plain, promptAt, speakersOf, tapeTimes, type Skin } from '../lib/skins';
+import { clock, plain, promptAt, speakersOf, tapeTimes, verseOf, type Skin } from '../lib/skins';
 import type { SpokenLine } from '../lib/tts';
 import Ionicons from './Icon';
 
@@ -206,7 +206,7 @@ export function Booth({
           return (
             <Text key={i} style={{ color }}>
               {showNames && <Text style={styles.who}>{l.speaker}: </Text>}
-              {plain(l.text)}
+              <Said text={plain(l.text)} />
               {i < talk.length - 1 ? '\n' : ''}
             </Text>
           );
@@ -214,6 +214,24 @@ export function Booth({
       </Text>
     </Panel>
     </Breathing>
+  );
+}
+
+/** A talk line; a poem in it (lines split by " / ") set as verse: each line on its own, indented, in italics. */
+function Said({ text }: { text: string }) {
+  const v = verseOf(text);
+  if (!v) return <>{text}</>;
+  return (
+    <>
+      {v.before}
+      {v.lines.map((l, k) => (
+        <Text key={k} style={styles.verse}>
+          {'\n\u2003'}
+          {l}
+        </Text>
+      ))}
+      {v.after ? `\n${v.after}` : ''}
+    </>
   );
 }
 
@@ -335,6 +353,7 @@ const styles = StyleSheet.create({
   tag: { fontSize: 12, marginTop: 12 },
   prompt: { marginTop: 12 },
   who: { fontFamily: 'Inter_700Bold' },
+  verse: { fontFamily: 'Inter_400Regular_Italic' },
   tape: { paddingHorizontal: 14, paddingTop: 10, paddingBottom: 14, marginTop: 18 },
   tapeTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
   tapeHead: { fontSize: 11, letterSpacing: 1 },

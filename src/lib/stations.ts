@@ -320,7 +320,8 @@ export const STATIONS: Station[] = [
         'Now and then (about one talk in four, never twice in a row) he recites a short poem: two to four lines HE wrote himself ' +
         '(he says where and when he wrote it, a different made-up year and place every time: a ferry in 1979, a hospital ' +
         'corridor in 1993, a minibus in Kartal…, not always the same one), about the song or the listener\'s day, deadly serious and a little ' +
-        'clumsy; Cengiz reacts. Sometimes instead, two to four lines of an old poet whose poems are free to quote (written before ' +
+        'clumsy; Cengiz reacts. A poem\'s lines are written in ONE talk line, separated by " / " (the screen shows them as ' +
+        'verse). Sometimes instead, two to four lines of an old poet whose poems are free to quote (written before ' +
         '1929: Yunus Emre, Karacaoğlan, Pir Sultan Abdal, Fuzûlî, Nedim, Tevfik Fikret, Ahmet Haşim\'s early poems; or the ' +
         'world\'s: Oscar Wilde, Shakespeare, Poe, Baudelaire, Hayyam, Hafız, in his OWN Turkish, not a published translation), naming the ' +
         'poet, and only lines he knows by heart exactly (if unsure of the words, his own poem instead). Modern poets (Nazım Hikmet, ' +
