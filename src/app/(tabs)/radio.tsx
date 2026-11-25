@@ -151,10 +151,10 @@ export default function RadioHome() {
                   >
                     {cover ? <Image source={{ uri: cover }} style={styles.pastCover} /> : <View style={styles.pastCover} />}
                     <View style={{ flex: 1, gap: 3 }}>
-                      <Text style={styles.pastName} numberOfLines={1}>
+                      <Text style={styles.pastName} numberOfLines={2}>
                         {showName(h.show)}
                       </Text>
-                      <Text style={styles.pastSub} numberOfLines={1}>
+                      <Text style={styles.pastSub} numberOfLines={2}>
                         <Text style={{ color: accent }}>{h.show.station.name}</Text>
                         {`, ${ago(h.savedAt)}${open ? `, song ${h.index + 1} of ${h.show.slots.length}` : ''}`}
                       </Text>

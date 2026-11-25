@@ -88,7 +88,7 @@ export default function ShowScreen() {
                 <PressScale key={`${x.track.id}${i}`} scaleTo={0.98} style={[styles.row, i > 0 && styles.divider, here && styles.rowHere]} onPress={() => startAt(i)} accessibilityLabel={`Start at ${x.track.name}`}>
                   {x.track.image ? <Image source={{ uri: x.track.image }} style={styles.thumb} /> : <View style={styles.thumb} />}
                   <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={[styles.song, open && i < h.index && { color: colors.muted }]} numberOfLines={1}>
+                    <Text style={[styles.song, open && i < h.index && { color: colors.muted }]} numberOfLines={2}>
                       {x.track.name}
                     </Text>
                     <Text style={styles.artist} numberOfLines={1}>
@@ -96,7 +96,7 @@ export default function ShowScreen() {
                       {x.track.artist}
                     </Text>
                     {said && (
-                      <Text style={styles.talk} numberOfLines={1}>
+                      <Text style={styles.talk} numberOfLines={2}>
                         <Ionicons name={x.label === 'News' ? 'newspaper-outline' : x.label === 'Commercial' ? 'megaphone-outline' : 'mic-outline'} size={12} color={skin.accent} />{' '}
                         {said.speaker}: {plain(said.text)}
                       </Text>

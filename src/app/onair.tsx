@@ -247,7 +247,7 @@ export default function OnAirScreen() {
           <>
             {/* the hosts talking: the station's half (booth, tape) on top, where your eyes are */}
             {talkFirst && <FadeIn key="talk">{booth}</FadeIn>}
-            <Text style={styles.showName} numberOfLines={1}>
+            <Text style={styles.showName} numberOfLines={2}>
               {show.station.emoji} {showName(show)}
             </Text>
             <FadeIn key={current.track.id} style={styles.coverBox}>
