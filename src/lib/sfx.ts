@@ -69,7 +69,7 @@ function thumps(rate: number, deep: boolean): Uint8Array {
 }
 
 /**
- * A recorded sound (sfxRecordings.ts: the tea glass, the tesbih, the news music), as PCM at `rate`. Decoded once each;
+ * A recorded sound (sfxRecordings.ts: the tea glass, the tesbih, Kemal's cigarette, the news music), as PCM at `rate`. Decoded once each;
  * resampled if the voices come at another rate.
  */
 const decoded: Partial<Record<keyof typeof RECORDINGS, Int16Array>> = {};
@@ -97,41 +97,6 @@ function recorded(kind: keyof typeof RECORDINGS, rate: number): Uint8Array {
 function noiseFrom(seed: number): () => number {
   let x = seed;
   return () => ((x ^= x << 13), (x ^= x >>> 17), (x ^= x << 5), ((x >>> 0) / 4294967296) * 2 - 1);
-}
-
-/**
- * Lighting one up: the lighter's wheel scratching the flint (a gritty little scrape), the flame catching (a
- * soft whoosh), then a long drag: the paper and tobacco crackling quietly as it burns. Kederli Kemal's sound.
- */
-function cigarette(rate: number): Uint8Array {
-  const rnd = noiseFrom(0x1f2e3d4c);
-  let low = 0; // a one-pole low-pass for the whoosh and the drag
-  let high = 0; // and a high-pass (the noise minus its low part) for the scrape
-  const crackles = Array.from({ length: 26 }, (_, k) => 0.75 + k * 0.05 + (((k * 7919) % 13) / 13) * 0.04); // when the paper pops
-  return pcm(rate, 2.3, (t) => {
-    const n = rnd();
-    low += (n - low) * 0.06;
-    high = n - low;
-    let v = 0;
-    // the wheel: two quick scrapes, 50 ms each, the second strikes
-    for (const at of [0, 0.12]) {
-      const local = t - at;
-      if (local >= 0 && local < 0.05) v += high * 0.9 * (0.5 + 0.5 * Math.sin(2 * Math.PI * 180 * local)) * envelope(local, 0.05, 0.005);
-    }
-    // the flame: a whoosh that swells and settles
-    const flame = t - 0.17;
-    if (flame >= 0 && flame < 0.55) v += low * 2.4 * Math.sin(Math.PI * Math.min(1, flame / 0.55)) * Math.exp(-flame * 2);
-    // the drag: a quiet breath of burning, with little pops of crackle
-    const drag = t - 0.7;
-    if (drag >= 0 && drag < 1.5) {
-      v += low * 1.1 * envelope(drag, 1.5, 0.25);
-      for (const at of crackles) {
-        const local = t - at;
-        if (local >= 0 && local < 0.012) v += n * 0.5 * Math.exp(-local * 400);
-      }
-    }
-    return v * 0.5;
-  });
 }
 
 /**
@@ -235,7 +200,7 @@ export function sfxPcm(kind: Sfx, rate: number): Uint8Array {
     case 'tesbih':
       return recorded('tesbih', rate); // beads on a string (a recording)
     case 'cigarette':
-      return cigarette(rate);
+      return recorded('cigarette', rate); // a lighter, a drag, a breath out (a recording)
     case 'riff':
       return riff(rate);
     case 'jingle':
