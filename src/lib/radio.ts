@@ -599,7 +599,7 @@ export async function buildShow(
       'short sentences. You may put <laugh> or <short pause> inside a line. ' +
       'SOUND EFFECTS: the studio has real ones, played where you put their tag at the START or the END of a line: ' +
       '<sfx:ring> (the studio phone rings, before a caller), <sfx:buzz> (a phone vibrating), <sfx:doorbell> (someone at ' +
-      'the studio door), <sfx:knock> (a knock on the door), <sfx:ceiling> (a broom banging on the ceiling from below), ' +
+      'the studio door), <sfx:knock> (someone pounding on the studio door, urgent), <sfx:ceiling> (a broom banging on the ceiling from below), ' +
       '<sfx:busy> (a caller\'s line goes dead: the busy tone), <sfx:tea> (a teaspoon stirring a tulip tea glass), <sfx:tesbih> (prayer beads clacking through ' +
       'someone\'s fingers, the kahvehane way), <sfx:cigarette> (a lighter flicks and a cigarette is lit, a long drag), ' +
       '<sfx:riff> (a short distorted electric guitar lick, played live in the studio), <sfx:laugh> (a sitcom laugh track: ' +
