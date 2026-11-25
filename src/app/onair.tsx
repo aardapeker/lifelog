@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Animated, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Image, Pressable, ScrollView, StyleSheet, Text, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BuildProgress } from '../components/BuildProgress';
 import { BlurSource, FrostedGlass, Glass, useBlurSource } from '../components/Glass';
@@ -70,6 +70,43 @@ export default function OnAirScreen() {
       : { label: 'Play it again', icon: 'refresh', onPress: () => r.replay() },
   ];
 
+  /*
+   * The page follows what's on: while the hosts talk, the booth and the tape move to the top (the script is what
+   * you want to read); once the song starts, they go back down under the lyrics. The page scrolls up at each
+   * switch, so the thing happening now is the first thing you see.
+   */
+  const talkFirst = phase === 'onair' && speaking && onMic.talk.length > 0;
+  const page = useRef<ScrollViewInstance>(null);
+  const atTop = useRef(true);
+  useEffect(() => {
+    if (!atTop.current) page.current?.scrollTo({ y: 0, animated: true });
+  }, [talkFirst]);
+  const booth =
+    show && current ? (
+      <>
+        {/* the booth: who's on the mic, the ON AIR light, the talk as a teleprompter (the pill folds it) */}
+        {talkOpen && onMic.talk.length > 0 && (
+          <Booth skin={skin} talk={onMic.talk} label={onMic.label} speaking={speaking} talkAt={r.talkAt} showNames={!!show.station.sidekick || !!show.guest || !!show.regular} />
+        )}
+        {/* the whole show as a cassette strip: tap a song to play it, a talk marker to hear it again */}
+        <ShowTape skin={skin} show={show} index={r.index} progress={progress} speaking={speaking} onJump={phase === 'onair' ? r.jumpTo : undefined} />
+      </>
+    ) : null;
+  // live lyrics: the line being sung, tap one to jump there
+  const lyrics =
+    phase === 'onair' && current ? (
+      <LyricsCard
+        track={current.track}
+        progress={progress}
+        running={!paused && !speaking}
+        paused={paused}
+        palette={palette}
+        skin={skin}
+        onSeek={r.seek}
+        onTogglePause={r.togglePause}
+      />
+    ) : null;
+
   return (
     <Animated.View style={[styles.screen, swipe.style]} {...swipe.panHandlers}>
       {/* the page is what the top bar blurs once you scroll (the bar sits outside it, never inside) */}
@@ -92,11 +129,13 @@ export default function OnAirScreen() {
       />
 
       <ScrollView
+        ref={page}
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 74, paddingBottom: insets.bottom + 40 }]}
         scrollEnabled={!dragging}
         onScroll={(e) => {
           swipe.onScroll(e);
           setScrolled(e.nativeEvent.contentOffset.y > 12);
+          atTop.current = e.nativeEvent.contentOffset.y < 4;
         }}
         scrollEventThrottle={32}
       >
@@ -206,6 +245,8 @@ export default function OnAirScreen() {
 
         {(phase === 'onair' || phase === 'done') && show && current && (
           <>
+            {/* the hosts talking: the station's half (booth, tape) on top, where your eyes are */}
+            {talkFirst && <FadeIn key="talk">{booth}</FadeIn>}
             <Text style={styles.showName} numberOfLines={1}>
               {show.station.emoji} {showName(show)}
             </Text>
@@ -291,27 +332,11 @@ export default function OnAirScreen() {
               <Tap icon="ellipsis-horizontal" label="More" onPress={more} small />
             </View>
 
-            {/* the booth: who's on the mic, the ON AIR light, the talk as a teleprompter (the pill folds it) */}
-            {talkOpen && onMic.talk.length > 0 && (
-              <Booth skin={skin} talk={onMic.talk} label={onMic.label} speaking={speaking} talkAt={r.talkAt} showNames={!!show.station.sidekick || !!show.guest || !!show.regular} />
-            )}
+            {/* the song playing: its lyrics right under the player, the booth and the tape after them */}
+            {!talkFirst && lyrics}
+            {!talkFirst && booth}
 
-            {/* the whole show as a cassette strip: tap a song to play it, a talk marker to hear it again */}
-            <ShowTape skin={skin} show={show} index={r.index} progress={progress} speaking={speaking} onJump={phase === 'onair' ? r.jumpTo : undefined} />
-
-            {/* live lyrics: the line being sung, tap one to jump there */}
-            {phase === 'onair' && (
-              <LyricsCard
-                track={current.track}
-                progress={progress}
-                running={!paused && !speaking}
-                paused={paused}
-                palette={palette}
-                skin={skin}
-                onSeek={r.seek}
-                onTogglePause={r.togglePause}
-              />
-            )}
+            {talkFirst && lyrics /* still there while they talk (an intro over the song), just lower down */}
 
             {/* credits and the artist's card, folded until opened */}
             <SongAbout track={current.track} />
