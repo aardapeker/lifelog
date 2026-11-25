@@ -45,7 +45,10 @@ export default function OnAirScreen() {
   const goodbye = !!show && r.index >= show.slots.length;
   const onMic = goodbye && show ? { talk: show.outro, label: 'Goodbye' } : { talk: current?.talk ?? [], label: current?.label ?? null };
   // the station's look on the booth, the tape and the progress line (Cinzel, Monoton… load a moment after the start)
-  const skin = skinOf((show ?? { station }).station.key);
+  // the station on screen: the show's while it's on (or just ended), the one being prepared otherwise. The last
+  // show stays loaded while a new one is written, and its name used to sit in the top bar ("Your Friend" over Neon's)
+  const onScreen = (phase === 'onair' || phase === 'done') && show ? show.station : station;
+  const skin = skinOf(onScreen.key);
   useLateFonts();
 
   useEffect(() => {
@@ -387,7 +390,7 @@ export default function OnAirScreen() {
             <Text style={styles.barSmall}>{phase === 'onair' ? 'ON AIR' : phase === 'done' ? 'THAT WAS' : 'PREPARING'}</Text>
           </View>
           <Text style={styles.barTitle} numberOfLines={1}>
-            {(show ?? { station }).station.name} {(show ?? { station }).station.freq}
+            {onScreen.name} {onScreen.freq}
           </Text>
         </View>
         {show && (phase === 'onair' || phase === 'done') ? (
