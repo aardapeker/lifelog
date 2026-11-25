@@ -1,5 +1,5 @@
 import { busyTone, splitBeeps } from './phoneLine';
-import { TEA_PCM_BASE64, TEA_RATE } from './sfxTea';
+import { RECORDED_RATE, RECORDINGS } from './sfxRecordings';
 
 /*
  * The radio's sound effects, made on the phone (no files, no downloads): the studio phone ringing, a phone
@@ -69,26 +69,27 @@ function thumps(rate: number, deep: boolean): Uint8Array {
 }
 
 /**
- * A teaspoon stirring a tea glass: a real recording this time (sfxTea.ts says where it's from), because no
- * synthesised stir ever sounded like çay. Decoded once; resampled if the voices come at another rate.
+ * A recorded sound (sfxRecordings.ts: the tea glass, the news music), as PCM at `rate`. Decoded once each;
+ * resampled if the voices come at another rate.
  */
-let teaPcm: Int16Array | null = null;
-function tea(rate: number): Uint8Array {
-  if (!teaPcm) {
-    const bin = atob(TEA_PCM_BASE64);
+const decoded: Partial<Record<keyof typeof RECORDINGS, Int16Array>> = {};
+function recorded(kind: keyof typeof RECORDINGS, rate: number): Uint8Array {
+  let src = decoded[kind];
+  if (!src) {
+    const bin = atob(RECORDINGS[kind]);
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    teaPcm = new Int16Array(bytes.buffer);
+    src = decoded[kind] = new Int16Array(bytes.buffer);
   }
-  const src = teaPcm;
-  if (rate === TEA_RATE) return new Uint8Array(src.buffer.slice(0));
-  const ratio = TEA_RATE / rate;
-  return pcm(rate, src.length / TEA_RATE, (_t, i) => {
+  if (rate === RECORDED_RATE) return new Uint8Array(src.buffer.slice(0));
+  const from = src;
+  const ratio = RECORDED_RATE / rate;
+  return pcm(rate, from.length / RECORDED_RATE, (_t, i) => {
     const at = i * ratio;
     const k = Math.floor(at);
-    const a = src[Math.min(k, src.length - 1)];
-    const b2 = src[Math.min(k + 1, src.length - 1)];
-    return (a + (b2 - a) * (at - k)) / 32767;
+    const a = from[Math.min(k, from.length - 1)];
+    const b = from[Math.min(k + 1, from.length - 1)];
+    return (a + (b - a) * (at - k)) / 32767;
   });
 }
 
@@ -239,47 +240,6 @@ function jingle(rate: number): Uint8Array {
   });
 }
 
-/**
- * The news sting: the parody bulletin's fanfare. Two short brass stabs on G, then the band lands on a big C chord
- * that swells and rings out, with a bass note, a kick on each hit and a clap on the landing ("ta-ta, TAAA!"). The
- * brass is a bright, buzzy tone whose top fades as it holds (a filter closing), with a little vibrato on the long
- * chord. Original, under two seconds.
- */
-function news(rate: number): Uint8Array {
-  const G3 = 196, C4 = 261.63;
-  const third = 1.2599, fifth = 1.4983;
-  // [when, root, how long, loud]: stab, stab, the landing
-  const hits: [number, number, number, number][] = [
-    [0.0, G3, 0.14, 0.85],
-    [0.19, G3, 0.14, 0.85],
-    [0.4, C4, 1.25, 1],
-  ];
-  // one brass voice: harmonics 1/n (a saw, but only up to 9: no fizz), the higher ones fading first
-  const brass = (t: number, f: number, len: number, vib: boolean) => {
-    const wobble = vib && t > 0.35 ? 1 + 0.006 * Math.sin(2 * Math.PI * 5.5 * t) : 1;
-    let v = 0;
-    for (let n = 1; n <= 9; n++) v += (Math.sin(2 * Math.PI * f * wobble * n * t) / n) * Math.exp(-t * n * (len > 0.5 ? 0.55 : 2.2));
-    return v * envelope(t, len, 0.012) * (len > 0.5 ? Math.exp(-Math.max(0, t - 0.5) * 1.6) : 1);
-  };
-  const chord = (t: number, f: number, len: number, vib: boolean) => brass(t, f, len, vib) + brass(t, f * third, len, vib) * 0.8 + brass(t, f * fifth, len, vib) * 0.8 + brass(t, f * 2, len, vib) * 0.5;
-  const kick = (t: number) => Math.sin(2 * Math.PI * (48 * t + (90 / 28) * (1 - Math.exp(-t * 28)))) * Math.exp(-t * 11);
-  const rnd = noiseFrom(0x6a09e667); // the same clap every time
-  return pcm(rate, 1.75, (t) => {
-    let v = 0;
-    for (const [at, f, len, loud] of hits) {
-      const local = t - at;
-      if (local < 0 || local > len) continue;
-      v += chord(local, f, len, len > 0.5) * 0.11 * loud;
-      v += Math.sin(2 * Math.PI * (f / 4) * local) * 0.22 * envelope(local, len, 0.01) * Math.exp(-local * 2); // the bass
-    }
-    for (const [at] of hits) if (t >= at && t < at + 0.35) v += kick(t - at) * 0.35;
-    const clap = t - 0.4;
-    const noise = rnd() * 2 - 1;
-    if (clap >= 0 && clap < 0.2) v += noise * 0.22 * Math.exp(-clap * 22);
-    return v * 0.8; // headroom: the landing's chord, bass, kick and clap together don't clip
-  });
-}
-
 /** The sound, as 16-bit mono PCM at `rate`. */
 export function sfxPcm(kind: Sfx, rate: number): Uint8Array {
   switch (kind) {
@@ -296,7 +256,7 @@ export function sfxPcm(kind: Sfx, rate: number): Uint8Array {
     case 'busy':
       return busyTone(rate);
     case 'tea':
-      return tea(rate);
+      return recorded('tea', rate); // a spoon in a tea glass (a recording)
     case 'tesbih':
       return tesbih(rate);
     case 'cigarette':
@@ -306,7 +266,7 @@ export function sfxPcm(kind: Sfx, rate: number): Uint8Array {
     case 'jingle':
       return jingle(rate);
     case 'news':
-      return news(rate);
+      return recorded('news', rate); // the news music's opening (a recording)
   }
 }
 
