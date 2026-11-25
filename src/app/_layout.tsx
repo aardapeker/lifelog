@@ -146,6 +146,7 @@ export default function RootLayout() {
         <Stack.Screen name="station/[key]" />
         <Stack.Screen name="onair" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="playlist" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="show/[id]" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="goal/[id]" />
         <Stack.Screen name="person/[name]" />
         <Stack.Screen name="plan/[day]" />

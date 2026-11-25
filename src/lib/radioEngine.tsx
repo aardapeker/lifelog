@@ -54,8 +54,13 @@ export type PastShow = { id: string; show: Show; index: number; savedAt: number;
 export function trimHistory(all: PastShow[], days: number): { list: PastShow[]; voiced: string[] } {
   let others = 0;
   const list = all.filter((h) => h.kept || (Date.now() - h.savedAt < days * DAY_MS && ++others <= keepMax(days)));
+  return { list, voiced: voicedIds(list) };
+}
+
+/** The shows that keep their voices: the saved ones, and the newest few (they replay without the daily voice quota). */
+export function voicedIds(list: PastShow[]): string[] {
   const recent = list.filter((h) => !h.kept).slice(0, VOICED_SHOWS);
-  return { list, voiced: list.filter((h) => h.kept || recent.includes(h)).map((h) => h.id) };
+  return list.filter((h) => h.kept || recent.includes(h)).map((h) => h.id);
 }
 
 /*

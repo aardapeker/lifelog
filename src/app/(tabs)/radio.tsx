@@ -1,12 +1,12 @@
 import Ionicons from '../../components/Icon';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurSource, GlassArea, useBlurSource, useTabBlurSource } from '../../components/Glass';
 import { bigTitleMotion, CollapsingHeader, useCollapsingHeader } from '../../components/CollapsingHeader';
 import { FadeIn, Pulse, PressScale, stagger } from '../../components/motion';
-import { ago, showName, ShowWash } from '../../components/radioParts';
+import { ago, showName, ShowWash, useResumeShow } from '../../components/radioParts';
 import { StationArt } from '../../components/StationArt';
 import { TuningDial } from '../../components/TuningDial';
 import { Chip } from '../../components/ui';
@@ -29,23 +29,14 @@ export default function RadioHome() {
   useTabBlurSource(blur);
   const { y, onScroll } = useCollapsingHeader(); // like Life: the big title scrolls away into a slim glass bar
   const [tab, setTab] = useState<'stations' | 'recent' | 'saved'>('stations');
-  const { history, loadHistory, playPast, forgetShow, keepShow, phase, show, current, paused, togglePause, skip } = useRadio();
+  const { history, loadHistory, forgetShow, keepShow, phase, show, current, paused, togglePause, skip } = useRadio();
   const saved = history.filter((h) => h.kept); // 🔖 kept for good
   // each station's last show, for the line under its tile ("Last show 2 h ago")
   const lastOf = (key: string) => history.filter((h) => h.show.station.key === key).reduce<number | null>((a, h) => Math.max(a ?? 0, h.savedAt), null);
   useFocusEffect(useCallback(() => { loadHistory(); }, [loadHistory])); // Settings may have changed how long shows are kept
 
   const live = phase === 'building' || phase === 'review' || phase === 'onair';
-  // the player opens at once with "Tuning in…"; extra taps while it's on its way are ignored
-  // (they used to stack the player several times, and start the show again each time)
-  const opening = useRef(false);
-  const resume = (id: string, fromStart: boolean) => {
-    if (opening.current) return;
-    opening.current = true;
-    setTimeout(() => (opening.current = false), 1500);
-    router.navigate('/onair');
-    playPast(id, fromStart);
-  };
+  const resume = useResumeShow();
 
   return (
     <View style={styles.screen}>
@@ -148,14 +139,15 @@ export default function RadioHome() {
                 const cover = h.show.slots[Math.min(h.index, h.show.slots.length - 1)]?.track.image;
                 const heard = open ? h.index / Math.max(1, h.show.slots.length) : 1;
                 const accent = skinOf(h.show.station.key).accent;
-                // a slim row: tap it to carry on (or play it again); ↺ starts over; the bar shows how far you got
+                // a slim row: tap it for the show's page (its songs, resume or play again); ▶ carries on straight away
+                // (or plays it again); the bar shows how far you got
                 return (
                   <PressScale
                     key={h.id}
                     style={styles.past}
                     scaleTo={0.98}
-                    onPress={() => resume(h.id, !open)}
-                    accessibilityLabel={`${open ? 'Resume' : 'Play again'}: ${showName(h.show)}`}
+                    onPress={() => router.push({ pathname: '/show/[id]', params: { id: h.id } })}
+                    accessibilityLabel={`${showName(h.show)}: its songs, resume or play again`}
                   >
                     {cover ? <Image source={{ uri: cover }} style={styles.pastCover} /> : <View style={styles.pastCover} />}
                     <View style={{ flex: 1, gap: 3 }}>
@@ -171,11 +163,9 @@ export default function RadioHome() {
                       </View>
                     </View>
                     <View style={styles.pastIcons}>
-                      {open && (
-                        <Pressable onPress={() => resume(h.id, true)} hitSlop={8} accessibilityLabel="Play from the start">
-                          <Ionicons name="refresh" size={18} color={colors.muted} />
-                        </Pressable>
-                      )}
+                      <Pressable onPress={() => resume(h.id, !open)} hitSlop={8} accessibilityLabel={open ? 'Resume' : 'Play again'}>
+                        <Ionicons name={open ? 'play' : 'refresh'} size={18} color={colors.text} />
+                      </Pressable>
                       <Pressable onPress={() => keepShow(h.id, !h.kept)} hitSlop={8} accessibilityLabel={h.kept ? 'Unsave show' : 'Save show'}>
                         <Ionicons name={h.kept ? 'bookmark' : 'bookmark-outline'} size={18} color={h.kept ? colors.text : colors.muted} />
                       </Pressable>

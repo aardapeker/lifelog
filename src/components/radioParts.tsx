@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, Easing, Image, StyleSheet, View } from 'react-native';
 import { FadeIn, PressScale } from './motion';
 import { useBackdrop } from '../lib/backdrop';
-import { useRadioDock } from '../lib/radioEngine';
+import { useRadio, useRadioDock } from '../lib/radioEngine';
+import { router } from 'expo-router';
 import { colors, radius } from '../lib/theme';
 import { showAlert } from '../lib/dialog';
 
@@ -196,3 +197,20 @@ const cloud = StyleSheet.create({
   wrap: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: WASH_BASE },
   center: { position: 'absolute' },
 });
+
+/**
+ * Plays a show from Recent shows: the player opens at once with "Tuning in…", then the show starts.
+ * Extra taps while it's on its way are ignored (they used to stack the player and start the show again each time).
+ * `from`: start at that song, with its talk.
+ */
+export function useResumeShow() {
+  const { playPast } = useRadio();
+  const opening = useRef(false);
+  return (id: string, fromStart: boolean, from?: number) => {
+    if (opening.current) return;
+    opening.current = true;
+    setTimeout(() => (opening.current = false), 1500);
+    router.navigate('/onair');
+    playPast(id, fromStart, from);
+  };
+}
