@@ -91,8 +91,8 @@ export default function ShowScreen() {
                     <Text style={[styles.song, open && i < h.index && { color: colors.muted }]} numberOfLines={2}>
                       {x.track.name}
                     </Text>
-                    <Text style={styles.artist} numberOfLines={1}>
-                      {here ? '⏸ You stopped here · ' : ''}
+                    <Text style={styles.artist} numberOfLines={2}>
+                      {here && <Text style={{ color: skin.accent }}>You stopped here · </Text>}
                       {x.track.artist}
                     </Text>
                     {said && (
