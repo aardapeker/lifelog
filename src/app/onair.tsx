@@ -290,7 +290,17 @@ export default function OnAirScreen() {
                   <View style={styles.controls}>
                     <Ban name={current.track.name} onBan={() => r.ban(current.track)} size={22} />
                     <Tap icon="play-back" label="Previous" onPress={r.previous} />
-                    <PressScale onPress={r.togglePause} scaleTo={0.9} style={styles.play} accessibilityLabel={paused ? 'Play' : 'Pause'}>
+                    <PressScale
+                      onPress={r.togglePause}
+                      scaleTo={0.9}
+                      // the big button wears the station's line: its colour as the edge, a tint inside, glowing while it plays
+                      style={[
+                        styles.play,
+                        { borderColor: skin.accent, backgroundColor: `${skin.accent}2E`, borderRadius: Math.min(27, skin.radius * 2.7) },
+                        !paused && { boxShadow: `0 0 18px ${skin.glow ?? skin.accent}77` },
+                      ]}
+                      accessibilityLabel={paused ? 'Play' : 'Pause'}
+                    >
                       <Ionicons name={paused ? 'play' : 'pause'} size={26} color={colors.text} />
                     </PressScale>
                     <Tap icon="play-forward" label="Next song" onPress={r.skip} />
@@ -412,12 +422,9 @@ const styles = StyleSheet.create({
   play: {
     width: 76,
     height: 54,
-    borderRadius: 27,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
+    borderWidth: 1.5,
   },
   under: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16, paddingHorizontal: 6 },
   pill: { flex: 1, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1 },
