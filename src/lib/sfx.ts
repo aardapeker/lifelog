@@ -69,7 +69,7 @@ function thumps(rate: number, deep: boolean): Uint8Array {
 }
 
 /**
- * A recorded sound (sfxRecordings.ts: the tea glass, the news music), as PCM at `rate`. Decoded once each;
+ * A recorded sound (sfxRecordings.ts: the tea glass, the tesbih, the news music), as PCM at `rate`. Decoded once each;
  * resampled if the voices come at another rate.
  */
 const decoded: Partial<Record<keyof typeof RECORDINGS, Int16Array>> = {};
@@ -90,31 +90,6 @@ function recorded(kind: keyof typeof RECORDINGS, rate: number): Uint8Array {
     const a = from[Math.min(k, from.length - 1)];
     const b = from[Math.min(k + 1, from.length - 1)];
     return (a + (b - a) * (at - k)) / 32767;
-  });
-}
-
-/**
- * A tesbih between the fingers, the kahvehane way: beads dropping one by one onto the others with a dry little
- * clack (stone or amber: a short knock with a woody ring around 1.8–3.4 kHz), steady, then a quick run of
- * three as the thumb flicks them, and the tassel end. Kederli Kemal's sound.
- */
-function tesbih(rate: number): Uint8Array {
-  const clacks: [number, number][] = [
-    [0.0, 0.8], [0.34, 0.7], [0.66, 0.85], [0.98, 0.65], [1.3, 0.8], [1.5, 0.55], [1.58, 0.6], [1.66, 0.7], [2.0, 0.75], [2.33, 0.9],
-  ];
-  const partials: [number, number][] = [[1850, 1], [2620, 0.6], [3380, 0.35]];
-  const rnd = noiseFrom(0x2545f491); // the same tesbih every time
-  return pcm(rate, 2.6, (t) => {
-    let v = 0;
-    for (const [at, hard] of clacks) {
-      const local = t - at;
-      if (local < 0 || local > 0.09) continue;
-      const tune = 1 + ((at * 5.1) % 1 - 0.5) * 0.06; // no two beads quite alike
-      const body = partials.reduce((sum, [f, a]) => sum + Math.sin(2 * Math.PI * f * tune * local) * a, 0) * Math.exp(-local * 70);
-      const click = rnd() * Math.exp(-local * 600) * 0.6; // the hard tick of bead on bead
-      v += (body + click) * hard;
-    }
-    return v * 0.2;
   });
 }
 
@@ -258,7 +233,7 @@ export function sfxPcm(kind: Sfx, rate: number): Uint8Array {
     case 'tea':
       return recorded('tea', rate); // a spoon in a tea glass (a recording)
     case 'tesbih':
-      return tesbih(rate);
+      return recorded('tesbih', rate); // beads on a string (a recording)
     case 'cigarette':
       return cigarette(rate);
     case 'riff':
