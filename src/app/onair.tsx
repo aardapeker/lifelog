@@ -274,10 +274,10 @@ export default function OnAirScreen() {
               <View style={styles.titleRow}>
                 {current.track.image && <Image source={{ uri: current.track.image }} style={styles.thumb} />}
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.trackName} numberOfLines={1}>
+                  <Text style={styles.trackName} numberOfLines={2}>
                     {current.track.name}
                   </Text>
-                  <Text style={styles.trackArtist} numberOfLines={1}>
+                  <Text style={styles.trackArtist} numberOfLines={2}>
                     {current.track.artist}
                   </Text>
                 </View>
