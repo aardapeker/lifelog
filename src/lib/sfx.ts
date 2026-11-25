@@ -207,24 +207,43 @@ function riff(rate: number): Uint8Array {
 }
 
 /**
- * The ad break's jingle: a bright little run up a major chord on a bell-like electric piano (C, E, G, C) and a
- * held chord to land on, the "and now a word from our sponsors" sting. Original, under two seconds.
+ * The ad break's jingle: a TV-commercial sting, not a phone's chime. Two short brass stabs on G, then the band lands
+ * on a big C chord that swells and rings out, with a bass note, a kick on each hit and a clap on the landing
+ * ("ta-ta, TAAA!"). The brass is a bright, buzzy tone whose top fades as it holds (a filter closing), with a little
+ * vibrato on the long chord. Original, under two seconds.
  */
 function jingle(rate: number): Uint8Array {
-  const C5 = 523.25;
-  const notes: [number, number, number][] = [
-    // [when, frequency, how long it rings]
-    [0.0, C5, 0.5], [0.14, C5 * 1.26, 0.5], [0.28, C5 * 1.498, 0.5], [0.42, C5 * 2, 0.6],
-    [0.7, C5, 1.1], [0.7, C5 * 1.26, 1.1], [0.7, C5 * 1.498, 1.1], [0.7, C5 * 2, 1.1],
+  const G3 = 196, C4 = 261.63;
+  const third = 1.2599, fifth = 1.4983;
+  // [when, root, how long, loud]: stab, stab, the landing
+  const hits: [number, number, number, number][] = [
+    [0.0, G3, 0.14, 0.85],
+    [0.19, G3, 0.14, 0.85],
+    [0.4, C4, 1.25, 1],
   ];
-  // an electric piano's bell: the note, a bright overtone that fades fast, and a little shimmer
-  const tine = (t: number, f: number, len: number) =>
-    (Math.sin(2 * Math.PI * f * t) + 0.45 * Math.sin(2 * Math.PI * f * 3.5 * t) * Math.exp(-t * 9) + 0.18 * Math.sin(2 * Math.PI * f * 2 * t)) *
-    Math.exp(-t * (3.2 / len)) * envelope(t, len, 0.004);
-  return pcm(rate, 1.9, (t) => {
+  // one brass voice: harmonics 1/n (a saw, but only up to 9: no fizz), the higher ones fading first
+  const brass = (t: number, f: number, len: number, vib: boolean) => {
+    const wobble = vib && t > 0.35 ? 1 + 0.006 * Math.sin(2 * Math.PI * 5.5 * t) : 1;
     let v = 0;
-    for (const [at, f, len] of notes) if (t >= at && t < at + len) v += tine(t - at, f, len);
-    return v * 0.14;
+    for (let n = 1; n <= 9; n++) v += (Math.sin(2 * Math.PI * f * wobble * n * t) / n) * Math.exp(-t * n * (len > 0.5 ? 0.55 : 2.2));
+    return v * envelope(t, len, 0.012) * (len > 0.5 ? Math.exp(-Math.max(0, t - 0.5) * 1.6) : 1);
+  };
+  const chord = (t: number, f: number, len: number, vib: boolean) => brass(t, f, len, vib) + brass(t, f * third, len, vib) * 0.8 + brass(t, f * fifth, len, vib) * 0.8 + brass(t, f * 2, len, vib) * 0.5;
+  const kick = (t: number) => Math.sin(2 * Math.PI * (48 * t + (90 / 28) * (1 - Math.exp(-t * 28)))) * Math.exp(-t * 11);
+  const rnd = noiseFrom(0x6a09e667); // the same clap every time
+  return pcm(rate, 1.75, (t) => {
+    let v = 0;
+    for (const [at, f, len, loud] of hits) {
+      const local = t - at;
+      if (local < 0 || local > len) continue;
+      v += chord(local, f, len, len > 0.5) * 0.11 * loud;
+      v += Math.sin(2 * Math.PI * (f / 4) * local) * 0.22 * envelope(local, len, 0.01) * Math.exp(-local * 2); // the bass
+    }
+    for (const [at] of hits) if (t >= at && t < at + 0.35) v += kick(t - at) * 0.35;
+    const clap = t - 0.4;
+    const noise = rnd() * 2 - 1;
+    if (clap >= 0 && clap < 0.2) v += noise * 0.22 * Math.exp(-clap * 22);
+    return v * 0.8; // headroom: the landing's chord, bass, kick and clap together don't clip
   });
 }
 
