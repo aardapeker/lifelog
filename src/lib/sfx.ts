@@ -35,7 +35,7 @@ function buzz(rate: number): Uint8Array {
 }
 
 /**
- * A recorded sound (sfxRecordings.ts: the phone, the doorbell, the knock, the tea glass, the tesbih, Kemal's cigarette, the ceiling, the crowd, the news music), as PCM at `rate`. Decoded once each;
+ * A recorded sound (sfxRecordings.ts: the phone, the doorbell, the knock, the guitar riff, the tea glass, the tesbih, Kemal's cigarette, the ceiling, the crowd, the news music), as PCM at `rate`. Decoded once each;
  * resampled if the voices come at another rate.
  */
 const decoded: Partial<Record<keyof typeof RECORDINGS, Int16Array>> = {};
@@ -83,39 +83,7 @@ function pluck(rate: number, freq: number, seconds: number, damp: number, rnd: (
 }
 
 /**
- * Riff's guitar: a short, original rock lick on a distorted electric (power chords: root, fifth, octave).
- * Three palm-muted chugs on E, a jump up to G and A, then a big open E5 left ringing. Gebze Rock's sound.
- */
-function riff(rate: number): Uint8Array {
-  const rnd = noiseFrom(0x5eed5);
-  const total = Math.round(rate * 2.4);
-  const mix = new Float32Array(total);
-  const E2 = 82.41;
-  const chord = (at: number, root: number, seconds: number, muted: boolean) => {
-    for (const [ratio, gain] of [[1, 1], [1.5, 0.8], [2, 0.6]] as const) {
-      const s = pluck(rate, root * ratio, seconds, muted ? 0.985 : 1, rnd);
-      const from = Math.round(rate * at);
-      for (let i = 0; i < s.length && from + i < total; i++) mix[from + i] += s[i] * gain * envelope(i / rate, seconds, 0.004);
-    }
-  };
-  // chug chug chug, G5, A5, then E5 rings out
-  chord(0.0, E2, 0.16, true);
-  chord(0.2, E2, 0.16, true);
-  chord(0.4, E2, 0.16, true);
-  chord(0.62, E2 * 1.189, 0.28, false); // G
-  chord(0.95, E2 * 1.335, 0.28, false); // A
-  chord(1.3, E2, 1.1, false);
-  // the amp: drive it into soft clipping, then take the fizz off the top
-  let low = 0;
-  return pcm(rate, 2.4, (_t, i) => {
-    const driven = Math.tanh(mix[i] * 6);
-    low += (driven - low) * 0.35;
-    return low * 0.3;
-  });
-}
-
-/**
- * The ad break's jingle: a cheesy, happy TV-ad tune on a plucked ukulele-ish string (the riff's Karplus–Strong
+ * The ad break's jingle: a cheesy, happy TV-ad tune on a plucked ukulele-ish string (a Karplus–Strong
  * string, high and bright), "ba-da-ba-ba-BAAA" up a major chord to a high note that rings, a bass pluck under the
  * first and last notes and a clap on the off-beats. Bouncy and silly, so it says "advert" (a phone's bell-like
  * chime said "new message"). Original, under two seconds.
@@ -168,7 +136,7 @@ export function sfxPcm(kind: Sfx, rate: number): Uint8Array {
     case 'cigarette':
       return recorded('cigarette', rate); // a lighter, a drag, a breath out (a recording)
     case 'riff':
-      return riff(rate);
+      return recorded('riff', rate); // Riff's electric guitar (a recording)
     case 'jingle':
       return jingle(rate);
     case 'news':
