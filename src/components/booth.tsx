@@ -15,7 +15,7 @@ import Ionicons from './Icon';
  * Flat views and one meter animation (only while someone talks): light on the phone.
  */
 
-/** A panel in the skin: its colour, border, corners, and neon's glow / rock's hard shadow / the CRT's lines. */
+/** A panel in the skin: its colour, border, corners, and the glow (neon, the CRT, rock's stage lights) / the CRT's lines. */
 export function Panel({ skin, style, children }: { skin: Skin; style?: StyleProp<ViewStyle>; children: ReactNode }) {
   return (
     <View
@@ -23,12 +23,11 @@ export function Panel({ skin, style, children }: { skin: Skin; style?: StyleProp
         {
           backgroundColor: skin.panel,
           borderColor: skin.border,
-          borderWidth: skin.hard ? 2 : 1,
+          borderWidth: 1,
           borderRadius: skin.radius,
           overflow: 'hidden',
         },
         skin.glow ? { boxShadow: `0 0 16px ${skin.glow}66` } : null,
-        skin.hard ? { boxShadow: '6px 6px 0px #000000', overflow: 'visible' } : null,
         style,
       ]}
     >

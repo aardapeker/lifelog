@@ -91,7 +91,7 @@ function Thumb({ skin, size, left }: { skin: Skin; size: number; left: number })
           : { width: size, height: size, borderRadius: size / 2 };
   return (
     <View pointerEvents="none" style={box}>
-      <View style={[shape, { backgroundColor: skin.marker === 'dot' ? skin.text : skin.second }, skin.glow ? { boxShadow: `0 0 8px ${skin.second}` } : null, skin.hard ? { borderWidth: 2, borderColor: '#111' } : null]} />
+      <View style={[shape, { backgroundColor: skin.marker === 'dot' ? skin.text : skin.second }, skin.glow ? { boxShadow: `0 0 8px ${skin.second}` } : null]} />
     </View>
   );
 }

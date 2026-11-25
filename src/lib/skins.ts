@@ -40,8 +40,6 @@ export type Skin = {
   radius: number;
   /** neon: things glow (a coloured shadow) */
   glow?: string;
-  /** rock: a hard black offset shadow, like a sticker on a flight case */
-  hard?: boolean;
   /** night shift: a CRT's scan lines over the panels */
   scan?: boolean;
   /** the station page's background, behind the show's options (components/StationBackdrop) */
@@ -138,7 +136,7 @@ export const SKINS: Record<string, Skin> = {
     air: '#39FF88',
     onAccent: '#021208',
     second: '#B8FFD4',
-    panel: 'rgba(2, 16, 8, 0.86)',
+    panel: 'rgba(2, 16, 8, 0.78)',
     border: 'rgba(57, 255, 136, 0.45)',
     text: '#B8FFD4',
     said: 'rgba(122, 230, 165, 0.8)',
@@ -164,8 +162,8 @@ export const SKINS: Record<string, Skin> = {
     air: '#D7261E',
     onAccent: '#111111',
     second: '#D7261E',
-    panel: '#2A2825',
-    border: '#EFE9DF',
+    panel: 'rgba(22, 20, 17, 0.74)',
+    border: 'rgba(242, 194, 48, 0.7)',
     text: '#EFE9DF',
     said: '#BDB5A6',
     next: '#9A9486',
@@ -175,10 +173,10 @@ export const SKINS: Record<string, Skin> = {
     promptFont: 'Inter_600SemiBold',
     promptSize: 15,
     radius: 0,
-    hard: true,
+    glow: '#F2C230',
     marker: 'square',
-    played: '#BDB5A6',
-    todo: '#3A3732',
+    played: 'rgba(239, 233, 223, 0.7)',
+    todo: 'rgba(239, 233, 223, 0.16)',
     lineHeight: 6,
     round: false,
     tape: 'Set list',
@@ -189,8 +187,8 @@ export const SKINS: Record<string, Skin> = {
     air: '#D9573B',
     onAccent: '#FFFAF2',
     second: '#3B2F2A',
-    panel: '#FFFAF2',
-    border: '#E3D6C4',
+    panel: 'rgba(255, 250, 242, 0.8)',
+    border: 'rgba(201, 106, 74, 0.45)',
     text: '#3B2F2A',
     said: '#6E5D52',
     next: '#7E6B5E',
@@ -202,7 +200,7 @@ export const SKINS: Record<string, Skin> = {
     radius: 20,
     marker: 'paw',
     played: '#D9B99A',
-    todo: '#EFE3D2',
+    todo: 'rgba(201, 106, 74, 0.16)',
     lineHeight: 6,
     round: true,
     tape: "Today's show",
